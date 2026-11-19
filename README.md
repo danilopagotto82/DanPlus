@@ -35,3 +35,5 @@ Nunca inclua credenciais, arquivos de assinatura ou local.properties em commits.
 ## Créditos e licença
 
 Este fork respeita as licenças e atribuições das bases Nuvio Original e Nuvio ARC, além das dependências de terceiros. Consulte [LICENSE](LICENSE), os arquivos de atribuição e as licenças incluídas no código.
+## Planejamento de melhorias
+O [GEMINI.md](GEMINI.md) e o [índice de megalotes](docs/danplus/gemini-planejamento/INDICE.md) reúnem requisitos futuros, incluindo prioridade de logos em português brasileiro. São documentos de planejamento, não funcionalidades entregues na versão 2.0.2.

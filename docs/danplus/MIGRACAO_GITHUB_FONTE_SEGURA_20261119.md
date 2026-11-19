@@ -29,3 +29,6 @@
 - Preservar as bibliotecas licenciadas e manter o repositório legado ativo para atualizações anteriores.
 ## Dependencia Git externa do historico
 - A fonte original tem gitlink libmpv-android fixado no SHA f48aa82b2677428f756a689a44c2477c3f37be51, sem .gitmodules/URL de origem verificada. O gitlink nao foi importado no snapshot para evitar referencia inoperante. O projeto possui bibliotecas AAR precompiladas em app/libs; antes de recompilar, validar dependencias e licencas desse modulo.
+
+## Documentacao futura incorporada
+- GEMINI.md e 18 documentos de planejamento do commit local a6f9db959f28791241f13117d52a07f6d3e7572b foram copiados para o repositorio oficial. Nao alteram o aplicativo 2.0.2 homologado e nao constituem autorizacao para programar.
