@@ -38,3 +38,19 @@ Consultar **GEMINI.md**, `docs/danplus/gemini-planejamento/INDICE.md`, `DP_CODEX
 
 ## Limpeza expressamente autorizada
 O proprietário autorizou descartar **todas as cópias antigas locais do DanPlus**, inclusive branches com alterações não commitadas, por considerar suficiente a 2.0.2 publicada e o plano futuro. Preservar, porém, os itens mínimos de assinatura, fonte oficial, plano, APKs 2.0.2 e arquivos de outros projetos listados acima. Registrar os diretórios realmente excluídos e o espaço efetivamente recuperado, sem inventar sucesso.
+
+
+## Encerramento da limpeza local — evidência de 19/11/2026
+
+**Executado e confirmado:** o proprietário autorizou descartar definitivamente todas as cópias antigas locais do DanPlus, inclusive alterações dirty. As worktrees e raízes anteriores foram eliminadas; em `D:\APK` restam somente:
+- `D:\APK\Worktrees\DanPlus_OFICIAL_FONTE_SEGURA_20261119` — fonte oficial para 2.1.0, Git limpo, esta documentação e Gemini;
+- `D:\APK\DanPlus_2_0_2_HOMOLOGADO` — dois APKs homologados 2.0.2, hashes verificados e log de exclusão;
+- `D:\APK\AGENTS.md` — instruções locais atualizadas.
+
+O código exato da ponte 2.0.2 continua no **GitHub legado**, commit `c92187031a204a4a01530f0b8662205c598b1e81`; não depende de worktree antiga no PC. A documentação dos megalotes está na **main do GitHub oficial**.
+
+**Protegido fora do Git:** `local.properties` privado na fonte oficial e backup em `C:\Users\danil\AppData\Local\DanPlus\Protected_2_1_0`; certificado Shield `C:\Users\danil\AppData\Local\DanPlus\Shield\Signing\danplus-shield-release.p12`; certificado Fire `C:\Users\danil\.android\debug.keystore`. O certificado Fire foi comparado ao APK 2.0.2 com resultado PASS. Shield: alias/senha ainda NÃO TESTADOS para build futuro.
+
+**Espaço medido:** C: 55,88 GB → 56,77 GB livres; D: 130,09 GB → 193,43 GB livres (**+63,34 GB**); projetos independentes preservados. O relatório completo de limpeza está em `D:\APK\DanPlus_2_0_2_HOMOLOGADO\FECHAMENTO_LIMPEZA_DANPLUS_20261119.md`.
+
+**Próxima etapa ainda não realizada:** DP-ML00, sem gerar APK 2.1.0; a numeração 2.1.0 é decisão de produto, não build concluído. Não executar comandos históricos que usem caminhos das worktrees excluídas.
