@@ -1,32 +1,37 @@
 # DanPlus
 
-**Android TV para NVIDIA Shield e Fire TV.**
+**Android TV para NVIDIA Shield Pro e Fire TV Stick 4K Max.**
 
-Este é o repositório oficial com o nome **DanPlus**. A migração esta sendo feita sem interromper atualizações de instalações antigas.
+Este é o repositório oficial de código do projeto DanPlus. A versão atual é a **2.0.2 (1644)**.
 
-## Versão atual: 2.0.2 (1644)
+## Instalar ou atualizar
 
-A versão 2.0.2 foi homologada nos dois aparelhos pelo proprietário em 19/11/2026.
+[Baixar DanPlus 2.0.2 para Shield e Fire TV](https://github.com/danilopagotto82/DANPLUS-Shield-Arc31-Private/releases/tag/2.0.2)
 
-**[Baixar DanPlus 2.0.2 (Shield e Fire TV)](https://github.com/danilopagotto82/DANPLUS-Shield-Arc31-Private/releases/tag/2.0.2)**
+Utilize o APK específico para seu dispositivo. **Não desinstale o aplicativo para atualizar**: a atualização normal preserva os perfis e as configurações. Preserve as assinaturas e os IDs dos pacotes Android.
 
-Os aplicativos possuem pacotes e assinaturas distintos por dispositivo. **Não desinstale o DanPlus para atualizar.** Use a atualizacao normal e preserve perfis e dados.
+## Código-fonte
 
-## Código da versão 2.0.2
+O código de desenvolvimento foi importado para este repositório a partir do commit c92187031a204a4a01530f0b8662205c598b1e81, referência exata da versão-ponte 2.0.2.
 
-Enquanto a migracao do histórico e revisada, a fonte exata da ponte OTA está preservada na branch de release do repositório legado:
+**Importante:** este é um snapshot de código com ajustes de segurança para publicação, **não um rebuild do APK homologado**. O valor fixo de fallback do YouTube foi retirado da fonte pública e substituído por uma configuração local opcional. Na ausência dessa configuração, o fallback específico pode não funcionar quando o YouTube bloquear a página de configuração, embora a leitura dinâmica da chave continue disponível.
 
-**[Código DanPlus 2.0.2 — release-only](https://github.com/danilopagotto82/DANPLUS-Shield-Arc31-Private/tree/danplus/mlc1-202-release-only-20261119)**
+Os sete workflows herdados estão guardados como documentos, desativados até revisão. Nenhuma compilação do snapshot sanitizado foi homologada nesta migração.
 
-Commit de referencia: c92187031a204a4a01530f0b8662205c598b1e81.
+[Referência exata do código usado nos APKs 2.0.2](https://github.com/danilopagotto82/DANPLUS-Shield-Arc31-Private/tree/danplus/mlc1-202-release-only-20261119)
 
-## Por que dois endereços?
+[Relatório técnico desta migração](docs/danplus/MIGRACAO_GITHUB_FONTE_SEGURA_20261119.md)
 
-- **DanPlus (este repositório):** novo endereço oficial e identidade publica do projeto.
-- **[Repositorio legado de atualizações](https://github.com/danilopagotto82/DANPLUS-Shield-Arc31-Private):** permanece ativo para que instalações antigas continuem encontrando atualizações.
+## Compatibilidade OTA
 
-Não havera renomeacao nem exclusao do repositório legado durante a transicao. O código e o histórico completos so serao transferidos depois da revisao dos alertas de seguranca existentes.
+O [repositório legado](https://github.com/danilopagotto82/DANPLUS-Shield-Arc31-Private) permanece público e ativo como origem de releases para instalações antigas. Não renomear, arquivar ou excluir esse canal sem testar atualização nos clientes anteriores.
 
-## Créditos
+## Segurança e contribuições
 
-DanPlus preserva as atribuições e licenças das bases e bibliotecas utilizadas, incluindo Nuvio Original e Nuvio ARC. Consulte o repositório de código para os arquivos correspondentes.
+Os alertas históricos de Secret Scanning do legado continuam pendentes de classificação de titularidade, uso e restrições; não foram resolvidos nem importados como histórico no novo repositório.
+
+Nunca inclua credenciais, arquivos de assinatura ou local.properties em commits. Para builds futuros, configure as variáveis locais necessárias e realize testes de regressão antes de publicar APKs.
+
+## Créditos e licença
+
+Este fork respeita as licenças e atribuições das bases Nuvio Original e Nuvio ARC, além das dependências de terceiros. Consulte [LICENSE](LICENSE), os arquivos de atribuição e as licenças incluídas no código.

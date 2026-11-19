@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="v2_ui_diagnostics_title">Device UI diagnostics</string>
+    <string name="v2_ui_diagnostics_subtitle">Window, density, effective canvas and recent UI frame timing</string>
+</resources>

@@ -1,0 +1,27 @@
+name: Melhoria para o DanPlus
+description: Proponha uma melhoria ou novo recurso para o DanPlus.
+labels: [idea]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A proposta será analisada antes de entrar no roteiro. Não inclua dados privados ou credenciais.
+  - type: textarea
+    id: idea
+    attributes:
+      label: O que deseja melhorar?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Qual benefício esperado?
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Dispositivo-alvo
+      options:
+        - Shield / Android TV
+        - Fire TV
+        - Todas as variantes
+        - Não sei

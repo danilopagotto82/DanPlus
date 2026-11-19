@@ -1,0 +1,55 @@
+name: Problema no DanPlus
+description: Relate um defeito do DanPlus sem divulgar dados privados.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Descreva o defeito do DanPlus. Não compartilhe senhas, tokens, chaves, links de fontes, endereços privados ou dados pessoais.
+        Problemas de aplicativos de origem devem ser informados ao projeto upstream (https://github.com/NuvioMedia/NuvioTV), não ao DanPlus.
+  - type: dropdown
+    id: device
+    attributes:
+      label: Dispositivo
+      options:
+        - NVIDIA Shield / Android TV ARM64
+        - Fire TV ARMv7
+        - Outro Android TV / Google TV
+        - Não sei
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Modelo exato do aparelho
+      placeholder: Ex. Shield TV Pro 2017 ou Fire TV Stick 4K Max 2ª geração
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versão do DanPlus
+      description: Veja Configurações > Sobre no DanPlus, ou as informações do aplicativo no sistema da TV.
+      placeholder: Ex. 2.0.0
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Passos para reproduzir e comportamento observado
+    validations:
+      required: true
+  - type: textarea
+    id: source_format
+    attributes:
+      label: Tipo de fonte e formato de áudio/vídeo (opcional)
+      description: Informe apenas o tipo (servidor, debrid ou link) e formatos (ex. Dolby Vision, Atmos), sem títulos, arquivos, links ou endereços privados.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento esperado
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Capturas ou logs redigidos
+      description: Remova dados privados antes de anexar.

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="d12_account_action">Conta Nuvio</string>
+    <string name="d12_unlock_action">Desbloquear Indicações</string>
+    <string name="d12_unlock_hint">Use o PIN do perfil Nuvio para abrir Indicações.</string>
+    <string name="d12_setup_hint">Entre na sua conta Nuvio em Configurações › Conta para usar Indicações.</string>
+    <string name="d12_account_error">Não foi possível concluir. Confira os dados e a conexão e tente novamente.</string>
+    <string name="d12_wrong_pin">Não foi possível desbloquear este perfil. Confira o PIN ou aguarde antes de tentar novamente.</string>
+    <string name="d12_working">Verificando o PIN…</string>
+    <string name="d12_pin_for_profile">Digite o PIN Nuvio de %1$s.</string>
+    <string name="d12_pin">PIN de 4 dígitos</string>
+    <string name="d12_linked_profile">Perfil DAN+ vinculado · %1$s</string>
+    <string name="d12_change_link">Alterar vínculo</string>
+    <string name="d12_sync_retry">A sincronização falhou. O app tentará de novo enquanto esta tela estiver aberta.</string>
+    <string name="d12_profile_sync_hint">O perfil atual precisa estar sincronizado com sua conta Nuvio.</string>
+</resources>

@@ -1,0 +1,167 @@
+package com.nuvio.tv.ui.screens.search
+
+import com.nuvio.tv.ui.v2.components.sidebarPageContent
+
+import com.nuvio.tv.ui.v2.appearance.LocalV2Appearance
+import com.nuvio.tv.ui.v2.appearance.V2Atmosphere
+import com.nuvio.tv.ui.v2.components.nuvioControlSurface
+import com.nuvio.tv.ui.v2.components.nuvioGlass
+import com.nuvio.tv.ui.v2.components.nuvioV2Focus
+import com.nuvio.tv.ui.v2.components.GlassRole
+import com.nuvio.tv.ui.theme.NuvioTheme
+import com.nuvio.tv.ui.screens.home.HeroBackdropState
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
+import com.nuvio.tv.R
+import com.nuvio.tv.domain.model.DiscoverLocation
+import com.nuvio.tv.ui.components.EmptyScreenState
+import com.nuvio.tv.ui.components.rememberPosterCardStyle
+import com.nuvio.tv.ui.theme.NuvioColors
+
+@Composable
+fun DiscoverScreen(
+    viewModel: SearchViewModel = hiltViewModel(),
+    showBuiltInHeader: Boolean = true,
+    onNavigateToDetail: (String, String, String) -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val watchedMovieIds by viewModel.watchedMovieIds.collectAsState()
+    val watchedSeriesIds by viewModel.watchedSeriesIds.collectAsState()
+    val visibleResults = remember(
+        uiState.discoverResults, uiState.discoverYear, uiState.discoverWatchFilter, watchedMovieIds, watchedSeriesIds
+    ) {
+        uiState.discoverResults.filter { item ->
+            item.matchesDiscoverFilters(uiState.discoverYear, uiState.discoverWatchFilter, watchedMovieIds, watchedSeriesIds)
+        }
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val discoverFirstItemFocusRequester = remember { FocusRequester() }
+    var discoverFocusedItemIndex by rememberSaveable { mutableStateOf(0) }
+    var restoreDiscoverFocus by rememberSaveable { mutableStateOf(false) }
+    var pendingDiscoverRestoreOnResume by rememberSaveable { mutableStateOf(false) }
+
+    val posterCardStyle = rememberPosterCardStyle(uiState.posterCardWidthDp, uiState.posterCardCornerRadiusDp)
+
+    LaunchedEffect(uiState.discoverLocation) {
+        if (uiState.discoverLocation != DiscoverLocation.OFF) {
+            viewModel.ensureDiscoverLoaded()
+        }
+    }
+
+    val latestPendingDiscoverRestore by rememberUpdatedState(pendingDiscoverRestoreOnResume)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && latestPendingDiscoverRestore) {
+                restoreDiscoverFocus = true
+                pendingDiscoverRestoreOnResume = false
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(NuvioTheme.colors.Background)
+    ) {
+        if (LocalV2Appearance.current != null) V2Atmosphere(background = LocalV2Appearance.current!!.settingsBackground)
+        if (uiState.discoverLocation == DiscoverLocation.OFF) {
+            EmptyScreenState(
+                modifier = Modifier.sidebarPageContent(),
+                title = stringResource(R.string.discover_disabled_title),
+                subtitle = stringResource(R.string.discover_disabled_subtitle),
+                icon = Icons.Default.Search
+            )
+        } else {
+            DiscoverSection(
+                uiState = uiState,
+                visibleResults = visibleResults,
+                posterCardStyle = posterCardStyle,
+                watchedMovieIds = watchedMovieIds,
+                watchedSeriesIds = watchedSeriesIds,
+                focusResults = false,
+                showBuiltInHeader = showBuiltInHeader,
+                firstItemFocusRequester = discoverFirstItemFocusRequester,
+                focusedItemIndex = discoverFocusedItemIndex,
+                shouldRestoreFocusedItem = restoreDiscoverFocus,
+                blockFilterFocus = restoreDiscoverFocus || pendingDiscoverRestoreOnResume,
+                onRestoreFocusedItemHandled = { restoreDiscoverFocus = false },
+                onNavigateToDetail = { itemId, itemType, addonBaseUrl ->
+                    pendingDiscoverRestoreOnResume = true
+                    onNavigateToDetail(itemId, itemType, addonBaseUrl)
+                },
+                onDiscoverItemFocused = { index ->
+                    discoverFocusedItemIndex = index
+                    visibleResults.getOrNull(index)?.let { item ->
+                        viewModel.prefetchMetaOnFocus(item.id, item.rawType)
+                    }
+                },
+                onSelectType = {
+                    discoverFocusedItemIndex = 0
+                    viewModel.onEvent(SearchEvent.SelectDiscoverType(it))
+                },
+                onSelectCatalog = {
+                    discoverFocusedItemIndex = 0
+                    viewModel.onEvent(SearchEvent.SelectDiscoverCatalog(it))
+                },
+                onSelectGenre = {
+                    discoverFocusedItemIndex = 0
+                    viewModel.onEvent(SearchEvent.SelectDiscoverGenre(it))
+                },
+                onSelectLetter = {
+                    discoverFocusedItemIndex = 0
+                    viewModel.onEvent(SearchEvent.SelectDiscoverLetter(it))
+                },
+                onSelectYear = {
+                    discoverFocusedItemIndex = 0
+                    viewModel.onEvent(SearchEvent.SetDiscoverYear(it))
+                },
+                onSelectWatchFilter = {
+                    discoverFocusedItemIndex = 0
+                    viewModel.onEvent(SearchEvent.SetDiscoverWatchFilter(it))
+                },
+                onLoadMore = { viewModel.onEvent(SearchEvent.LoadNextDiscoverResults) },
+                onItemLongPress = { item, addonBaseUrl ->
+                    viewModel.posterOptions.show(item, addonBaseUrl)
+                },
+                modifier = Modifier.sidebarPageContent().padding(top = NuvioTheme.spacing.lg),
+                showFocusDock = true
+            )
+        }
+
+        val posterOptionsState by viewModel.posterOptions.state.collectAsState()
+        com.nuvio.tv.ui.components.posteroptions.PosterOptionsHost(
+            state = posterOptionsState,
+            controller = viewModel.posterOptions,
+            onNavigateToDetail = { id, type, addonBaseUrl ->
+                pendingDiscoverRestoreOnResume = true
+                val clickedItem = uiState.discoverResults.firstOrNull { it.id == id }
+                HeroBackdropState.update(clickedItem?.backdropUrl)
+                onNavigateToDetail(id, type, addonBaseUrl)
+            }
+        )
+    }
+}
