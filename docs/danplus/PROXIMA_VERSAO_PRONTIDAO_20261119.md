@@ -8,9 +8,9 @@
 - Fonte de desenvolvimento segura: D:\APK\Worktrees\DanPlus_OFICIAL_FONTE_SEGURA_20261119, branch main; SHA-base verificado antes desta atualização documental: 9362b23b9945268ec3d3a65ebb2bf75f669e288c. Revalidar HEAD antes de implementar.
 - Último aplicativo homologado: DanPlus 2.0.2, versionCode 1644. Pacote Shield com.danplus.shield; Fire com.danexus.tv.fire.debug. Builds e assinaturas originais **não devem ser alterados**.
 - Release binária oficial de compatibilidade OTA: https://github.com/danilopagotto82/DANPLUS-Shield-Arc31-Private/releases/tag/2.0.2. O repositório legado deve continuar disponível.
-- A próxima numeração **ainda não foi emitida**; eventual 2.0.3 e versionCode maior que 1644 dependem de validação do escopo. NÃO alterar versionCode ou nome antecipadamente.
+- **Próxima versão definida pelo proprietário: 2.1.0.** versionCode deve ser maior que 1644, mas ainda não foi escolhido nem alterado no código. Consultar `PLANO_DANPLUS_2_1_0.md`. NÃO alterar versionCode ou nome da versão instalada antecipadamente.
 - Fonte da APK homologada está preservada na branch legada danplus/mlc1-202-release-only-20261119, commit c92187031a204a4a01530f0b8662205c598b1e81. Os arquivos de fonte do repositório novo **não são equivalentes bit a bit** aos APKs aprovados.
-- Worktree antiga D:\APK\Worktrees\DanPlus_PONTE_OTA_MLC1_20261117 mantém 13 entradas dirty protegidas. Não limpar, resetar, stash ou mover.
+- **Atualização de decisão em 19/11:** o proprietário autorizou expressamente descartar as cópias locais antigas do DanPlus, inclusive a worktree da ponte OTA com 13 entradas dirty, após conferir a publicação e preservar assinatura, APKs 2.0.2, fonte oficial e plano 2.1.0. Esta autorização não inclui outros projetos nem dados pessoais.
 
 ## 2. Pacote de mudanças: PRESENTE E CONFERIDO
 

@@ -1,6 +1,6 @@
 # ESTADO OPERACIONAL ATUAL — 19/11/2026
 
-**Para a próxima versão, LEIA PRIMEIRO** `docs/danplus/PROXIMA_VERSAO_PRONTIDAO_20261119.md`: precheck atualizado, diferenças da fonte sanitizada, ordem dos megalotes e gates. As instruções de 17–18/11 abaixo são históricas.
+**Próxima versão definida: DanPlus 2.1.0. LEIA PRIMEIRO** `docs/danplus/PLANO_DANPLUS_2_1_0.md` e depois `docs/danplus/PROXIMA_VERSAO_PRONTIDAO_20261119.md`: precheck atualizado, assinaturas essenciais, diferenças da fonte sanitizada, ordem dos megalotes e gates. As instruções de 17–18/11 abaixo são históricas.
 
 > Esta seção prevalece sobre descrições históricas datadas de 17–19/11 abaixo. O restante do arquivo contém planejamento futuro e não autoriza implementação ou publicação.
 >
