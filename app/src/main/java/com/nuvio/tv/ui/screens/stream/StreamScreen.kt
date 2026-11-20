@@ -141,7 +141,8 @@ fun StreamScreen(
     onSourceSelectionRestoreHandled: () -> Unit = {},
     onBackPress: () -> Unit,
     onStreamSelected: (StreamPlaybackInfo) -> Unit,
-    onAutoPlayResolved: (StreamPlaybackInfo) -> Unit
+    onAutoPlayResolved: (StreamPlaybackInfo) -> Unit,
+    onChronologyNavigate: (String, String, Int?, Int?) -> Unit = { _, _, _, _ -> }
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val mixHasNoSources by viewModel.mixHasNoSources.collectAsStateWithLifecycle()
@@ -543,6 +544,15 @@ fun StreamScreen(
                     },
                     isLoading = uiState.isLoading,
                     resumeText = resumeText,
+                    guideContent = {
+                        OrdemCertaGuideCard(
+                            contentType = uiState.contentType,
+                            contentId = uiState.videoId,
+                            season = uiState.season,
+                            episode = uiState.episode,
+                            onNavigate = onChronologyNavigate
+                        )
+                    },
                     error = uiState.error,
                     streams = uiState.filteredStreams,
                     partyFingerprint = viewModel.partyFingerprint,
@@ -853,6 +863,7 @@ private const val FOCUS_WARM_SETTLE_MS = 500L
 private fun RightStreamSection(
     isLoading: Boolean,
     resumeText: String?,
+    guideContent: (@Composable () -> Unit)? = null,
     error: String?,
     streams: List<Stream>,
     partyFingerprint: com.nuvio.tv.core.party.PartyFingerprint? = null,
@@ -973,6 +984,7 @@ private fun RightStreamSection(
         resumeText?.let { text ->
             StreamResumePill(text = text, modifier = Modifier.padding(bottom = NuvioTheme.spacing.sm))
         }
+        guideContent?.invoke()
         val chipRowHeight = NuvioTheme.spacing.huge
 
         // Addon filter chips

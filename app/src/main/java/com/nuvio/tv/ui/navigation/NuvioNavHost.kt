@@ -622,6 +622,16 @@ private fun PlaybackNavHost(
                 onSourceSelectionRestoreHandled = {
                     streamSavedState[SOURCE_SELECTION_RESTORE_STATE_KEY] = false
                 },
+                onChronologyNavigate = { type, id, targetSeason, targetEpisode ->
+                    navController.navigate(
+                        Screen.Detail.createRoute(
+                            itemId = id,
+                            itemType = type,
+                            returnFocusSeason = targetSeason,
+                            returnFocusEpisode = targetEpisode
+                        )
+                    )
+                },
                 onBackPress = {
                     val streamContentType = streamArgs?.getString("contentType").orEmpty()
                     val streamContentId = streamArgs?.getString("contentId").orEmpty()
