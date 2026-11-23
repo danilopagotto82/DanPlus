@@ -7,7 +7,7 @@
 
 **Causa comprovada no código, sem runtime:** `MetaDetailsViewModel.fetchTrailerUrl` usava somente `TrailerService.getTrailerPlaybackSourceFromTmdbId(... brazilianPortugueseOnly = true)`; já `TrailerPreviewLookup.lookupTrailerPreview` do pôster usa provider configurado/idioma alternativo e IDs YouTube do próprio título. O primeiro caminho pode retornar null embora o segundo reproduza. **Não foi confirmada a disponibilidade PT-BR concreta desses dois títulos no TMDB.** Auto-play em Detalhes ainda depende de `TrailerSettingsDataStore.enabled` (padrão false, atraso padrão 7 s).
 
-**Patch preparado e salvo:** branch `fix/danplus-210-detail-trailer-fallback-20261122` a partir do SHA `3715ee0de8345d617f48c2da7271716ed501dc5c`. Alterações apenas em `TrailerService.kt` e `MetaDetailsViewModel.kt` e testes `DetailTrailerSourceSelectionTest.kt`/`TrailerServiceUseTrailersGateTest.kt`:
+**Patch preparado e salvo:** [PR #1 (DRAFT — NÃO MERGEAR)](https://github.com/danilopagotto82/DanPlus/pull/1), branch `fix/danplus-210-detail-trailer-fallback-20261122` a partir do SHA `3715ee0de8345d617f48c2da7271716ed501dc5c`. Alterações apenas em `TrailerService.kt` e `MetaDetailsViewModel.kt` e testes `DetailTrailerSourceSelectionTest.kt`/`TrailerServiceUseTrailersGateTest.kt`:
 - PT-BR continua com precedência absoluta;
 - na ausência de fonte PT-BR reproduzível, passa a reutilizar `lookupTrailerPreview` (mesmo caminho de fallback do card), com IDs normalizados do título, fonte de vídeo e áudio;
 - respeita `TmdbSettings.useTrailers` também no fallback, preservando a desativação definida pelo perfil;
