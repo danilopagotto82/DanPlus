@@ -2,6 +2,33 @@
 **Data:** 22/11/2026 (BRT) · **Estado:** planejamento operacional verificado por fontes; **não é autorização de patch Kotlin, build, deploy, instalação, merge ou release**.
 **Ramo documental:** `docs/danplus-210-github-first-20261122`. **Main de referência:** `3715ee0de8345d617f48c2da7271716ed501dc5c` (revalidar se houver mudanças).
 
+## PRIORIDADE OPERACIONAL — GITHUB PRIMEIRO / COMMANDER SOMENTE EXCEÇÕES
+**Decisão do proprietário em 22/11/2026:** realizar no GitHub tudo o que for tecnicamente seguro, verificável e reversível. Acionar Desktop Commander apenas quando for impossível concluir com evidência equivalente no GitHub; **não usar Commander por conveniência ou como executor permanente**.
+
+### Fases que devem ficar no GitHub
+- **E00-G:** matriz 146 + 20 RSQ + MUD/REQ16/DP21, inventário por símbolo/arquivo, comparação de commits upstream, casos de teste, contratos, deduplicação e checklist. Usar conector GitHub para leitura e escrita documental em branch isolada.
+- **E01–E09 e E11 após E00-L PASS / autorização do lote:** Codex é autor único Kotlin/Compose em **branch de integração separada da documental**, usando repositório GitHub conectado quando essa forma de edição estiver disponível; GitHub recebe commits, revisões e diffs. Gemini apenas audita grande volume em leitura; ChatGPT aprova gates e faz revisão. Nada de ida/volta de arquivos manuais pelo PC, nem alterar main.
+- **Verificações sem compilação no GitHub:** leitura/símbolos/imports/recursos, revisão de diffs e segredos, testes Kotlin **escritos e não executados**, casos negativos, reconciliação por ID, comparação de fluxo com código upstream, checklist por commit. **Sem executar Gradle, CI de build, ADB nem testes de runtime antes do FREEZE.**
+- **E08 e E09:** código/contratos SQL/Edge Function preparados no GitHub, testes de autorização em LAB Supabase somente com gate específico. Sem credenciais ou tokens no Git e sem deploy de produção.
+- **E11:** preparar monitor determinístico Original + ARC + ReSeq somente como arquivos/configuração desativada até gate de CI. GitHub Actions não é prova de compatibilidade com a TV; não ativar agenda/compilação por engano.
+- **E10:** depois do FREEZE, avaliar GitHub Actions para testes/builds **sem assinatura de distribuição** somente se houver ganho concreto e orçamento/limites confirmados; não disponibilizar certificados privados no GitHub como atalho. O fechamento assinado/in-place fica no PC quando necessário.
+
+### Commander: SOMENTE DOIS GATES DE PC
+1. **C01 — PRÉ-CHECK LOCAL OBRIGATÓRIO, UMA SESSÃO CURTA APÓS E00-G:** reconectar DESKTOP-5P89BAD e ler `D:\APK\AGENTS.md`; conferir worktree, conflitos/estado sujo, material real 2.0.2, hashes de APK, identidade de fonte, signing/OTA, Java/Gradle/SDK e arquivos privados que não existem no Git. É bloqueador antes de alteração Android arriscada; nunca enviar chaves ou dados de perfil à conversa/GitHub. Se PC estiver offline, continuar somente E00-G, documentos, testes escritos e revisão; não marcar C01 PASS nem ultrapassar gate de código de risco.
+2. **C02 — COMPILAÇÃO E HOMOLOGAÇÃO FINAIS, UMA CAMPANHA APÓS FREEZE:** recuperar branch aprovada sem sobrescrever alterações locais; executar tarefas Gradle/testes necessários, comparar assinaturas e package IDs, obter APKs compatíveis Shield/Fire e validar no hardware real via ADB/screenshot, REMUX/áudio/Seekr/UI/OTA. Retornar dispositivo ao estado inicial quando apropriado. Só fazer deploy/release/OTA após autorização própria.
+
+**Exceções intermediárias permitidas:** Commander só para incidente demonstrado que dependa de runtime local, dispositivo, assinatura ou arquivo inacessível remotamente, com diagnóstico específico e ação mínima. Se houver erro do player que só se manifesta no aparelho, pode haver coleta pontual de log antes de E10; isso NÃO é compilação intermediária. Nunca tornar C01 ou C02 uma rotina diária.
+
+### Rotina econômica e trava anti-retrabalho
+- Uma única fila `ID → arquivo/estado → dono → contrato → testes futuros → evidência → gate`, atualizada na branch com checkpoint após cada lote.
+- Um único autor de Kotlin por vez; agrupar alterações pelo componente. GitHub é o local central de código, documentos e revisões. Não alternar GitHub ↔ PC para cada patch.
+- **FREEZE não é PASS:** todos os contratos e diffs revisados, sem pendências não explicitadas; a execução de testes Kotlin/Gradle somente na E10 e o smoke físico continuam necessários.
+- Sem estimar custos de GitHub Actions, Codex ou quotas de IA sem fonte/painel atual; preferir ferramentas mecânicas e executar lotes amplos para reduzir recargas de contexto.
+
+### Próxima ação disponível agora, sem PC
+**E00-G (somente leitura de código):** preencher matriz `ID | decisão | status comprovado no GitHub | arquivo/símbolo | vínculo | dono E__ | teste futuro | gate` antes de liberar implementações. **Não acionar Commander** enquanto a auditoria remota puder avançar; C01 é chamado quando faltar exclusivamente evidência de PC/2.0.2.
+
+---
 ## 0. Fonte de verdade e regras que prevalecem
 1. Runtime, PC, SHA, APK 2.0.2 e testes reais, quando disponíveis; depois Git; depois fontes canônicas; por último registros históricos e conversas.
 2. Ler os cinco documentos preservados em `docs/danplus/fontes-recuperadas/`: `DANPLUS_2_1_0_MATRIZ_146_DECISOES.csv`, `DANPLUS_2_1_0_AUDITORIA_RESEQ_SENIOR_20261122.md`, `DANPLUS_2_1_0_PLANO_FINAL_SEM_BUILDS_20261122.md`, `DANPLUS_2_1_0_SCRIPTS_POR_IA_SEM_BUILD_20261122.md`, `DANPLUS_2_1_0_CONTINUIDADE_MELHORIAS_EM_CENA_20261122.md`. Conferir também `GEMINI.md`, `docs/danplus/PLANO_DANPLUS_2_1_0.md` e `PROXIMA_VERSAO_PRONTIDAO_20261119.md`.
