@@ -28,6 +28,25 @@ Consultar **GEMINI.md**, `docs/danplus/gemini-planejamento/INDICE.md`, `DP_CODEX
 
 **Decisões preservadas**: matriz 146 com 36 decisões e 110 pendentes; RS-06/B2-06 pendentes; A2-35 não recomendar; 14 REQ16 sem duplicação de MUD. **Planos ≠ patches.**
 
+## UI-HEADER-01 — DanPlus Signature Glass (APROVADO EM 23/11/2026; DP-ML06)
+
+**Decisão do proprietário:** substituir visualmente o cabeçalho da Home pelo layout flutuante aprovado em prévia nesta conversa, mantendo o restante da interface homologada. **Planejado e aprovado para a 2.1.0; NÃO CODIFICADO, NÃO TESTADO, SEM BUILD.** Não criar megalote independente: integrar ao acabamento de UI do **DP-ML06**, depois da reconciliação da DP-ML00. Não duplicar os componentes MUD-003 (avatares), MUD-004 (navegação) e MUD-005 (relógio).
+
+### Composição homologada da barra superior
+1. **Logo DanPlus isolado à extrema esquerda**, fora da barra principal, sobre fundo transparente, sem cápsula/caixa própria.
+2. **Menu de navegação principal** em cápsula horizontal única, flutuante, cantos bem arredondados, vidro preto/fumê translúcido, contorno/reflexo sutil; preservar **os menus, rótulos, traduções, ordem e ações reais do DanPlus** verificados no código — a prévia com rótulos em inglês é apenas referência visual, não lista funcional para copiar. **Não** incluir Configurações nesse menu.
+3. **Item selecionado/focado** identificado por cápsula interna levemente mais clara, sem brilho exagerado; transições discretas compatíveis com DPAD.
+4. **Relógio separado da cápsula principal**, somente caracteres legíveis sobre fundo totalmente transparente, na parte superior direita, preservando fuso, preferência 12/24 horas, atualização e MUD-005 já existentes.
+5. **À extrema direita, cápsula menor exclusiva** com engrenagem **Configurações** à esquerda e avatar do **perfil ativo** à direita. **Decisão final explícita:** esta cápsula deve ser **MUITO mais translúcida do que a barra principal, quase transparente**, com preenchimento mínimo e contorno quase imperceptível; engrenagem/avatar devem continuar nítidos e acessíveis pelo controle remoto. Não aplicar esse nível extremo de transparência à barra central.
+6. Proteger a arte hero/backdrop, sinopse, cards, áreas de segurança e hierarquia visual já aprovadas. Não remodelar Home nem alterar lógica de dados sob pretexto desta mudança.
+
+### Diretrizes técnicas e aceite futuro
+- Localizar e **reutilizar** componentes reais de cabeçalho, navegação, relógio e perfil (Kotlin/Compose) após inventário; preferir patch mínimo em branch/worktree isolada, sem mexer na 2.0.2 homologada nem alterar identidade/signing/OTA.
+- Adaptar margens, dimensões e legibilidade a **Shield Pro 2017 e Fire TV 4K Max 2ª**, com TV/overscan e tamanhos de texto; navegação **DPAD completa** (esquerda/direita, foco inicial, retorno, engrenagem, mudança de perfil), sem elemento inalcançável.
+- Preferir opacidade/transparência simples; usar desfoque de fundo **somente se medido e sem regressão** de FPS/RAM no Fire. Não introduzir efeito custoso apenas para reproduzir conceito.
+- Fazer capturas **da Home real** em Shield e Fire e comparar lado a lado com a referência visual aprovada de 23/11/2026; conferir logo fora da barra, menu central, relógio sem fundo e especialmente a **cápsula de perfil quase invisível**; validar contraste sobre backdrops claros/escuros, foco, acessibilidade e ausência de clipping.
+- Entrar no **megalote único de UI** junto às demais melhorias já priorizadas; **não gerar APK/build isolado** para este cabeçalho. Sem teste físico e comparação visual, status **NÃO TESTADO**, jamais PASS.
+
 ## Segurança/qualidade e pontos de parada
 - Próxima missão recomendada: **DP-ML00 somente leitura**, em GPT-6 Alto + Commander; Codex Alto só para patch Kotlin/Compose. Antes de começar, verificar `AGENTS.md` de D:\APK, branch, HEAD, working tree, processos concorrentes, dependências e evidências reais.
 - Para codificar: branch/worktree NOVA criada da fonte oficial limpa. Preservar a main. Sem trocar applicationId, certificados, assinatura, URL OTA ou banco de produção.
