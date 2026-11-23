@@ -2,6 +2,22 @@
 **Data:** 22/11/2026 (BRT) · **Estado:** planejamento operacional verificado por fontes; **não é autorização de patch Kotlin, build, deploy, instalação, merge ou release**.
 **Ramo documental:** `docs/danplus-210-github-first-20261122`. **Main de referência:** `3715ee0de8345d617f48c2da7271716ed501dc5c` (revalidar se houver mudanças).
 
+## 22/11 — TRAILER-DETAIL-FALLBACK-01 (correção isolada já codificada em branch)
+**Sintoma relatado:** trailers de filmes como *Minority Report* e *A.I. – Inteligência Artificial* reproduzem no pôster expandido, porém não aparecem/iniciam na tela Detalhes.
+
+**Causa comprovada no código, sem runtime:** `MetaDetailsViewModel.fetchTrailerUrl` usava somente `TrailerService.getTrailerPlaybackSourceFromTmdbId(... brazilianPortugueseOnly = true)`; já `TrailerPreviewLookup.lookupTrailerPreview` do pôster usa provider configurado/idioma alternativo e IDs YouTube do próprio título. O primeiro caminho pode retornar null embora o segundo reproduza. **Não foi confirmada a disponibilidade PT-BR concreta desses dois títulos no TMDB.** Auto-play em Detalhes ainda depende de `TrailerSettingsDataStore.enabled` (padrão false, atraso padrão 7 s).
+
+**Patch preparado e salvo:** branch `fix/danplus-210-detail-trailer-fallback-20261122` a partir do SHA `3715ee0de8345d617f48c2da7271716ed501dc5c`. Alterações apenas em `TrailerService.kt` e `MetaDetailsViewModel.kt` e testes `DetailTrailerSourceSelectionTest.kt`/`TrailerServiceUseTrailersGateTest.kt`:
+- PT-BR continua com precedência absoluta;
+- na ausência de fonte PT-BR reproduzível, passa a reutilizar `lookupTrailerPreview` (mesmo caminho de fallback do card), com IDs normalizados do título, fonte de vídeo e áudio;
+- respeita `TmdbSettings.useTrailers` também no fallback, preservando a desativação definida pelo perfil;
+- não altera autoplay, duração, player, escolha de codec, runtime, Supabase, chaves, versão, assinatura ou 2.0.2.
+
+**Verificações feitas:** diff GitHub de 4 arquivos no escopo; branch isolada; quatro testes Kotlin novos escritos (**NÃO EXECUTADOS**); nenhum Gradle/build/APK. **Não declarar BUG RESOLVIDO NA TV** até E10 com Minority Report, A.I. e um filme com trailer PT-BR; testar modo auto ligado/desligado, fonte original, trailer do addon, falha temporária e sem trailer; confirmar retorno da navegação e áudio Fire/Shield. Antes do merge/integrar com lotes maiores, atualizar branch de integração a partir da fonte homologada após C01.
+
+**Limite:** se o TMDB não fornecer referência, o YouTube exigir login, as URLs expirarem ou o usuário tiver desabilitado trailers, nenhum fallback pode garantir reprodução. E09 (dublagem/legenda PT-BR/cache backend) permanece missão maior, separada deste bug.
+
+---
 ## E00-G — auditoria de código realizada, sem compilação (22/11)
 - **Relatório:** [E00_GITHUB_RESULTADOS_PRIORIZADOS_20261122.md](E00_GITHUB_RESULTADOS_PRIORIZADOS_20261122.md).
 - **Matriz com evidência individual:** [E00_GITHUB_AUDITORIA_EVIDENCIAS_166_20261122.csv](E00_GITHUB_AUDITORIA_EVIDENCIAS_166_20261122.csv), **166/166 IDs rastreados** e **62 caminhos verificados**. Estados de base parcial não significam PASS funcional.
