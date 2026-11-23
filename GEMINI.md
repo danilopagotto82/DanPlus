@@ -51,7 +51,7 @@
 - **DP-ML03:** Continuar assistindo, calendário/séries, históricos, Trakt/Simkl e persistência sem perder dados de perfis.
 - **DP-ML04:** recuperação inteligente de fontes por addon até esgotar elegíveis, sem loop infinito; tempo preservado, cancelamento e feedback; depois memória, cache/seek/32-bit Fire em subgate separado.
 - **DP-ML05:** capítulos/áudio/legendas; RS-01 VAD opt-in desligado por padrão; RS-02 apenas investigar ASR, sem download automático de modelo. Não prejudicar Dolby/Atmos/DTS/TrueHD.
-- **DP-ML06:** validar MUDs e pedidos de 16/11 de UI já existentes, corrigindo só diferenças comprovadas; indicações/Focus Dock, Para Você, estatísticas PT-BR e acabamento.
+- **DP-ML06:** validar MUDs e pedidos de 16/11 de UI já existentes, corrigindo só diferenças comprovadas; indicações/Focus Dock, Para Você, estatísticas PT-BR e acabamento; integrar a nova **UI-HEADER-01 / DanPlus Signature Glass**, aprovada em 23/11/2026 (especificação em `docs/danplus/PLANO_DANPLUS_2_1_0.md`), sem build isolado.
 - **DP-ML07:** backend/RLS/Supabase/credenciais apenas com testes sintéticos e aprovação separada de produção; MUD-011 HOLD por segurança/termos; não copiar credenciais.
 - **DP-ML08:** missão **separada** de trailers YouTube PT-BR, dublado/legendado e cache Supabase (ex.: Minority Report); depende de gates de API e backend.
 - **DP-ML09:** ponte OTA 2.0.1 e identidade em trilha isolada; validação de assinatura, ABI, in-place e URLs antes de qualquer publicação.
