@@ -2,6 +2,16 @@
 **Data:** 22/11/2026 (BRT) · **Estado:** planejamento operacional verificado por fontes; **não é autorização de patch Kotlin, build, deploy, instalação, merge ou release**.
 **Ramo documental:** `docs/danplus-210-github-first-20261122`. **Main de referência:** `3715ee0de8345d617f48c2da7271716ed501dc5c` (revalidar se houver mudanças).
 
+## E00-G — auditoria de código realizada, sem compilação (22/11)
+- **Relatório:** [E00_GITHUB_RESULTADOS_PRIORIZADOS_20261122.md](E00_GITHUB_RESULTADOS_PRIORIZADOS_20261122.md).
+- **Matriz com evidência individual:** [E00_GITHUB_AUDITORIA_EVIDENCIAS_166_20261122.csv](E00_GITHUB_AUDITORIA_EVIDENCIAS_166_20261122.csv), **166/166 IDs rastreados** e **62 caminhos verificados**. Estados de base parcial não significam PASS funcional.
+- **Equivalência estática:** novo GitHub/main vs. commit legado 2.0.2: **5.133 blobs iguais, 3 arquivos modificados, 29 arquivos só no novo, 7 só no legado**. Somente arquivos de código modificados: `app/build.gradle.kts` e `InAppYouTubeExtractor.kt` (fallback configurável; sem chave em Git). Prova de linhagem, NÃO de APK reproduzível.
+- **Gaps encontrados:** failover só percorre candidatos posteriores ao atual; idioma do logo pode cair em inglês em vez do original oficial; grade de séries sem contador no Focus Dock; WeTrakr ainda sem consulta remota do Client ID. Há estruturas que já existem (Scout/Surpresa, fontes de legenda via celular, pausa com Direção/Elenco), evitar recodificar.
+- **Check de proteção:** comparação entre base e branch confirmou **somente arquivos `docs/danplus/` alterados, zero arquivos `app/`**; `main` não alterada.
+- **Commander (consulta de status):** DESKTOP-5P89BAD **offline**; C01, assinaturas, AGENTS.md local e smoke NÃO TESTADOS. Não transpor C01 por inferência.
+- **Autorização atual cumprida:** E00-G auditoria estática e documentação. Código Kotlin/Compose 2.1.0 NÃO IMPLEMENTADO; E10 ainda não iniciado.
+
+---
 ## PRIORIDADE OPERACIONAL — GITHUB PRIMEIRO / COMMANDER SOMENTE EXCEÇÕES
 **Decisão do proprietário em 22/11/2026:** realizar no GitHub tudo o que for tecnicamente seguro, verificável e reversível. Acionar Desktop Commander apenas quando for impossível concluir com evidência equivalente no GitHub; **não usar Commander por conveniência ou como executor permanente**.
 
