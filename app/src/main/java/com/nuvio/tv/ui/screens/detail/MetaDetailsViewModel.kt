@@ -3290,12 +3290,14 @@ class MetaDetailsViewModel @Inject constructor(
             }
 
             val source = if (AppFeaturePolicy.inAppTrailerPlaybackEnabled) {
-                trailerService.getTrailerPlaybackSourceFromTmdbId(
+                trailerService.getDetailTrailerPlaybackSource(
                     tmdbId = tmdbId,
+                    itemId = meta.id,
                     type = meta.apiType,
                     title = meta.name,
                     year = year,
-                    brazilianPortugueseOnly = true
+                    imdbId = meta.imdbId,
+                    youtubeIds = meta.trailerYtIds
                 )
             } else if (AppFeaturePolicy.externalTrailerPlaybackEnabled) {
                 trailerService.getExternalTrailerUrl(
