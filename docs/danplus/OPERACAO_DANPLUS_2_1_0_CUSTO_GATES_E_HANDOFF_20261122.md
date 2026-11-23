@@ -1,0 +1,81 @@
+# DanPlus 2.1.0 — Operação única, custo controlado e ZERO compilação pré-freeze
+**Data:** 22/11/2026 (BRT) · **Estado:** planejamento operacional verificado por fontes; **não é autorização de patch Kotlin, build, deploy, instalação, merge ou release**.
+**Ramo documental:** `docs/danplus-210-github-first-20261122`. **Main de referência:** `3715ee0de8345d617f48c2da7271716ed501dc5c` (revalidar se houver mudanças).
+
+## 0. Fonte de verdade e regras que prevalecem
+1. Runtime, PC, SHA, APK 2.0.2 e testes reais, quando disponíveis; depois Git; depois fontes canônicas; por último registros históricos e conversas.
+2. Ler os cinco documentos preservados em `docs/danplus/fontes-recuperadas/`: `DANPLUS_2_1_0_MATRIZ_146_DECISOES.csv`, `DANPLUS_2_1_0_AUDITORIA_RESEQ_SENIOR_20261122.md`, `DANPLUS_2_1_0_PLANO_FINAL_SEM_BUILDS_20261122.md`, `DANPLUS_2_1_0_SCRIPTS_POR_IA_SEM_BUILD_20261122.md`, `DANPLUS_2_1_0_CONTINUIDADE_MELHORIAS_EM_CENA_20261122.md`. Conferir também `GEMINI.md`, `docs/danplus/PLANO_DANPLUS_2_1_0.md` e `PROXIMA_VERSAO_PRONTIDAO_20261119.md`.
+3. **O PLANO_FINAL_SEM_BUILDS é mais recente que os roteiros antigos no ponto de colisão:** sequência **E06 → E07B-LÓGICA → E05-UI**; **ZERO Gradle/compilação/testes compilados/lint via Gradle** em E00–E09/E11; uma campanha E10 depois do freeze. Os demais documentos são complementares; não apagar votos da matriz.
+4. A matriz contém 146 decisões documentais (105 aprovar, 23 adaptar, 8 investigar, 4 manter, 5 negar e 1 não recomendar). **Aprovação de produto não equivale a patch ou teste PASS.** Os 20 RSQ são catálogo complementar, não 20 patches; REQ16, MUD, DP21, BUG/LOGO também são vínculos, não novos motores.
+5. **Sem compilação ANTES de todos os patches**, inclusive `gradlew test`, `lint`, `compile`, `assemble`, `bundle` ou builds de Actions. Escrever testes agora, executar na E10. Validações estáticas permitidas: busca, leitura de dependências, revisão de imports/assinaturas, `git diff --check`, parser XML sem Gradle, verificação de schema estática e revisão de secrets; nunca alegar PASS Kotlin/runtime antes de executar.
+6. **Uma campanha final**, não promessa de sucesso na primeira tentativa. A compilação final naturalmente gera **APKs separadas para Shield arm64 e Fire armeabi-v7a** se confirmar os variants: `app/build.gradle.kts` prevê `full` e `fullFire` sob `buildingUnifiedOta`, além de build type `fireOta`. Comandos Gradle e credenciais REAIS devem ser descobertos/confirmados no E10; jamais inventar task ou usar assinatura incorreta.
+
+## 1. Organização física e isolamento
+- **Proteção intocável:** APK 2.0.2/versionCode 1644; Shield `com.danplus.shield`; Fire `com.danexus.tv.fire.debug`; certificados/fingerprints; histórico dos perfis; OTA de `danilopagotto82/DANPLUS-Shield-Arc31-Private`; sem reset/clean/force push.
+- **GitHub remoto:** o 403 foi RESOLVIDO para branch e commit; repositório `danilopagotto82/DanPlus`, `main` não alterada pela operação documental. Não usar a branch de docs para implementar Kotlin.
+- **PC informado nos planos:** `DESKTOP-5P89BAD`; pasta `D:\APK\Worktrees\DanPlus_OFICIAL_FONTE_SEGURA_20261119`; binários em `D:\APK\DanPlus_2_0_2_HOMOLOGADO`. **Caminhos e estado local NÃO verificados nesta rodada; Commander aparece OFFLINE.**
+- Após E00-L PASS, propor **uma worktree limpa isolada** para 2.1.0 com branch de integração, vinculada ao SHA acordado e checkpoint. Nunca assumir que PC já está sincronizado; nunca sobrescrever trabalho sujo. PR draft somente após diff, sem merge automático.
+- **Conflito de editor:** só UM Codex escreve Kotlin/Compose; Gemini e ChatGPT revisam; nenhum agente atua sobre os mesmos arquivos em paralelo. Ao fechar um megalote: commit local/branch, mapa de IDs, arquivos, diff, provas estáticas, testes a executar no E10 e rollback.
+
+## 2. Custo / produtividade: regra de despacho
+| Tarefa | Executor mais econômico | Esforço de IA | Regra de escalonamento |
+|---|---|---|---|
+| Coordenar, deduplicar, definir contrato e gate | ChatGPT normal, GPT-6, Alto | Curto, no começo/fim dos marcos | Não ficar monitorando shell/Gradle |
+| Auditar strings, pastas, comparações Original/ARC/ReSeq, screenshots fornecidos | Gemini/Antigravity, modelo rápido disponível | Leitura de alto volume | Relatório por arquivo/linha; SEM editar |
+| Git status, hash, diff, `diff --check`, parser XML, testes mecânicos futuros | Commander/terminal/PowerShell | Zero tokens de agente em execução mecânica | Requer PC online; ChatGPT analisa apenas saída final |
+| Kotlin/Compose/player, contratos, SQL de LAB, testes escritos | Codex, modelo de programação mais capaz disponível, raciocínio Alto | Concentrado por megalote, 1 autor | Não chamar para tarefas meramente documentais |
+| Consulta GitHub, commit em branch, diff/PR e monitor inativo | Conector GitHub/GitHub Actions | Baixo custo de IA | CI/schedule e builds de Actions desativados antes do gate |
+| Migração/deploy Supabase | Ferramenta Supabase após revisão | Gate humano próprio | Não misturar com patch Android; preservar staging/prod |
+| Build/testes/smoke E10 | Gradle, ADB, apksigner, terminal | Ferramentas nativas; IA só se FAIL | Não criar APKs por tela ou correção mínima |
+
+**Sem promessa de limites, cotas, horas ou preços numéricos** sem painel de cobrança/limites verificado. Custo adicional de agentes e CI deve ser observado quando forem realmente utilizados; economizar chamadas, não cobertura de teste.
+
+## 3. Ordem e portas de qualidade: UM DONO POR COMPONTENTE
+| Fase | Entrega exigida | Ferramenta | Gate / proibição |
+|---|---|---|---|
+| **E00-G** agora | Ler fontes no GitHub e mapear **cada ID** a JÁ EXISTE/PARCIAL/AUSENTE/INVESTIGAR/DUPLICADO/NÃO APLICÁVEL, com arquivo/função e prova; confrontar upstream, contratos e UI | GPT-6 Alto; Gemini para inventário volumoso | Somente leitura, sem inferir runtime da TV |
+| **E00-L** obrigatório | Ler `D:\APK\AGENTS.md`; PC, worktree, Git sujo/remotos/processos; SHA da fonte 2.0.2 vs binário, assinatura Fire/Shield, Gradle/SDK, mpv, fallback YouTube, OTA | Commander/PowerShell leitura; Codex só se diagnóstico complexo | Se correspondência, signing ou P0 sem solução: **HOLD** antes de patches críticos |
+| **E01** condicional | Crash Detalhes/ANR ou redirecionamento Plex/Emby com token **somente se comprovado** | Codex Alto | Não refatorar sem reprodução/evidência |
+| **E02** | Fontes, retries/expiração/Debrid, cancelamento, orçamento total, preservar posição e fonte manual | Codex Alto | Contrato de stream congelado; casos 0/7 fontes e cancelamento preparados |
+| **E04** | Range/buffer/cache/seek/Fire 32-bit; arquivos REMUX sem downgrade | Codex Alto | Não tocar decisão do decodificador ou bitstream; contrato de E02 respeitado |
+| **E03** | Exo/MPV, áudio HD/TrueHD/DTS, HDR/DV, HLS/DASH, Hz/ARC | Codex Alto | Preservar Exo passthrough HD, MPV PCM ≠ bitstream; sem transcodificar |
+| **E06** | Dados e contratos de séries/episódios/Trakt/WeTrakr tracking/Continuar/Calendário; status, anos, classificação e contagem válida | Codex Alto | Não alterar UI; entregar DTOs e callback estáveis para E07B e E05 |
+| **E07B-LÓGICA** | Scout/Descubra-me aproveitando `surprise`, FlickPick/Advanced Discover/TV Mix, PIN, perfil, listas/filmes vistos, legendas funcionais | Codex Alto | Um único motor Scout e seletor de fontes, contratos de UI congelados antes de E05 |
+| **E05-UI** | **ÚNICA passagem visual:** Home/Vitrine/Glass, logos PT-BR→original, backdrops, Grade de séries, Focus Dock, Calendário **visual DanPlus + só filtros/Hoje úteis do ReSeq**, Pausa Direção/Elenco se bug, Seekr moldura | Codex Alto + Gemini auditoria visual | Sem segundo loader/motor, manter sinopse e DPAD; screenshot real só no E10 |
+| **E05C piloto** não bloqueante | “Em Cena” apenas se índice título+edição+timecode validado com dados licenciados; badge condicional só após piloto; sem reconhecimento facial no APK | GPT arquitetura + Codex LAB | Se não houver dado e prova real, **NÃO EMBARCAR badge**; não atrasar 2.1.0 |
+| **E07A** | Marca visível DanPlus/PT-BR; preservar nomes técnicos/créditos Nuvio/ARC, licenças | Gemini lê; Codex edita strings afetadas | Não fazer replace global nem retraduzir funcionando |
+| **E08** | Indicações/relatos/backup/RLS, WeTrakr Client ID público remoto + cache/validação; proteção de tokens e consentimentos | Codex LAB + GPT auditoria de segurança | Supabase STAGING já tem Client ID público; Android ainda não lê; Client Secret separado NÃO entra APK/Git; **sem deploy produção** |
+| **E09** | Trailer PT-BR dublado/legendado, fallback, cache TTL/backend, Minority Report | Codex Alto | Sem chave embutida; missão isolada |
+| **E11** opcional | Monitor Original + ARC + ReSeq, ledger por SHA/id, relatório de diff | Codex depois de proposta GPT | Sem habilitar schedule, builds, auto-merge, auto-release ou OTA; não bloquear E10 se não essencial |
+| **FREEZE** | 100% dos itens decididos têm classificação/prova ou HOLD explícito; todos patches concluídos; contratos fechados; diff limpo; testes escritos; sem segredos | GPT-6 Alto + inspeções locais estáticas | FAIL => corrigir código sem compilar e revisar novamente |
+| **E10** final | Tasks reais Gradle; testes compilados; campanha de 2 APKs compatíveis; SHA/assinaturas/ABI/versionCode; smoke real Fire e Shield; comparação de screenshot e OTA | Commander+Gradle+ADB; Codex só no FAIL | Build PASS ≠ smoke PASS. Release/instalação/deploy apenas sob aprovação própria |
+
+**Ordem de dependência que prevalece:** `E00-G → E00-L → E01? → E02 → E04 → E03 → E06 → E07B-LÓGICA → E05-UI → E07A → E08 → E09 → FREEZE → E10`. E05C é piloto condicionado e E11 é trilha opcional, ambos sem travar a versão estável. E08/E09 podem ser *analisados* em paralelo, mas **um único autor Kotlin por vez**.
+
+## 4. Critérios de conclusão por megalote, sem compilação
+Cada entrega precisa fornecer:
+1. IDs cobertos / IDs deduplicados / itens INVESTIGAR ou NEGAR não alterados.
+2. Arquivos exatos, commit SHA e diff; prova de que não tocou pacotes, assinaturas, banco, OTA.
+3. Contratos de entrada/saída estáveis, efeitos por perfil, permissões, cache, offline, DPAD e regressões esperadas.
+4. **Testes de unidade e regressão ESCRITOS, NÃO EXECUTADOS**; evidências de revisão estática com resultado verdadeiro; `git diff --check` quando branch local disponível.
+5. Checkpoint de continuidade autossuficiente; ao haver sobreposição de arquivo, suspender e atribuir dono único, não abrir dois agentes.
+6. Não criar APK; não mudar main, segredos, Supabase real, lançamentos, certificados ou aparelhos.
+
+## 5. Portas finais de homologação e contingência
+- E10 deve descobrir os nomes reais das tasks e condições dos flavors no ambiente local; registro de variant Fire `fullFire` existe só sob `buildingUnifiedOta`; usar propriedades reais, confirmar certificados e fingerprint contra 2.0.2.
+- **PASS** por teste separado: compilação/testes (Kotlin), arquivos APK assinados, Fire DPAD/Classic, Shield Classic/V2, Busca/Biblioteca/Indicações, Scout/Calendário/Grade/Seekr, áudio/REMUX/seek, legendas, login e progresso, OTA in-place, fotos de tela antes/depois.
+- Se compile/teste falhar no primeiro fechamento, **não gerar APK de tentativa e publicar**. Congelar a regressão, diagnosticar pontualmente, corrigir, repetir apenas o necessário, retestar regressão; documentar que a campanha exigiu outra execução. **Não alegar uma tentativa única quando falhou.**
+- Se QA visual/áudio não tiver PASS real, versão NÃO homologada mesmo que Gradle seja PASS.
+- Manter 2.0.2 como rollback, sem alterar produção, releases e OTA até decisão humana final.
+
+## 6. Handoff e primeira ação real
+**SCRIPT a executar primeiro, sem abrir Codex:** ChatGPT normal, GPT-6 Alto: ler a matriz 146, auditoria RSQ, plano final e scripts em `docs/danplus/fontes-recuperadas/`; fazer **E00-G por IDs** contra símbolos atuais GitHub, uma única matriz de deltas (não escrever Kotlin). Saída: `ID | dono | estado código | arquivo/símbolo | prova | contrato | teste futuro | próximo gate`; marcar dúvidas NÃO TESTADO.
+
+**E00-L depois:** abrir Commander quando PC voltar online, realizar inventário local, preservar 2.0.2, decidir gate de início de Codex. Não use Commander offline como desculpa para inventar PC PASS. Não iniciar patch relevante de Kotlin antes da equivalência 2.0.2.
+
+**Scripts completos para ChatGPT, Gemini, Codex e freeze E10** já preservados em `docs/danplus/fontes-recuperadas/DANPLUS_2_1_0_SCRIPTS_POR_IA_SEM_BUILD_20261122.md`. Primeiro leia `AGENTS.md` do PC quando acessível e `GEMINI.md` no GitHub. O resultado desta preparação é PLANEJAMENTO, não software implementado.
+
+## 7. Estado verificado no momento da criação
+- PASS documentais: 146 IDs e 20 RSQ presentes/íntegros; GitHub branch e gravação funcionais; `main` referência conforme leitura; fonte Gradle contém `full`/`fullFire` condicionais ao modo OTA; códigos Scout/Calendário/WeTrakr/Seekr existentes por inspeção estática.
+- PENDENTE: E00-G completo requisito×símbolo; E00-L real; implementação E01..E09; piloto Em Cena; automação E11; backend WeTrakr integrado ao APK.
+- NÃO TESTADO: Kotlin, Gradle, binário 2.1.0, proteção de dados em execução, QA visual, assinaturas atuais e smoke físico Fire/Shield/OTA.
