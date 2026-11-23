@@ -4,7 +4,7 @@
 ## 1. Fontes e precedência
 - Repositório oficial: `danilopagotto82/DanPlus`, `main` SHA `3715ee0de8345d617f48c2da7271716ed501dc5c`, confirmado por leitura GitHub nesta rodada.
 - Ler `GEMINI.md`, `docs/danplus/PLANO_DANPLUS_2_1_0.md`, `docs/danplus/PROXIMA_VERSAO_PRONTIDAO_20261119.md`, `docs/danplus/INDICE_MUD.md` e `docs/danplus/gemini-planejamento/DP_CODEX_00..10` conforme aplicável.
-- Fontes de planejamento local / arquivo de projeto lidas nesta rodada: `DANPLUS_2_1_0_PLANO_MESTRE_ATUALIZADO_20261122.md` e `DANPLUS_2_1_0_ROTEIRO_EXECUCAO_COM_SCRIPTS_20261122.md`. **Não foram encontradas como arquivos do GitHub oficial.** A matriz CSV completa de 146 decisões e a auditoria sênior ReSeq anexa não foram abertas; não alegar conferência integral linha a linha das especificações dessas anexas.
+- Fontes de planejamento local / arquivo de projeto lidas nesta rodada: `DANPLUS_2_1_0_PLANO_MESTRE_ATUALIZADO_20261122.md` e `DANPLUS_2_1_0_ROTEIRO_EXECUCAO_COM_SCRIPTS_20261122.md`. **Não foram encontradas como arquivos do GitHub oficial.** ATUALIZAÇÃO DE RECUPERAÇÃO (22/11): matriz e auditoria foram LOCALIZADAS e ABERTAS integralmente na Biblioteca do projeto DaNPllus e copiadas como texto extraído para `docs/danplus/fontes-recuperadas/` nesta branch. Matriz: 146 IDs únicos, contagens de votos confirmadas; ReSeq: RSQ-01..20 todos presentes. Esses dados são documentos de decisão, NÃO prova de implementação no código, não substituem E00-L.
 - Base protegida nos documentos: APK DanPlus 2.0.2, versionCode 1644, Fire `com.danexus.tv.fire.debug`, Shield `com.danplus.shield`; fonte local indicada `D:\APK\Worktrees\DanPlus_OFICIAL_FONTE_SEGURA_20261119`; APKs protegidos `D:\APK\DanPlus_2_0_2_HOMOLOGADO`; repositório OTA legado não renomear/não apagar. Estes CAMINHOS não foram inspecionados agora.
 - GitHub: 403 de escrita foi resolvido, com branch e commit de prova `7e34af09` na branch `chore/wetrakr-backend-prep-20261122`. Nunca escrever diretamente na main sem gate.
 - Commander: dispositivo DESKTOP-5P89BAD aparece OFFLINE nesta rodada. AGENTS.md local, Git dirty, assinatura, hashes APK, SDK, equivalência binário-fonte e smoke permanecem NÃO TESTADOS.
@@ -45,7 +45,7 @@
 
 ## 6. Estado desta rodada
 - PASS: leitura GitHub main / plano e roteiro disponíveis, branch documental isolada; diagnóstico parcial de código e ausência de workflows.
-- NÃO TESTADO: build, Kotlin, ADB, dispositivos, assinaturas, performance, crashes, QA visual, deploy de WeTrakr no APK, equivalência APK-fonte, full checklist de 146 descrições porque o CSV/auditoria ReSeq anexa não estão acessíveis aqui.
+- NÃO TESTADO: build, Kotlin, ADB, dispositivos, assinaturas, performance, crashes, QA visual, deploy de WeTrakr no APK, equivalência APK-fonte, confronto completo **cada requisito × implementação** (apesar das fontes documentais agora recuperadas).
 - Sem side effects no código Android, `main`, APK, Supabase, releases, certificados, usuários ou dados.
 
 **Primeira ação exata depois deste inventário:** quando Commander estiver online, rodar E00-L exclusivamente leitura; conferir AGENTS.md e baseline 2.0.2. Corrigir bloqueio de equivalência antes de iniciar E02/E04; depois autorizar cada megalote com um único executor e sem APK antes da codificação completa.
