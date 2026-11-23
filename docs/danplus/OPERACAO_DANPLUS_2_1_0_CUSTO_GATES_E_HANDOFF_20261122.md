@@ -25,6 +25,9 @@
 - **FREEZE não é PASS:** todos os contratos e diffs revisados, sem pendências não explicitadas; a execução de testes Kotlin/Gradle somente na E10 e o smoke físico continuam necessários.
 - Sem estimar custos de GitHub Actions, Codex ou quotas de IA sem fonte/painel atual; preferir ferramentas mecânicas e executar lotes amplos para reduzir recargas de contexto.
 
+### Fila operacional já criada (sem inventar implementação)
+O arquivo `docs/danplus/MAPA_E00_GITHUB_146_RS20_PENDENTES_20261122.csv` foi gerado nesta branch com **166 IDs únicos** (146 da matriz oficial + 20 ReSeq), cruzados com os responsáveis do roteiro. **Todos os itens ativos permanecem como PENDENTE E00-G até inspeção símbolo/arquivo e código real**, não PASS. Os seis excluídos permanecem fora da programação; os oito INVESTIGAR não estão autorizados para patch.
+
 ### Próxima ação disponível agora, sem PC
 **E00-G (somente leitura de código):** preencher matriz `ID | decisão | status comprovado no GitHub | arquivo/símbolo | vínculo | dono E__ | teste futuro | gate` antes de liberar implementações. **Não acionar Commander** enquanto a auditoria remota puder avançar; C01 é chamado quando faltar exclusivamente evidência de PC/2.0.2.
 
