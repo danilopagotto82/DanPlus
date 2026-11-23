@@ -2,6 +2,26 @@
 **Data:** 22/11/2026 (BRT) · **Estado:** planejamento operacional verificado por fontes; **não é autorização de patch Kotlin, build, deploy, instalação, merge ou release**.
 **Ramo documental:** `docs/danplus-210-github-first-20261122`. **Main de referência:** `3715ee0de8345d617f48c2da7271716ed501dc5c` (revalidar se houver mudanças).
 
+## 22/11 — CONTINUIDADE REVALIDADA: PR TRAILER + WETRAKR STAGING
+**Tipo:** verificação remota adicional (somente leitura de código e banco) e registro documental; **não é homologação ou autorização de build, merge, migration ou deploy**.
+
+### Trailer/Detalhes — revisão estática do PR
+- GitHub PR [#1 DRAFT](https://github.com/danilopagotto82/DanPlus/pull/1): ABERTO, NÃO MERGEADO, HEAD `f7d84cae2693d08e4678e28769d62182c55d5009`, base `main` `3715ee0de8345d617f48c2da7271716ed501dc5c`; exatamente 4 arquivos, +129/-2 linhas; nenhum review ou comentário registrado; nenhuma execução de Actions vinculada ao HEAD encontrada nesta consulta.
+- Conferidos em código: `Meta.trailerYtIds: List<String>`, `Meta.imdbId`, `TrailerPreviewLookup.lookupTrailerPreview`, `trailerPreviewYtIds`, `TrailerService.getDetailTrailerPlaybackSource` e chamada de `MetaDetailsViewModel.fetchTrailerUrl`. O contrato está coerente **estaticamente**; isso NÃO comprova compilação nem execução.
+- Testes novos escritos: 3 cenários da seleção PT-BR/fallback/miss e 1 teste de desativação; **NÃO EXECUTADOS**. Cobertura ainda insuficiente para provar caminho real TMDB/IMDb/YouTube, concorrência/cancelamento, vídeos de *Minority Report* e *A.I.*, áudio separado e hardware.
+- Risco observado: se PT-BR não existir, o fallback pode iniciar nova busca TMDB/IMDb e acrescentar latência; há cenários de rate limit, login YouTube e URL expirada. Manter PR draft isolado e NÃO fazer merge até C01, revisão Kotlin e E10. Evitar novas buscas síncronas por DPAD/retorno dos detalhes.
+
+### WeTrakr — verificação direta do Supabase STAGING
+- Projeto `DANPLUS-SHIELD-STAGING` ACTIVE_HEALTHY; tabela `public.danplus_public_app_config` com RLS habilitada e 1 registro. `wetrakr_client_id` existe, não está em branco, possui comprimento 32; **valor deliberadamente não copiado**.
+- Política `danplus_wetrakr_public_client_read`: SELECT para `anon, authenticated` restrito a `config_key='wetrakr_client_id'`. `SELECT` concedido a ambos. Conferência realizada por introspecção SQL; chamada REST real com chave publicável e testes Android **NÃO TESTADOS**.
+- Código `main` ainda resolve `WeTrakrConfiguration.clientId` por `WeTrakrClientId.current()` (preferência protegida) ou `BuildConfig.WETRAKR_CLIENT_ID`; `WeTrakrModule.kt` **não faz fetch** do Supabase. `WeTrakrAuth.kt` usa o Client ID no início do device OAuth e na consulta de token; `WeTrakrHttp.kt` também o envia no header `wetrakr-api-key`.
+- Contrato E08 a codificar **após gate**: buscar exclusivamente o identificador público via Supabase com chave publicável, validar valor, limitar timeout e repetição, persistir cache, manter fallback offline, e **fixar o Client ID durante cada sessão OAuth iniciada**, evitando troca entre `/oauth/device/code` e `/oauth/device/token`. Nunca publicar Client Secret, service_role, refresh tokens ou dados de perfil. Testes negativos: vazio/403/timeout/rotação de ID/falha de rede, além de login/refresh/perfis/cotas e isolamento.
+- Nenhuma query com escrita SQL, migration, ativação de Edge Function, mudança de credenciais, patch Android, build, dispositivo ou produção ocorreu nesta revisão.
+
+**Próximo gate:** C01/E00-L somente quando PC estiver disponível, para AGENTS.md, APK 2.0.2, assinatura, Git sujo e ambiente. Após C01 PASS, um único autor Android integra E08 e demais megalotes em branch própria; **E10 segue como única campanha final de compilação e smoke**. Distinguir claramente testes escritos de testes executados.
+
+---
+
 ## 22/11 — TRAILER-DETAIL-FALLBACK-01 (correção isolada já codificada em branch)
 **Sintoma relatado:** trailers de filmes como *Minority Report* e *A.I. – Inteligência Artificial* reproduzem no pôster expandido, porém não aparecem/iniciam na tela Detalhes.
 
