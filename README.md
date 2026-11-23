@@ -36,4 +36,4 @@ Nunca inclua credenciais, arquivos de assinatura ou local.properties em commits.
 
 Este fork respeita as licenças e atribuições das bases Nuvio Original e Nuvio ARC, além das dependências de terceiros. Consulte [LICENSE](LICENSE), os arquivos de atribuição e as licenças incluídas no código.
 ## Planejamento de melhorias
-O [GEMINI.md](GEMINI.md) e o [índice de megalotes](docs/danplus/gemini-planejamento/INDICE.md) reúnem requisitos futuros, incluindo prioridade de logos em português brasileiro. São documentos de planejamento, não funcionalidades entregues na versão 2.0.2.
+O **[Plano Único DanPlus 2.1.0](docs/danplus/PLANO_DANPLUS_2_1_0.md)** é a fonte oficial de planejamento para todas as ferramentas e IAs. Reúne megalotes, decisões, requisitos de UI (incluindo **Signature Glass**) e gates de segurança. Os 17 arquivos em `docs/danplus/gemini-planejamento/` são **anexos técnicos históricos**, preservados para consulta, não outro planejamento. Nada disso é funcionalidade implementada na 2.0.2.
