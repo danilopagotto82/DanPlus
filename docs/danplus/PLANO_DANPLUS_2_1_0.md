@@ -26,7 +26,7 @@
 8. **ML10**: regressão e smoke reais na Shield e Fire antes do release 2.1.0.
 9. **ML11 opcional**: comparação automatizada Nuvio Original + ARC sem IA recorrente, sem merges/releases automáticos.
 
-**Decisões preservadas**: matriz 146 com 36 decisões e 110 pendentes; RS-06/B2-06 pendentes; A2-35 não recomendar; 14 REQ16 sem duplicação de MUD. **Planos ≠ patches.**
+**Decisões vigentes (matriz final recuperada de 22/11):** 146 IDs, 105 APROVAR, 23 ADAPTAR, 8 INVESTIGAR, 4 MANTER, 5 NEGAR e 1 NÃO RECOMENDAR. B2-06 foi APROVADO posteriormente; A2-35 continua NÃO RECOMENDAR. RS-06 permanece sujeito à decisão específica Reshaped. 14 REQ16 sem duplicação de MUD. **Planos ≠ patches.**
 
 ## UI-HEADER-01 — DanPlus Signature Glass (APROVADO EM 23/11/2026; DP-ML06)
 
@@ -86,7 +86,7 @@
 | **DP-ML10** | Gate final único de testes, build, smoke físico e regressão em Shield/Fire. | **PASS real** por variante + screenshot/UI + vídeo/áudio/DPAD/OTA, antes da publicação separada. |
 | **DP-ML11 (opcional)** | Monitor de upstream **Nuvio Original + ARC** via metadados GitHub Actions, ledger/diff/dedup, sem IA recorrente nem merge/release automático. | Projeto de automação **NÃO IMPLEMENTADO**; revisão humana e escopo separado. |
 
-**Matriz de mudanças:** 146 IDs Original/ARC (36 decisões, 110 pendentes) e 7 Reshaped (6 decididos, RS-06 pendente), conforme registros de 17–19/11. **B2-06 pendente; A2-35 NÃO RECOMENDAR.** `INVESTIGAR` não autoriza patch; `MANTER` não deve ser reimplementado. As **14 entradas MUD R3** e os **14 REQ16** são camadas distintas, com possíveis sobreposições; evitar duplicações como B1-27/B2-07/RS-03, MUD-006/REQ16-06, MUD-008/REQ16-05, MUD-013/BUG-THUMB-01. Não confundir aparência aprovada com código existente nem tratar imagem gerada como screenshot do APK.
+**Matriz de mudanças vigente:** 146 IDs Original/ARC com decisão final de 22/11 + 20 IDs de auditoria ReSeq (166 mapeados, não 166 patches); sete itens Reshaped históricos são relacionados separadamente. **B2-06 APROVADO na matriz final; A2-35 NÃO RECOMENDAR.** `INVESTIGAR` não autoriza patch; `MANTER` não deve ser reimplementado. As **14 entradas MUD R3** e os **14 REQ16** são camadas distintas, com possíveis sobreposições; evitar duplicações como B1-27/B2-07/RS-03, MUD-006/REQ16-06, MUD-008/REQ16-05, MUD-013/BUG-THUMB-01. Não confundir aparência aprovada com código existente nem tratar imagem gerada como screenshot do APK.
 
 ### Referências técnicas preservadas (17 anexos; históricos, NÃO outros planos)
 
@@ -127,7 +127,42 @@ Pasta: `docs/danplus/gemini-planejamento/`. Apesar do nome legado, contém **arq
 - **Instruções locais:** `D:\APK\AGENTS.md` atualizado em 25/11 para apontar somente ao plano canônico, registrando o caráter histórico da pasta gemini-planejamento. Alteração **fora do Git**, verificada por releitura do arquivo.
 - **Ferramentas e artefatos locais:** `git` e `adb` disponíveis no PATH; `java`/`javac` não encontrados diretamente no PATH, mas `JAVA_HOME\bin\java.exe` existe; `gradlew.bat`, pasta de APKs homologados 2.0.2 e `local.properties` presentes; `sdk.dir` aparece configurado sem expor valor. **Ainda NÃO TESTADOS:** Gradle wrapper e dependências, compilação, assinatura Shield, fallback YouTube, performance/memória, teste visual e smoke Fire/Shield.
 
-**Próxima ação exata da ML00:** a sincronização documental foi concluída; realizar precheck focado Gradle/JDK/SDK e signing **sem revelar credenciais**, revisar PR #1 ainda em rascunho e manter seus testes/CI como **NÃO TESTADOS** até execução real. Conciliar a fonte sanitizada com a 2.0.2 homologada antes de autorizar código ou build; terminar relatório ML00. Nenhuma build antecipada ou alteração da 2.0.2.
+**Próxima ação deste checkpoint histórico:** ver a seção vigente de encerramento E00/C01 imediatamente a seguir. Não repetir a sincronização e inventário já aprovados.
+
+---
+## Execução vigente — reconciliação final E00 / C01 — 25/11/2026
+
+**Esta seção prevalece sobre a ordem e contagens históricas de 17–19/11.** O plano único absorve a auditoria final de 22/11 e mantém a UI-HEADER-01 de 23/11. Os documentos antigos são evidência, não planos concorrentes.
+
+### Matriz única e evidência técnica
+- [Matriz final 146 decisões](auditoria/DANPLUS_2_1_0_MATRIZ_146_DECISOES.csv) — conferência de 146 linhas / 146 IDs únicos: 105 APROVAR, 23 ADAPTAR, 8 INVESTIGAR, 4 MANTER, 5 NEGAR, 1 NÃO RECOMENDAR.
+- [Evidências E00-G — 166 IDs](auditoria/E00_GITHUB_AUDITORIA_EVIDENCIAS_166_20261122.csv) — 146 itens + RSQ-01..20; 166 linhas/IDs únicos; relatório histórico mapeou 62 caminhos de código. Não confundir evidência estática com implementação ou QA. Os dois CSVs foram recuperados sem modificação do commit `c820feefb624d4bf135b5bc7ad88448f3cb64547`.
+- [Relatório estático priorizado de 22/11](https://github.com/danilopagotto82/DanPlus/blob/c820feefb624d4bf135b5bc7ad88448f3cb64547/docs/danplus/E00_GITHUB_RESULTADOS_PRIORIZADOS_20261122.md) e [rota histórica de operação](https://github.com/danilopagotto82/DanPlus/blob/c820feefb624d4bf135b5bc7ad88448f3cb64547/docs/danplus/OPERACAO_DANPLUS_2_1_0_CUSTO_GATES_E_HANDOFF_20261122.md) são fontes de evidência, não instruções concorrentes.
+- Excluídos: B1-29 (indonésio), B1-30 (lituano), B1-31 (holandês), B2-19 (árabe), B2-20 (eslovaco) e A2-35 (hack Projectivy). Não portar. B2-06 foi APROVADO na matriz final, não permanece pendente.
+
+### C01 — fechamento de precheck sem compilação
+- GitHub e PC antigo sincronizados no início desta rodada em `e67459cfb1042fe2e68f97b0a017f1411512bffe`, status limpo, nenhuma diferença em app/ ou arquivos Gradle desde `3715ee0`. Worktree Ordem Certa permanece independente. A auditoria de 22/11 registrou 5.133 blobs idênticos ao legado, 3 modificados, 29 só no novo, 7 só no legado; os deltas de código documentados são Gradle e extractor YouTube sanitizado. Não alegar equivalência binária da nova fonte.
+- APKs locais 2.0.2: os dois SHA-256 coincidem com os assets da release 2.0.2 no GitHub legado; `apksigner verify` exit 0 nas duas variantes. Certificado Fire do debug keystore e Shield do PKCS12 conferidos por `keytool` com o respectivo APK: MATCH em ambos; entrada de chave privada Shield reconhecida. Cofre DPAPI existente importado localmente com sucesso, sem exposição/exportação de credenciais; variável de processo temporária removida. Não persistir segredos ou substituir certificados.
+- JDK JBR 21.0.11 via JAVA_HOME, SDK Android 36 presente (compileSdk/targetSdk 36), build-tools 36.0.0, Gradle wrapper 8.13 e JAR presentes, cache da distribuição e caminho MPV 0.1.12 presentes; AARs locais presentes. Nenhum Gradle executado. `local.properties` sem fallback YouTube não vazio; E09 deve tratar esse delta com segurança; jamais recuperar a chave hardcoded removida. Verificação funcional do fallback, resolução efetiva de dependências e build continuam NÃO TESTADOS.
+- **Resultado C01: PASS de precheck não compilante** (Git, artefatos de referência, certificados, ambiente e reconciliação estática). Não é PASS de build, execução, assinatura de novo APK, equivalência binária ou OTA. Gate de FREEZE/E10 continua obrigatório. PR #1 trailer permanece draft e testes escritos não executados. A main está sem proteção de branch; nenhum merge de código autorizado por este checkpoint.
+
+### Ordem vigente e responsável único (sem builds antes do FREEZE)
+| Megalote | Escopo único | Estado neste checkpoint |
+| --- | --- | --- |
+| E00-G / C01 | Auditoria de IDs, baseline, signing e ambiente | PASS estático / precheck |
+| E01 | Crash Compose Detalhes somente com evidência atual | INVESTIGAR; sem patch especulativo |
+| E02 | Failover, retry e cancelamento por addon | PRÓXIMO patch: Codex |
+| E04 → E03 | Buffer, memória Fire, ranges; depois formatos/áudio/frame-rate | NÃO INICIADO |
+| E06 → E07B-LÓGICA | Contratos séries/episódios/progresso/calendário; depois Scout/Descubra-me, fontes/perfis | NÃO INICIADO |
+| E05 | Única passagem visual, incluindo Signature Glass, logos PT-BR, backdrops, Grade lateral, Seekr, calendário | NÃO INICIADO |
+| E07A | Marca/textos PT-BR, preservar IDs/créditos/licenças | NÃO INICIADO |
+| E08 → E09 | Backend LAB/WeTrakr e trailers; recuperar PR #1 sem duplicação | PR #1 patch isolado; resto NÃO INICIADO |
+| E11 | Monitor upstream Original + ARC (+ ReSeq observação), dry-run desativado | OPCIONAL, NÃO INICIADO |
+| FREEZE → E10 | Revisão, uma campanha final testes/builds, signing, smoke real Fire/Shield, OTA | NÃO INICIADO |
+
+**Autorização operacional de 25/11:** trabalhar em megalotes sequenciais sem pedir confirmação repetida para ações seguras, preservando gates e parada por risco real. Codex é único escritor Android, ChatGPT coordena/revisa, Gemini audita somente leitura; GitHub primeiro. Não executar Gradle, compilar ou instalar antes do freeze. Não portar INVESTIGAR sem evidência. Não liberar produção, merge em main, APK ou publicação automaticamente. Registrar Feito/Resultado/Próximo passo no plano e no painel.
+
+**Próximo passo exato:** a partir de uma branch de integração isolada criada da main documental verificada, revisar `SourceFailoverSelection.kt` e consumers existentes (E02). A seleção historicamente percorria só índices posteriores ao atual: testar e adaptar somente o gap comprovado para esgotar candidatas elegíveis do mesmo addon com ledger anti-loop, uma tentativa ativa, timeout global, cancelamento, fonte manual e minuto/episódio/perfil preservados. Escrever testes de meio/fim de lista, 0/1/7 fontes, dead URL, troca de perfil/episódio e cancelamento, mas executar somente E10. E01 permanece investigação; não inventar crash atual.
 
 ---
 ## Segurança/qualidade e pontos de parada
@@ -155,4 +190,4 @@ O código exato da ponte 2.0.2 continua no **GitHub legado**, commit `c92187031a
 
 **Espaço medido:** C: 55,88 GB → 56,77 GB livres; D: 130,09 GB → 193,43 GB livres (**+63,34 GB**); projetos independentes preservados. O relatório completo de limpeza está em `D:\APK\DanPlus_2_0_2_HOMOLOGADO\FECHAMENTO_LIMPEZA_DANPLUS_20261119.md`.
 
-**Próxima etapa ainda não realizada:** DP-ML00, sem gerar APK 2.1.0; a numeração 2.1.0 é decisão de produto, não build concluído. Não executar comandos históricos que usem caminhos das worktrees excluídas.
+**Registro histórico de 19/11, superado pelo checkpoint E00/C01 de 25/11:** DP-ML00 ainda não realizada naquela data, sem gerar APK 2.1.0; a numeração 2.1.0 é decisão de produto, não build concluído. Não executar comandos históricos que usem caminhos das worktrees excluídas.
