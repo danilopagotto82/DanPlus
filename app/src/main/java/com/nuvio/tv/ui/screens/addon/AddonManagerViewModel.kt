@@ -33,6 +33,7 @@ import com.nuvio.tv.core.server.TraktSourceMetadataRequest
 import com.nuvio.tv.core.server.TraktSourceSearchRequest
 import com.nuvio.tv.core.server.TraktSourceSearchResultInfo
 import com.nuvio.tv.core.profile.ProfileManager
+import com.nuvio.tv.ui.screens.settings.OrderDraft
 import com.nuvio.tv.core.tmdb.TmdbCollectionSourceResolver
 import com.nuvio.tv.core.trakt.TraktPublicListSourceResolver
 import com.nuvio.tv.core.util.readAppLogoBytes
@@ -236,21 +237,49 @@ class AddonManagerViewModel @Inject constructor(
         reorderAddon(baseUrl, 1)
     }
 
+    private val mutableOrder = MutableStateFlow<OrderDraft?>(null)
+    internal val orderDraft = mutableOrder.asStateFlow()
+    private val mutableOrderSaving = MutableStateFlow(false)
+    internal val orderSaving = mutableOrderSaving.asStateFlow()
+    private val mutableOrderError = MutableStateFlow(false)
+    internal val orderError = mutableOrderError.asStateFlow()
+    private var orderOwner: Pair<Int, Long>? = null
+
     private fun reorderAddon(baseUrl: String, direction: Int) {
-        val current = _uiState.value.installedAddons
-        val index = current.indexOfFirst { it.baseUrl == baseUrl }
-        if (index == -1) return
+        if (isReadOnly || mutableOrderSaving.value) return
+        val owner = layoutPreferenceDataStore.homeOrderOwner()
+        val baseline = _uiState.value.installedAddons.map { it.baseUrl }
+        val draft = mutableOrder.value?.takeIf { it.baseline == baseline && orderOwner == owner } ?: OrderDraft(baseline)
+        val index = draft.keys.indexOf(baseUrl)
+        if (index < 0) return
+        val updated = draft.move(baseUrl, index + direction)
+        orderOwner = owner
+        mutableOrder.value = updated.takeUnless { it.keys == it.baseline }
+        mutableOrderError.value = false
+    }
 
-        val newIndex = index + direction
-        if (newIndex !in current.indices) return
+    internal fun cancelAddonOrder() {
+        if (!mutableOrderSaving.value) mutableOrder.value = null
+        mutableOrderError.value = false
+    }
 
-        val reordered = current.toMutableList().apply {
-            val item = removeAt(index)
-            add(newIndex, item)
-        }
-
+    internal fun saveAddonOrder() {
+        val draft = mutableOrder.value ?: return
+        if (mutableOrderSaving.value) return
+        mutableOrderSaving.value = true
         viewModelScope.launch {
-            addonRepository.setAddonOrder(reordered.map { it.baseUrl })
+            try {
+                check(!isReadOnly && orderOwner == layoutPreferenceDataStore.homeOrderOwner() &&
+                    draft.baseline == _uiState.value.installedAddons.map { it.baseUrl })
+                addonRepository.setAddonOrder(draft.keys)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                mutableOrderError.value = true
+            } finally {
+                mutableOrder.value = null
+                mutableOrderSaving.value = false
+            }
         }
     }
 

@@ -1495,9 +1495,11 @@ private fun CreateProfileOverlay(
     }
     val nameFocusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(Unit) {
-        repeat(2) { withFrameNanos { } }
-        runCatching { nameFocusRequester.requestFocus() }
+    LaunchedEffect(profile.id) {
+        repeat(6) {
+            withFrameNanos { }
+            if (runCatching { nameFocusRequester.requestFocus() }.getOrDefault(false)) return@LaunchedEffect
+        }
     }
 
     Box(

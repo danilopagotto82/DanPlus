@@ -189,9 +189,9 @@ private fun CastDetailContent(
     val backgroundColor = NuvioTheme.colors.Background
     val accentColor = NuvioTheme.colors.Secondary
 
-    val allCredits = remember(person.movieCredits, person.tvCredits) {
-        (person.movieCredits + person.tvCredits)
-            .distinctBy { it.id }
+    var showSeries by rememberSaveable(person.tmdbId) { mutableStateOf(person.movieCredits.isEmpty()) }
+    val credits = remember(person, showSeries) {
+        (if (showSeries) person.tvCredits else person.movieCredits).distinctBy { it.id }
             .sortedByDescending { releaseYearSortKey(it.releaseInfo) }
     }
 
@@ -261,7 +261,7 @@ private fun CastDetailContent(
                 )
 
                 AnimatedVisibility(
-                    visible = allCredits.isNotEmpty() && !isBiographyExpanded,
+                    visible = credits.isNotEmpty() && !isBiographyExpanded,
                     enter = fadeIn() +
                         expandVertically(expandFrom = Alignment.Top) +
                         slideInVertically(initialOffsetY = { it / 2 }),
@@ -272,10 +272,23 @@ private fun CastDetailContent(
                     Column {
                         SectionHeader(
                             title = stringResource(R.string.cast_detail_filmography),
-                            count = allCredits.size
+                            count = credits.size
                         )
+                        if (person.movieCredits.isNotEmpty() && person.tvCredits.isNotEmpty()) {
+                            Row(
+                                Modifier.padding(horizontal = NuvioTheme.spacing.xxxl),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                com.nuvio.tv.ui.screens.scout.ScoutChip(
+                                    stringResource(R.string.e05_cast_films), { showSeries = false }, on = !showSeries
+                                )
+                                com.nuvio.tv.ui.screens.scout.ScoutChip(
+                                    stringResource(R.string.e05_cast_series), { showSeries = true }, on = showSeries
+                                )
+                            }
+                        }
                         FilmographyRow(
-                            credits = allCredits,
+                            credits = credits,
                             posterCardStyle = filmographyPosterStyle,
                             firstItemFocusRequester = firstPosterFocusRequester,
                             restoreItemId = pendingRestoreItemId,

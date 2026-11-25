@@ -202,6 +202,8 @@ class ScoutViewModel @Inject constructor(
 
     val profiles: StateFlow<List<UserProfile>> = profileManager.profiles
     val activeProfileId: StateFlow<Int> = profileManager.activeProfileId
+    internal val discoverySelectionRevision = profileManager.profileSelectionRevision
+    internal val discoveryRatingLimits = ratingLimits.limits
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     internal val watchedDisplay = profileManager.scoutSelections().flatMapLatest { owner ->
@@ -669,7 +671,23 @@ class ScoutViewModel @Inject constructor(
         loadRow(0)
     }
 
-    fun applyAdvancedSearch(query: ScoutAdvancedSearch) {
+    internal fun discoveryAudience(): ScoutAudience? = audienceFor(_state.value)
+        ?.takeIf { _state.value.pinFor == null }
+
+    internal suspend fun readDiscovery(audience: ScoutAudience): ScoutDiscoveryHistory {
+        if (discoveryAudience() != audience) return ScoutDiscoveryHistory()
+        val history = store.observeDiscovery(audience.owner.profileId).first()
+        val visible = restrictRecommendations(history.suggestions, audience)
+        return if (discoveryAudience() == audience) history.copy(suggestions = visible) else ScoutDiscoveryHistory()
+    }
+
+    internal suspend fun discoveryKeywords(audience: ScoutAudience, text: String): List<Pair<Int, String>> {
+        if (discoveryAudience() != audience) return emptyList()
+        return finder.searchKeywords(text).takeIf { discoveryAudience() == audience }.orEmpty()
+    }
+
+    internal fun applyAdvancedSearch(query: ScoutAdvancedSearch, audience: ScoutAudience) {
+        if (discoveryAudience() != audience) return
         shown.clear()
         _state.update {
             it.copy(
@@ -680,14 +698,20 @@ class ScoutViewModel @Inject constructor(
         loadRow(0)
     }
 
-    fun saveAdvancedSearch(query: ScoutAdvancedSearch) {
-        val profileId = activeProfileId.value
-        viewModelScope.launch { store.updateDiscovery(profileId) { it.save(query) } }
+    internal fun saveAdvancedSearch(query: ScoutAdvancedSearch, audience: ScoutAudience) {
+        viewModelScope.launch {
+            store.updateDiscovery(audience.owner.profileId) {
+                if (discoveryAudience() == audience) it.save(query) else it
+            }
+        }
     }
 
-    fun forgetAdvancedSearch(query: ScoutAdvancedSearch) {
-        val profileId = activeProfileId.value
-        viewModelScope.launch { store.updateDiscovery(profileId) { it.forget(query) } }
+    internal fun forgetAdvancedSearch(query: ScoutAdvancedSearch, audience: ScoutAudience) {
+        viewModelScope.launch {
+            store.updateDiscovery(audience.owner.profileId) {
+                if (discoveryAudience() == audience) it.forget(query) else it
+            }
+        }
     }
 
     fun moreLike(pick: ScoutPick) {

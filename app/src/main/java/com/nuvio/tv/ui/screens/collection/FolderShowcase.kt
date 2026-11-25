@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,10 +65,10 @@ internal fun FolderSidePreview(
         if (item != null) {
             FolderTitleArtwork(item, logoHeight = 64.dp, centered = true)
             FolderPreviewDivider()
-            FolderMetadata(item, forGrade = true)
+            FolderMetadata(item, forGrade = true, episodeCount = credits?.episodeCount)
             FolderPreviewDivider()
             item.description?.takeIf { it.isNotBlank() }?.let {
-                Text(it, color = colors.TextSecondary, style = MaterialTheme.typography.bodyLarge,
+                Text(it, color = colors.TextPrimary, style = MaterialTheme.typography.bodyLarge,
                     maxLines = 4, overflow = TextOverflow.Ellipsis)
                 FolderPreviewDivider()
             }
@@ -164,7 +165,7 @@ private fun FolderTitleArtwork(item: MetaPreview, logoHeight: Dp = 58.dp, center
 }
 
 @Composable
-private fun FolderMetadata(item: MetaPreview, forGrade: Boolean = false) {
+private fun FolderMetadata(item: MetaPreview, forGrade: Boolean = false, episodeCount: Int? = null) {
     val rating = item.imdbRating?.takeIf { it.isFinite() && it > 0f }?.let {
         val locale = LocalConfiguration.current.locales[0] ?: java.util.Locale.getDefault()
         val number = remember(it, locale) {
@@ -184,15 +185,36 @@ private fun FolderMetadata(item: MetaPreview, forGrade: Boolean = false) {
             else -> "${minutes / 60}h ${(minutes % 60).toString().padStart(2, '0')}"
         }
     }
+    val series = item.apiType == "series" || item.apiType == "tv"
+    val year = item.releaseInfo?.takeIf { it.isNotBlank() }?.let {
+        if (forGrade && series) folderYear.find(it)?.value else it
+    }
+    val count = episodeCount?.takeIf { forGrade && series && it > 0 }
+        ?.let { pluralStringResource(R.plurals.e05_grade_episodes, it, it) }
+    val status = if (forGrade && series) when (item.status?.trim()?.lowercase()) {
+        "returning series", "in production", "running", "continuing" -> stringResource(R.string.e05_grade_running)
+        "ended" -> stringResource(R.string.e05_grade_ended)
+        "canceled", "cancelled" -> stringResource(R.string.e05_grade_cancelled)
+        else -> null
+    } else null
+    val age = item.ageRating?.takeIf { it.isNotBlank() }
     val details = listOfNotNull(
-        item.releaseInfo?.takeIf { it.isNotBlank() }, duration,
-        item.ageRating?.takeIf { it.isNotBlank() }, rating
+        year, status, count, duration, age.takeUnless { forGrade }, rating
     ).joinToString(" · ")
     if (details.isNotEmpty()) {
         val style = MaterialTheme.typography.labelLarge
         Text(details, color = NuvioTheme.colors.TextPrimary,
             style = if (forGrade) style.copy(fontSize = (style.fontSize.value + 2).sp) else style,
             maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+    if (forGrade && age != null) {
+        val colors = NuvioTheme.colors
+        Text(
+            stringResource(R.string.e05_grade_age, age),
+            modifier = Modifier.background(colors.Secondary.copy(alpha = .14f), RoundedCornerShape(5.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+            color = colors.TextPrimary, style = MaterialTheme.typography.labelMedium
+        )
     }
     val context = LocalContext.current
     val genres = item.genres.take(3).map { localizedGenreLabel(context, it) }
@@ -206,3 +228,4 @@ private fun FolderMetadata(item: MetaPreview, forGrade: Boolean = false) {
 }
 
 private val folderRuntimeMinutes = Regex("""(\d+)(?:\s*m(?:in)?)?""", RegexOption.IGNORE_CASE)
+private val folderYear = Regex("""\b(?:18|19|20|21)\d{2}\b""")

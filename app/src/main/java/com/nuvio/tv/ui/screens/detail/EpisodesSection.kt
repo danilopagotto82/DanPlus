@@ -130,7 +130,9 @@ fun SeasonTabs(
     selectedTabFocusRequester: FocusRequester,
     upFocusRequester: FocusRequester? = null,
     downFocusRequester: FocusRequester? = null,
-    isFocusEnabled: Boolean = true
+    isFocusEnabled: Boolean = true,
+    seasonPosters: Map<Int, String> = emptyMap(),
+    seriesPoster: String? = null
 ) {
     // Move season 0 (specials) to the end
     val sortedSeasons = remember(seasons) {
@@ -400,6 +402,18 @@ fun SeasonTabs(
                 border = tabBorder,
                 scale = tabScale
             ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val poster = seasonPosters[season] ?: seriesPoster
+                    if (!poster.isNullOrBlank() && seasonPosters.isNotEmpty()) {
+                        var failed by remember(poster) { mutableStateOf(false) }
+                        AsyncImage(
+                            model = if (failed) seriesPoster?.takeUnless { it == poster } else poster,
+                            contentDescription = null,
+                            modifier = Modifier.padding(start = 8.dp).width(24.dp).height(36.dp),
+                            contentScale = ContentScale.Fit,
+                            onError = { failed = true }
+                        )
+                    }
                 Text(
                     text = if (season == 0) stringResource(R.string.episodes_specials) else stringResource(R.string.episodes_season, season),
                     style = tabTextStyle,
@@ -411,6 +425,7 @@ fun SeasonTabs(
                     },
                     modifier = Modifier.padding(vertical = 10.dp, horizontal = 20.dp)
                 )
+                }
             }
         }
     }

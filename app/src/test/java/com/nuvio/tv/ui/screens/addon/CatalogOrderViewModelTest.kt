@@ -28,8 +28,10 @@ class CatalogOrderViewModelTest {
 
     @Test fun `reordering and enable controls persist without crossing profile boundaries`() = runTest {
         val active = MutableStateFlow(1)
+        val revision = MutableStateFlow(0L)
         val manager = mockk<ProfileManager> {
             every { activeProfileId } returns active
+            every { profileSelectionRevision } returns revision
             every { profiles } returns MutableStateFlow(listOf(
                 UserProfile(id = 1, name = "Primary", avatarColorHex = "#112233"),
                 UserProfile(id = 2, name = "Independent", avatarColorHex = "#334455", usesPrimaryAddons = false)
@@ -58,10 +60,24 @@ class CatalogOrderViewModelTest {
             assertTrue(layout.homeCatalogOrderKeys.first().isEmpty())
             vm.moveUp(initial[1].key)
             advanceUntilIdle()
+            assertTrue(layout.homeCatalogOrderKeys.first().isEmpty())
+            assertEquals(listOf(initial[1].key, initial[0].key, initial[2].key), vm.orderDraft.value?.keys)
+            vm.cancelOrder()
+            assertNull(vm.orderDraft.value)
+            assertTrue(layout.homeCatalogOrderKeys.first().isEmpty())
+            vm.moveUp(initial[1].key)
+            vm.saveOrder()
+            advanceUntilIdle()
             assertEquals(listOf(initial[1].key, initial[0].key, initial[2].key), layout.homeCatalogOrderKeys.first())
             vm.toggleCatalogEnabled(initial[1].disableKey)
             advanceUntilIdle()
             assertTrue(vm.uiState.value.items.first().isDisabled)
+            vm.moveDown(initial[1].key)
+            revision.value++
+            vm.saveOrder()
+            advanceUntilIdle()
+            assertEquals(initial[1].key, layout.homeCatalogOrderKeys.first().first())
+            assertTrue(vm.orderFailed.value)
             active.value = 2
             advanceUntilIdle()
             assertEquals(initial.map { it.key }, vm.uiState.value.items.map { it.key })

@@ -67,8 +67,16 @@ fun CatalogOrderScreen(
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val draft by viewModel.orderDraft.collectAsState()
+    val saving by viewModel.savingOrder.collectAsState()
+    val failed by viewModel.orderFailed.collectAsState()
+    val items = draft?.display(uiState.items, CatalogOrderItem::key) ?: uiState.items
 
-    BackHandler { onBackPress() }
+    BackHandler {
+        if (!saving) {
+            if (draft == null) onBackPress() else viewModel.cancelOrder()
+        }
+    }
 
     SettingsPageAtmosphere()
     SettingsStandaloneScaffold(
@@ -98,8 +106,17 @@ fun CatalogOrderScreen(
                     title = stringResource(R.string.catalog_order_follow_addons),
                     subtitle = stringResource(R.string.catalog_order_follow_addons_desc),
                     checked = uiState.followAddonsOrder,
-                    onToggle = { viewModel.toggleFollowAddonsOrder(!uiState.followAddonsOrder) }
+                    onToggle = {
+                        if (!saving) {
+                            viewModel.cancelOrder()
+                            viewModel.toggleFollowAddonsOrder(!uiState.followAddonsOrder)
+                        }
+                    }
                 )
+                if (draft != null) {
+                    com.nuvio.tv.ui.screens.settings.OrderDraftActions(viewModel::saveOrder, viewModel::cancelOrder, !saving)
+                }
+                if (failed) Text(stringResource(R.string.e05_order_failed), color = NuvioTheme.colors.Error)
             }
 
             when {
@@ -128,11 +145,14 @@ fun CatalogOrderScreen(
 
                 else -> {
                     itemsIndexed(
-                        items = uiState.items,
+                        items = items,
                         key = { _, item -> item.key }
                     ) { index, item ->
                         CatalogOrderCard(
-                            item = item,
+                            item = item.copy(
+                                canMoveUp = !saving && index > 0 && (!uiState.followAddonsOrder || item.key.startsWith("collection_")),
+                                canMoveDown = !saving && index < items.lastIndex && (!uiState.followAddonsOrder || item.key.startsWith("collection_"))
+                            ),
                             onMoveUp = {
                                 viewModel.moveUp(item.key)
                                 scope.launch {
@@ -143,7 +163,7 @@ fun CatalogOrderScreen(
                                 viewModel.moveDown(item.key)
                                 scope.launch {
                                     listState.animateScrollToItem(
-                                        (index + 1).coerceAtMost(uiState.items.lastIndex)
+                                        (index + 1).coerceAtMost(items.lastIndex)
                                     )
                                 }
                             },

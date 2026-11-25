@@ -506,7 +506,7 @@ private fun TabbedGridContent(
                 if (!tabFocusState.hasSavedFocus) return@LaunchedEffect
                 val requester = itemFocusRequesters[targetKey] ?: return@LaunchedEffect
                 repeat(2) { withFrameNanos { } }
-                if (runCatching { requester.requestFocus() }.isSuccess) {
+                if (runCatching { requester.requestFocus() }.getOrDefault(false)) {
                     lastFocusedItemKey = targetKey
                 }
             }

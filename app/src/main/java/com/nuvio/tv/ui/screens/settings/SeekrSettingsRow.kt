@@ -1,15 +1,20 @@
 package com.nuvio.tv.ui.screens.settings
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.nuvio.tv.R
 import com.nuvio.tv.core.player.thumbnail.SeekrPreviews
@@ -62,37 +67,44 @@ internal fun SeekrSettingsRow(enabled: Boolean) {
                 Text(stringResource(R.string.seekr_key_checking))
             } else {
                 keyCheck?.let { result ->
-                    Text(stringResource(when (result) {
+                    val label = when (result) {
                         SeekrPreviews.KeyCheck.Valid -> R.string.seekr_key_valid
                         SeekrPreviews.KeyCheck.Invalid -> R.string.seekr_key_invalid
                         SeekrPreviews.KeyCheck.Unavailable -> R.string.seekr_key_unavailable
                         SeekrPreviews.KeyCheck.RateLimited -> R.string.seekr_key_rate_limit
-                    }))
+                    }
+                    Text(
+                        text = stringResource(label),
+                        color = if (result == SeekrPreviews.KeyCheck.Valid) Color(0xFF89DCAB)
+                        else MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
-            SettingsDialogActionButton(
-                text = stringResource(R.string.seekr_key_test),
-                onClick = {
-                    checking = true
-                    failed = false
-                    scope.launch {
-                        keyCheck = SeekrPreviews.checkKey(key)
-                        checking = false
-                    }
-                },
-                enabled = !saving && !checking && key.isNotBlank()
-            )
-            SettingsDialogActionButton(
-                text = stringResource(R.string.action_save),
-                onClick = { save(key) },
-                enabled = !saving && !checking && SeekrPreviews.hasValidFormat(key)
-            )
-            if (configured) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 SettingsDialogActionButton(
-                    text = stringResource(R.string.seekr_key_remove),
-                    onClick = { save(null) },
-                    enabled = !saving && !checking
+                    text = stringResource(R.string.seekr_key_test),
+                    onClick = {
+                        checking = true
+                        failed = false
+                        scope.launch {
+                            keyCheck = SeekrPreviews.checkKey(key)
+                            checking = false
+                        }
+                    },
+                    enabled = !saving && !checking && key.isNotBlank()
                 )
+                SettingsDialogActionButton(
+                    text = stringResource(R.string.action_save),
+                    onClick = { save(key) },
+                    enabled = !saving && !checking && SeekrPreviews.hasValidFormat(key)
+                )
+                if (configured) {
+                    SettingsDialogActionButton(
+                        text = stringResource(R.string.seekr_key_remove),
+                        onClick = { save(null) },
+                        enabled = !saving && !checking
+                    )
+                }
             }
         }
     }

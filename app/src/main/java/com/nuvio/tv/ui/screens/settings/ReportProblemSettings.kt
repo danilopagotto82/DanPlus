@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.key
@@ -242,9 +243,9 @@ private fun ReportFormDialog(
         return
     }
     val firstStep = if (kind == AppReportKind.Bug) ReportFormStep.Where else ReportFormStep.Note
-    var step by remember { mutableStateOf(firstStep) }
-    var where by remember { mutableStateOf<ReportWhere?>(null) }
-    var note by remember { mutableStateOf("") }
+    var step by rememberSaveable(kind.name) { mutableStateOf(firstStep) }
+    var where by rememberSaveable(kind.name) { mutableStateOf<ReportWhere?>(null) }
+    var note by rememberSaveable(kind.name) { mutableStateOf("") }
     val includeLog = kind == AppReportKind.Bug
     var noteOpen by remember { mutableStateOf(false) }
     val sending = send.status == PlaybackIssueReportStatus.Sending
@@ -493,9 +494,12 @@ private fun AccountReportsDialog(
             } else {
                 LazyColumn(Modifier.weight(1f, fill = false)) {
                     items(current.replies) { reply ->
-                        Column(Modifier.fillMaxWidth()) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
                             Text(date(reply.at), color = NuvioTheme.colors.TextSecondary)
-                            Text(reply.text)
+                            Text(reply.text, style = MaterialTheme.typography.bodyLarge, color = NuvioTheme.colors.TextPrimary)
                         }
                     }
                 }

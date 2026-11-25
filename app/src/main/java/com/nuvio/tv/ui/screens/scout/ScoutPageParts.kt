@@ -264,6 +264,7 @@ internal fun ScoutWideTile(
     onLongClick: (() -> Unit)? = null,
     onFocused: () -> Unit = {},
     badge: String? = null,
+    dimArtwork: Boolean = false,
     corner: (@Composable BoxScope.() -> Unit)? = null
 ) {
     val v2 = LocalV2Appearance.current != null
@@ -293,6 +294,7 @@ internal fun ScoutWideTile(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
+            if (dimArtwork) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .26f)))
             Box(Modifier.fillMaxSize().background(MODERN_LANDSCAPE_LOGO_GRADIENT))
             badge?.let {
                 Text(

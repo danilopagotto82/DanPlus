@@ -234,6 +234,7 @@ fun ScoutScreen(
     var chosenGenre by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmFresh by rememberSaveable { mutableStateOf(false) }
     var rating by remember { mutableStateOf<ScoutPick?>(null) }
+    var discovery by remember { mutableStateOf<ScoutAudience?>(null) }
     var mixesOpen by rememberSaveable { mutableStateOf(startOnMixes) }
     var mixesOpened by remember { mutableStateOf(false) }
     if (mixesOpen) mixesOpened = true
@@ -246,7 +247,8 @@ fun ScoutScreen(
         .onFocusChanged { if (it.isFocused && viewModel.focusPending == null) viewModel.focusKey = key }
 
     BackHandler(enabled = showThumbs) { showThumbs = false }
-    BackHandler(enabled = !showThumbs && (state.surprise || state.moreLike != null || state.asking)) { viewModel.backToMoods() }
+    BackHandler(enabled = !showThumbs && (state.surprise || state.moreLike != null || state.asking ||
+        state.advancedSearch != null)) { viewModel.backToMoods() }
     LaunchedEffect(state.askFailure) { if (state.askFailure == AskFailure.NO_KEY) onAsk?.invoke() }
 
     LaunchedEffect(Unit) {
@@ -419,6 +421,7 @@ fun ScoutScreen(
                     state = state,
                     watchDisplay = watchDisplay.takeIf { appliesWatchFilter },
                     onToggleWatched = { viewModel.toggleShowWatched(watchDisplay) },
+                    onAdvanced = { discovery = viewModel.discoveryAudience() },
                     onAsk = onAsk?.let { { viewModel.openAsk() } },
                     focus = ::focus
                 )
@@ -512,6 +515,17 @@ fun ScoutScreen(
     }
 
     val optionsState by posterOptions.controller.state.collectAsState()
+    discovery?.let { audience ->
+        val revision by viewModel.discoverySelectionRevision.collectAsStateWithLifecycle()
+        val limits by viewModel.discoveryRatingLimits.collectAsStateWithLifecycle()
+        val profileLimit = scoutRecommendationLimit(limits[activeId], audience.others.mapNotNull(limits::get), audience.family)
+        if (audience.owner.profileId == activeId && audience.owner.revision == revision &&
+            audience.limit == profileLimit && viewModel.discoveryAudience() == audience) {
+            ScoutDiscoveryDialog(viewModel, audience) { discovery = null }
+        } else {
+            LaunchedEffect(audience) { discovery = null }
+        }
+    }
     val optionsPick = state.row.firstOrNull { "tmdb:" + it.tmdbId == optionsState.originalItemId }
     val optionsCurrent = optionsPick?.let(viewModel::canOpenRecommendation) == true
     LaunchedEffect(optionsState.target, optionsCurrent) {
@@ -778,6 +792,7 @@ private fun ScoutMoodLine(
     state: ScoutScreenState,
     watchDisplay: ScoutWatchDisplay?,
     onToggleWatched: () -> Unit,
+    onAdvanced: () -> Unit,
     onAsk: (() -> Unit)?,
     focus: (String) -> Modifier
 ) {
@@ -838,6 +853,7 @@ private fun ScoutMoodLine(
             )
         }
         if (watchDisplay != null) {
+            ScoutChip(stringResource(R.string.e05_scout_filters), onAdvanced, focus("advanced_filters"))
             ScoutWatchedButton(
                 showWatched = watchDisplay.showWatched,
                 onClick = onToggleWatched,
@@ -911,6 +927,7 @@ private fun ScoutPickRow(
             horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xl)
         ) {
             items(shownRow, key = { it.key }) { pick ->
+                val watched = watchDisplay?.isWatched(pick) == true
                 ScoutWideTile(
                     picture = pick.backdrop ?: pick.poster,
                     title = pick.name,
@@ -922,7 +939,8 @@ private fun ScoutPickRow(
                     onLongClick = { if (viewModel.canOpenRecommendation(pick)) onLongPress(pick) },
                     onFocused = { viewModel.focusPick(pick) },
                     modifier = Modifier.focusProperties { canFocus = !state.rowLoading }.then(focus("pick_${pick.key}")),
-                    corner = if (watchDisplay?.isWatched(pick) == true) {
+                    dimArtwork = watched,
+                    corner = if (watched) {
                         { ScoutWatchedMark(Modifier.align(Alignment.TopEnd)) }
                     } else null
                 )

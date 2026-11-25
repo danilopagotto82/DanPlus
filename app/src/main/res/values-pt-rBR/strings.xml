@@ -4595,6 +4595,8 @@
     <string name="d12_no_profiles">Crie outro perfil para enviar indicações.</string>
     <string name="d12_selected_count">Selecionados: %1$d</string>
     <string name="d12_send_error">Não foi possível enviar. Tente novamente.</string>
+    <string name="d12_send">Enviar</string>
+    <string name="seekr_preview_source">Seekr</string>
     <string name="d12_send_queued">Na fila para %1$d perfil(is). Confira a sincronização em Indicações › Enviadas.</string>
     <string name="d12_all_profiles">Selecionar todos</string>
     <string name="d12_review_send">Revisar seleção</string>

@@ -2004,6 +2004,10 @@ class MetaDetailsViewModel @Inject constructor(
             }
         }
 
+        if (settings.useArtwork && !enrichment?.seasonPosters.isNullOrEmpty()) {
+            updated = updated.copy(seasonPosters = enrichment?.seasonPosters.orEmpty())
+        }
+
         // Store TMDB rating separately so it can be shown with its own icon on the details screen.
         if (enrichment?.rating != null && settings.useBasicInfo) {
             _uiState.update { it.copy(tmdbRating = enrichment.rating.toFloat()) }

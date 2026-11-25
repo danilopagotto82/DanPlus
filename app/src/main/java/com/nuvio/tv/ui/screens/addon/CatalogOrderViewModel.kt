@@ -12,7 +12,9 @@ import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.Collection
 import com.nuvio.tv.domain.model.enabledAddons
 import com.nuvio.tv.domain.repository.AddonRepository
+import com.nuvio.tv.ui.screens.settings.OrderDraft
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,6 +37,13 @@ class CatalogOrderViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(CatalogOrderUiState())
     val uiState: StateFlow<CatalogOrderUiState> = _uiState.asStateFlow()
     private var disabledKeysCache: Set<String> = emptySet()
+    private val mutableDraft = MutableStateFlow<OrderDraft?>(null)
+    internal val orderDraft = mutableDraft.asStateFlow()
+    private var orderOwner: Pair<Int, Long>? = null
+    private val mutableSaving = MutableStateFlow(false)
+    internal val savingOrder = mutableSaving.asStateFlow()
+    private val mutableOrderFailed = MutableStateFlow(false)
+    internal val orderFailed = mutableOrderFailed.asStateFlow()
 
     init {
         observeCatalogs()
@@ -73,22 +82,14 @@ class CatalogOrderViewModel @Inject constructor(
     }
 
     private fun moveCatalog(key: String, direction: Int) {
-        val currentKeys = _uiState.value.items.map { it.key }
+        val currentKeys = itemsForDraft().map { it.key }
         val currentIndex = currentKeys.indexOf(key)
         if (currentIndex == -1) return
 
         val newIndex = currentIndex + direction
         if (newIndex !in currentKeys.indices) return
 
-        val reordered = currentKeys.toMutableList().apply {
-            val item = removeAt(currentIndex)
-            add(newIndex, item)
-        }
-
-        viewModelScope.launch {
-            layoutPreferenceDataStore.setHomeCatalogOrderKeys(reordered)
-            homeCatalogSettingsSyncService.triggerPush()
-        }
+        previewMove(key, newIndex)
     }
 
     /**
@@ -99,7 +100,7 @@ class CatalogOrderViewModel @Inject constructor(
     private fun moveCollectionBetweenAddons(key: String, direction: Int) {
         if (!key.startsWith("collection_")) return
 
-        val items = _uiState.value.items
+        val items = itemsForDraft()
         val currentIndex = items.indexOfFirst { it.key == key }
         if (currentIndex == -1) return
 
@@ -141,20 +142,51 @@ class CatalogOrderViewModel @Inject constructor(
 
         if (newIndex == currentIndex) return
 
-        val reordered = currentKeys.toMutableList().apply {
-            removeAt(currentIndex)
-            // After removal, if target is after current position, shift index by -1
-            val insertAt = if (direction < 0) {
-                newIndex
-            } else {
-                newIndex // currentIndex < newIndex, after removal target shifts by -1, but we want AFTER the block
-            }
-            add(insertAt, key)
-        }
+        previewMove(key, newIndex)
+    }
 
+    private fun itemsForDraft(): List<CatalogOrderItem> {
+        val saved = _uiState.value.items
+        return mutableDraft.value?.display(saved, CatalogOrderItem::key) ?: saved
+    }
+
+    private fun previewMove(key: String, destination: Int) {
+        if (mutableSaving.value) return
+        val baseline = _uiState.value.items.map { it.key }
+        val owner = layoutPreferenceDataStore.homeOrderOwner()
+        val draft = mutableDraft.value?.takeIf { it.baseline == baseline && orderOwner == owner } ?: OrderDraft(baseline)
+        val updated = draft.move(key, destination)
+        mutableOrderFailed.value = false
+        orderOwner = owner
+        mutableDraft.value = updated.takeUnless { it.keys == it.baseline }
+    }
+
+    internal fun cancelOrder() {
+        if (!mutableSaving.value) mutableDraft.value = null
+        mutableOrderFailed.value = false
+    }
+
+    internal fun saveOrder() {
+        val draft = mutableDraft.value ?: return
+        val owner = orderOwner ?: return
+        if (mutableSaving.value) return
+        mutableSaving.value = true
         viewModelScope.launch {
-            layoutPreferenceDataStore.setHomeCatalogOrderKeys(reordered)
-            homeCatalogSettingsSyncService.triggerPush()
+            try {
+                if (draft.baseline == _uiState.value.items.map { it.key } &&
+                    layoutPreferenceDataStore.saveDraftHomeOrder(owner, draft.keys)) {
+                    homeCatalogSettingsSyncService.triggerPush()
+                } else {
+                    mutableOrderFailed.value = true
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                mutableOrderFailed.value = true
+            } finally {
+                mutableDraft.value = null
+                mutableSaving.value = false
+            }
         }
     }
 
@@ -195,6 +227,10 @@ class CatalogOrderViewModel @Inject constructor(
                 )
                 Pair(items, followAddons)
             }.collectLatest { (orderedItems, followAddons) ->
+                mutableDraft.value?.let { draft ->
+                    if (draft.baseline != orderedItems.map { it.key } ||
+                        _uiState.value.followAddonsOrder != followAddons) cancelOrder()
+                }
                 disabledKeysCache = orderedItems.filter { it.isDisabled }.map { it.disableKey }.toSet()
                 _uiState.update {
                     it.copy(

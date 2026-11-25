@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -436,6 +437,7 @@ internal fun ColumnScope.ReadyToSendStep(
             ),
             onClick = onSend,
             primary = true,
+            enabled = !sending,
             modifier = Modifier.focusRequester(sendButton)
         )
     }
@@ -495,7 +497,7 @@ private fun ReportFact(title: String, detail: String, detailLines: Int = 2) {
 
 @Composable
 internal fun ReportNoteDialog(current: String, onSave: (String) -> Unit, onDismiss: () -> Unit) {
-    var text by remember { mutableStateOf(current) }
+    var text by rememberSaveable(current) { mutableStateOf(current) }
     val saveButton = remember { FocusRequester() }
     val field = remember { FocusRequester() }
     LaunchedEffect(Unit) {

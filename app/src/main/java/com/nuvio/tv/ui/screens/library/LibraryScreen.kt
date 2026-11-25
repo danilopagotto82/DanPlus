@@ -1,6 +1,7 @@
 package com.nuvio.tv.ui.screens.library
 
 import com.nuvio.tv.ui.v2.components.sidebarPageContent
+import com.nuvio.tv.ui.components.rememberBrowseArtwork
 
 import com.nuvio.tv.ui.v2.appearance.LocalV2Appearance
 import com.nuvio.tv.ui.v2.appearance.V2Atmosphere
@@ -150,6 +151,7 @@ fun LibraryScreen(
     serversViewModel: LibraryServersViewModel = hiltViewModel(),
     showBuiltInHeader: Boolean = true,
     onNavigateToDetail: (String, String, String?) -> Unit,
+    onDiscoverTitles: () -> Unit,
     onNavigateToCatalogSeeAll: (String, String, String) -> Unit = { _, _, _ -> },
     onCloudPlaybackResolved: (CloudLibraryPlaybackInfo) -> Unit = {}
 ) {
@@ -520,6 +522,11 @@ fun LibraryScreen(
                         subtitle = subtitle,
                         icon = Icons.Default.BookmarkBorder
                     )
+                    if (uiState.sourceMode == LibrarySourceMode.LOCAL) {
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Button(onClick = onDiscoverTitles) { Text(stringResource(R.string.discover_title)) }
+                        }
+                    }
                 }
             }
 
@@ -668,6 +675,10 @@ fun LibraryScreen(
                 val preview = remember(item) { item.toMetaPreview() }
                 com.nuvio.tv.ui.components.DanPlusFocusDock(
                     item = preview,
+                    artwork = rememberBrowseArtwork(
+                        preview.id, preview.apiType, preview.background ?: preview.landscapePoster,
+                        preview.imdbId, withLogo = true
+                    ),
                     modifier = Modifier.padding(horizontal = NuvioTheme.spacing.xxxl)
                 )
             }

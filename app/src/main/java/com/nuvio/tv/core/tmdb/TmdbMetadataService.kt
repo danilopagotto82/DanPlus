@@ -63,6 +63,8 @@ class TmdbMetadataService(
     private val enrichmentInFlight = ConcurrentHashMap<String, CompletableDeferred<TmdbEnrichment?>>()
     private val posterArtCache = ConcurrentHashMap<String, TmdbPosterArt>()
     private val posterArtInFlight = ConcurrentHashMap<String, CompletableDeferred<TmdbPosterArt?>>()
+    private data class FocusDockLogo(val url: String?)
+    private val focusDockLogos = ConcurrentHashMap<String, FocusDockLogo>()
     private val episodeInFlight = ConcurrentHashMap<String, CompletableDeferred<Map<Pair<Int, Int>, TmdbEpisodeEnrichment>>>()
     private val personCache = ConcurrentHashMap<String, PersonDetail>()
     private val moreLikeThisCache = ConcurrentHashMap<String, List<MetaPreview>>()
@@ -609,7 +611,12 @@ class TmdbMetadataService(
                     collectionName = collectionName,
                     originalTitle = originalTitle,
                     alternativeTitles = altTitles,
-                    trailers = trailers
+                    trailers = trailers,
+                    episodeCount = details?.episodeCount?.takeIf { tmdbType == "tv" && it > 0 },
+                    seasonPosters = details?.seasons.orEmpty().mapNotNull { season ->
+                        val number = season.seasonNumber?.takeIf { it >= 0 } ?: return@mapNotNull null
+                        buildImageUrl(season.posterPath, "w185")?.let { number to it }
+                    }.toMap()
                 )
                 enrichmentCache[cacheKey] = enrichment
                 requestDeferred.complete(enrichment)
@@ -696,7 +703,8 @@ class TmdbMetadataService(
                     description = details.overview?.takeIf { it.isNotBlank() },
                     genres = details.genres?.mapNotNull { genre ->
                         genre.name.trim().takeIf { name -> name.isNotBlank() }
-                    } ?: emptyList()
+                    } ?: emptyList(),
+                    originalLanguage = details.originalLanguage
                 )
                 posterArtCache[cacheKey] = art
                 requestDeferred.complete(art)
@@ -713,6 +721,31 @@ class TmdbMetadataService(
                     requestDeferred.complete(null)
                 }
                 posterArtInFlight.remove(cacheKey, requestDeferred)
+            }
+        }
+
+    /** Separate selection from generic art, which may contain an English or untagged logo. */
+    internal suspend fun fetchFocusDockLogo(tmdbId: String, type: ContentType, original: String?): String? =
+        withContext(ioDispatcher) {
+            val id = tmdbId.toIntOrNull() ?: return@withContext null
+            val tv = type == ContentType.SERIES || type == ContentType.TV
+            val originalTag = focusLogoTag(original)
+            val key = "$tmdbId:$tv:pt-BR:$originalTag"
+            focusDockLogos[key]?.let { return@withContext it.url }
+            val variants = listOfNotNull("pt-BR", "pt", originalTag, originalTag?.substringBefore('-'))
+                .distinct().joinToString(",")
+            try {
+                val response = if (tv) tmdbApi.getTvImages(id, TMDB_API_KEY, variants)
+                else tmdbApi.getMovieImages(id, TMDB_API_KEY, variants)
+                val logos = response.body()?.takeIf { response.isSuccessful }?.logos ?: return@withContext null
+                val url = buildImageUrl(focusDockLogoPath(logos, originalTag), "original")
+                if (focusDockLogos.size >= 96) focusDockLogos.keys.firstOrNull()?.let(focusDockLogos::remove)
+                focusDockLogos[key] = FocusDockLogo(url)
+                url
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                null
             }
         }
 
@@ -1702,6 +1735,7 @@ class TmdbMetadataService(
         val seenTvIds = mutableSetOf<Int>()
         return cast
             .filter { it.mediaType == "tv" && it.posterPath != null }
+            .filterNot { isTalkShowGuestCredit(it.genreIds.orEmpty(), it.character) }
             .sortedByDescending { it.voteAverage ?: 0.0 }
             .mapNotNull { credit ->
                 if (!seenTvIds.add(credit.id)) return@mapNotNull null
@@ -1852,8 +1886,33 @@ data class TmdbPosterArt(
     val poster: String?,
     val backdrop: String?,
     val description: String?,
-    val genres: List<String>
+    val genres: List<String>,
+    val originalLanguage: String? = null
 )
+
+internal fun focusLogoTag(value: String?): String? =
+    value?.trim()?.replace('_', '-')?.lowercase(Locale.ROOT)
+        ?.takeIf { it.matches(Regex("[a-z]{2,3}(-[a-z]{2})?")) }
+
+internal fun isTalkShowGuestCredit(genres: List<Int>, character: String?): Boolean {
+    if (10767 !in genres) return false
+    return character?.trim()?.lowercase(Locale.ROOT) in setOf("self", "himself", "herself", "self - guest", "guest")
+}
+
+internal fun focusDockLogoPath(logos: List<TmdbImage>, original: String?): String? {
+    val tagged = logos.mapNotNull { image ->
+        val path = image.filePath?.takeIf(String::isNotBlank) ?: return@mapNotNull null
+        val language = focusLogoTag(image.iso6391) ?: return@mapNotNull null
+        val region = image.iso31661?.trim()?.lowercase(Locale.ROOT)
+        val tag = if ('-' in language || region.isNullOrEmpty()) language else "$language-$region"
+        tag to path
+    }
+    val brazilian = tagged.firstOrNull { it.first == "pt-br" }?.second
+    if (brazilian != null) return brazilian
+    val official = focusLogoTag(original) ?: return null
+    return tagged.firstOrNull { it.first == official }?.second
+        ?: tagged.firstOrNull { '-' !in official && it.first.substringBefore('-') == official }?.second
+}
 
 data class TmdbMovieCollection(
     val name: String?,
@@ -1885,7 +1944,9 @@ data class TmdbEnrichment(
     val collectionName: String?,
     val originalTitle: String? = null,
     val alternativeTitles: List<String> = emptyList(),
-    val trailers: List<MetaTrailer> = emptyList()
+    val trailers: List<MetaTrailer> = emptyList(),
+    val episodeCount: Int? = null,
+    val seasonPosters: Map<Int, String> = emptyMap()
 )
 
 data class TmdbEpisodeEnrichment(

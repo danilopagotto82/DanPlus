@@ -597,6 +597,19 @@ class LayoutPreferenceDataStore @Inject constructor(
         }
     }
 
+    internal fun homeOrderOwner() = profileManager.activeProfileId.value to profileManager.profileSelectionRevision.value
+
+    internal suspend fun saveDraftHomeOrder(owner: Pair<Int, Long>, keys: List<String>): Boolean {
+        val normalized = normalizeCatalogOrderKeys(keys)
+        var saved = false
+        store(owner.first).edit { prefs ->
+            if (homeOrderOwner() != owner) return@edit
+            prefs[homeCatalogOrderKeysKey] = gson.toJson(normalized)
+            saved = true
+        }
+        return saved
+    }
+
     suspend fun setDisabledHomeCatalogKeys(keys: List<String>) {
         val normalizedKeys = normalizeCatalogOrderKeys(keys)
         store().edit { prefs ->

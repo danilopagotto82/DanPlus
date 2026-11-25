@@ -4628,6 +4628,8 @@
     <string name="d12_no_profiles">Create another profile to send recommendations.</string>
     <string name="d12_selected_count">Selected: %1$d</string>
     <string name="d12_send_error">Unable to send. Please try again.</string>
+    <string name="d12_send">Send</string>
+    <string name="seekr_preview_source">Seekr</string>
     <string name="d12_send_queued">Queued for %1$d profile(s). Check sync status in Recommendations › Sent.</string>
     <string name="d12_all_profiles">Select all</string>
     <string name="d12_review_send">Review selection</string>

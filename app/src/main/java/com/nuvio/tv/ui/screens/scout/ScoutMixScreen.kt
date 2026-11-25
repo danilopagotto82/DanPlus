@@ -125,6 +125,7 @@ fun ScoutMixScreen(
     val gone by viewModel.gone.collectAsStateWithLifecycle()
     val pickSources by viewModel.pickSources.collectAsStateWithLifecycle()
     val savedAs by viewModel.savedAs.collectAsStateWithLifecycle()
+    val previewSelection by viewModel.previewSelection.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
@@ -325,7 +326,7 @@ fun ScoutMixScreen(
                     }
                 )
                 val tiles = remember(state.tabShow, episode, state.coming, state.showEpisodes) {
-                    if (state.tabShow == null) mixQueueTiles(episode, state.coming) else state.showEpisodes.distinctBy { it.key }
+                    if (state.tabShow == null) viewModel.preview(previewSelection) else state.showEpisodes.distinctBy { it.key }
                 }
                 LazyRow(
                     modifier = Modifier.fillMaxWidth().height(tileHeight + NuvioTheme.spacing.md),

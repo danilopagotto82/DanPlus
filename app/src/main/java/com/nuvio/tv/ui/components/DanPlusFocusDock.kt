@@ -26,29 +26,24 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
-import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.ui.util.localizedGenreLabel
 import java.text.NumberFormat
 
 @Composable
-internal fun DanPlusFocusDock(item: MetaPreview, modifier: Modifier = Modifier) {
+internal fun DanPlusFocusDock(item: MetaPreview, artwork: BrowseArtwork, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val panel = Color(0xFF0B1725)
     val shape = RoundedCornerShape(14.dp)
-    val artwork = item.background?.takeIf { it.isNotBlank() }
-        ?: item.landscapePoster?.takeIf { it.isNotBlank() }
-    val backdrop = remember(context, artwork) {
-        artwork?.let { ImageRequest.Builder(context).data(it).size(780, 320)
-            .networkCachePolicy(CachePolicy.DISABLED).build() }
+    val backdrop = remember(context, artwork.backdrop) {
+        artwork.backdrop?.let { ImageRequest.Builder(context).data(it).size(780, 320).build() }
     }
-    val logo = item.logo?.takeIf { it.isNotBlank() }
+    val logo = artwork.logo
     val logoRequest = remember(context, logo) {
-        logo?.let { ImageRequest.Builder(context).data(it).size(320, 108)
-            .networkCachePolicy(CachePolicy.DISABLED).build() }
+        logo?.let { ImageRequest.Builder(context).data(it).size(320, 108).build() }
     }
-    var logoLoaded by remember(logoRequest) { mutableStateOf(false) }
+    var logoLoaded by remember(item.id, item.apiType, logoRequest) { mutableStateOf(false) }
     val rating = item.imdbRating?.takeIf { it.isFinite() && it > 0f }
     val metadata = listOfNotNull(
         item.releaseInfo?.takeIf { it.isNotBlank() },

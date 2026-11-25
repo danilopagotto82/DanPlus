@@ -35,11 +35,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
@@ -88,8 +85,6 @@ internal fun AppIconPickerDialog(
     onDismiss: () -> Unit
 ) {
     val selectedFocusRequester = remember { FocusRequester() }
-    var look by remember { mutableStateOf(initial.look) }
-    var transparent by remember { mutableStateOf(initial.transparent) }
 
     LaunchedEffect(state.selected) {
         selectedFocusRequester.requestFocusAfterFrames()
@@ -112,32 +107,10 @@ internal fun AppIconPickerDialog(
         contentSpacing = 12.dp
     ) {
         val entitlements = Membership.access.entitlements
-        val colours = remember(entitlements, state.selected, look, transparent) {
-            AppIconOption.entries.filter { canUseAppIcon(entitlements, AppIconChoice.of(it, look, transparent), state.selected) }
+        val colours = remember(entitlements, state.selected) {
+            AppIconOption.entries.filter { canUseAppIcon(entitlements, AppIconChoice(it), state.selected) }
         }
         val focusColour = listOf(initial.colour, state.selected.colour).firstOrNull { it in colours } ?: colours.firstOrNull()
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AppIconLook.entries.forEach { option ->
-                SettingsChoiceChip(
-                    label = option.localizedName(),
-                    selected = look == option,
-                    onClick = { look = option }
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            SettingsToggleRow(
-                title = stringResource(R.string.appearance_app_icon_transparent_background),
-                subtitle = stringResource(R.string.appearance_app_icon_transparent_hint),
-                checked = transparent && look != AppIconLook.CLASSIC,
-                onToggle = { transparent = !transparent },
-                enabled = look != AppIconLook.CLASSIC,
-                modifier = Modifier.weight(1f)
-            )
-        }
         Column(
             modifier = Modifier.verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -148,7 +121,7 @@ internal fun AppIconPickerDialog(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     row.forEach { colour ->
-                        val choice = AppIconChoice.of(colour, look, transparent)
+                        val choice = AppIconChoice(colour)
                         key(colour) {
                             AppIconOptionCard(
                                 choice = choice,
@@ -273,7 +246,6 @@ private fun AppIconOptionCard(
                 .aspectRatio(16f / 9f)
                 .clip(RoundedCornerShape(8.dp))
                 .onSizeChanged { widthPx = it.width }
-                .then(if (choice.transparent) Modifier.transparencyPattern() else Modifier)
             if (thumbnail != null) {
                 Image(
                     bitmap = thumbnail,
@@ -326,26 +298,6 @@ private fun AppIconOptionCard(
         }
     }
 }
-
-/** A quiet chequer behind see-through banners, so the missing background reads as transparent. */
-private fun Modifier.transparencyPattern(): Modifier = drawBehind {
-    val cell = 6.dp.toPx()
-    drawRect(TransparencyDark)
-    var y = 0f
-    var row = 0
-    while (y < size.height) {
-        var x = if (row % 2 == 0) 0f else cell
-        while (x < size.width) {
-            drawRect(TransparencyLight, topLeft = Offset(x, y), size = Size(cell, cell))
-            x += cell * 2
-        }
-        y += cell
-        row++
-    }
-}
-
-private val TransparencyDark = Color(0xFF1F1F22)
-private val TransparencyLight = Color(0xFF2C2C30)
 
 // The launcher entries are adaptive icons on API 26+, which painterResource cannot draw.
 private const val AdaptiveIconVisibleScale = 108f / 72f

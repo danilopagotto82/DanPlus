@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="e05_scout_filters">Filtros avançados</string>
+    <string name="e05_scout_saved">Buscas salvas</string>
+    <string name="e05_scout_history">Histórico de sugestões</string>
+    <string name="e05_scout_empty">Ainda não há itens aqui.</string>
+    <string name="e05_scout_phrase">Frase exata</string>
+    <string name="e05_scout_year">Ano</string>
+    <string name="e05_scout_language">Idioma original (ex. ja)</string>
+    <string name="e05_scout_genres">Gêneros</string>
+    <string name="e05_scout_keywords">Buscar palavras-chave</string>
+    <string name="e05_scout_any">Qualquer palavra-chave</string>
+    <string name="e05_scout_all">Todas as palavras-chave</string>
+    <string name="e05_scout_saved_count">Gêneros (%1$d)</string>
+    <string name="e05_scout_keyword_count">Palavras-chave (%1$d)</string>
+    <string name="e05_remove">Remover</string>
+    <string name="e05_ass_title">Aparência ASS / SSA</string>
+    <string name="e05_ass_subtitle">Por padrão, o MPV preserva o estilo autoral da legenda.</string>
+    <string name="e05_ass_mpv">Estilo no MPV</string>
+    <string name="e05_ass_custom">Personalizar</string>
+    <string name="e05_ass_author">Autoral</string>
+    <string name="e05_ass_offset">Distância da borda inferior</string>
+    <string name="e05_ass_error">Não foi possível carregar ou salvar o estilo.</string>
+    <string name="e05_order_failed">Não foi possível salvar a ordem. Tente novamente.</string>
+    <string name="e05_rating_title">Sua nota no Trakt</string>
+    <string name="e05_rating_value">Sua nota no Trakt: %1$d/10</string>
+    <string name="e05_rating_none">Avaliar no Trakt</string>
+    <string name="e05_rating_error">Não foi possível confirmar a nota no Trakt. Tente novamente.</string>
+    <string name="e05_rating_saved">Nota confirmada pelo Trakt.</string>
+    <string name="e05_cast_films">Filmes</string>
+    <string name="e05_cast_series">Séries</string>
+    <string name="e05_grade_age">Classificação %1$s</string>
+    <string name="e05_grade_running">Em andamento</string>
+    <string name="e05_grade_ended">Encerrada</string>
+    <string name="e05_grade_cancelled">Cancelada</string>
+    <plurals name="e05_grade_episodes">
+        <item quantity="one">%d episódio</item>
+        <item quantity="other">%d episódios</item>
+    </plurals>
+</resources>

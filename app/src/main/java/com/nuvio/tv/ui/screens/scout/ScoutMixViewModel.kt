@@ -100,6 +100,8 @@ class ScoutMixViewModel @Inject constructor(
     private var ahead: ScoutMixPick.Episode? = null
     private var showing = true
     private val profileId = profiles.activeProfileId.value
+    private val openedSelection = profiles.profileSelectionRevision.value
+    internal val previewSelection = profiles.profileSelectionRevision
 
     private val allMixes = store.observe(profileId).stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val pickSources = store.observePickSources(profileId).stateIn(viewModelScope, SharingStarted.Eagerly, true)
@@ -227,8 +229,8 @@ class ScoutMixViewModel @Inject constructor(
     }
 
     /** Preview shares the prepared queue and leaves playback history untouched. */
-    fun preview(): List<ScoutMixPick.Episode> {
-        if (profiles.activeProfileId.value != profileId) return emptyList()
+    fun preview(revision: Long = previewSelection.value): List<ScoutMixPick.Episode> {
+        if (profiles.activeProfileId.value != profileId || revision != openedSelection || revision != previewSelection.value) return emptyList()
         val current = _state.value
         return mixQueueTiles(current.pick as? ScoutMixPick.Episode, current.coming)
     }

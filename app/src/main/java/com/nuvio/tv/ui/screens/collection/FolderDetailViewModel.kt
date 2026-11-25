@@ -70,7 +70,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import javax.inject.Inject
 
-internal data class FolderPreviewCredits(val director: String?, val cast: List<String>)
+internal data class FolderPreviewCredits(val director: String?, val cast: List<String>, val episodeCount: Int? = null)
 
 data class FolderDetailUiState(
     val folder: CollectionFolder? = null,
@@ -1321,14 +1321,17 @@ class FolderDetailViewModel @Inject constructor(
         return mapOf("genre" to genre)
     }
 
-    private fun savePreviewCredits(item: MetaPreview, directors: List<String>, actors: List<String>) {
+    private fun savePreviewCredits(item: MetaPreview, directors: List<String>, actors: List<String>, episodeCount: Int? = null) {
         val key = item.apiType to item.id
         val director = directors.firstOrNull { it.isNotBlank() }
         val cast = actors.filter { it.isNotBlank() }.distinct().take(3)
-        if (director == null && cast.isEmpty()) return
+        if (director == null && cast.isEmpty() && episodeCount == null) return
         _previewCredits.update { previews ->
             val previous = previews[key]
-            previews + (key to FolderPreviewCredits(previous?.director ?: director, previous?.cast?.takeIf { it.isNotEmpty() } ?: cast))
+            previews + (key to FolderPreviewCredits(
+                previous?.director ?: director, previous?.cast?.takeIf { it.isNotEmpty() } ?: cast,
+                episodeCount ?: previous?.episodeCount
+            ))
         }
     }
 
@@ -1414,7 +1417,7 @@ class FolderDetailViewModel @Inject constructor(
             if (enrichment != null) {
                 val finalEnrichment = enrichment
                 if (previewOnly) {
-                    savePreviewCredits(item, finalEnrichment.director, finalEnrichment.castMembers.map { it.name })
+                    savePreviewCredits(item, finalEnrichment.director, finalEnrichment.castMembers.map { it.name }, finalEnrichment.episodeCount)
                 }
 
                 updateItemInTabs(item.id) { merged ->
@@ -1438,7 +1441,8 @@ class FolderDetailViewModel @Inject constructor(
                         result = result.copy(
                             runtime = finalEnrichment.runtimeMinutes?.toString() ?: result.runtime,
                             ageRating = finalEnrichment.ageRating ?: result.ageRating,
-                            status = finalEnrichment.status ?: result.status
+                            status = finalEnrichment.status ?: result.status,
+                            releaseInfo = if (previewOnly) finalEnrichment.releaseInfo ?: result.releaseInfo else result.releaseInfo
                         )
                     }
                     // Propagate TMDB-fetched localized trailer YT ids onto the item

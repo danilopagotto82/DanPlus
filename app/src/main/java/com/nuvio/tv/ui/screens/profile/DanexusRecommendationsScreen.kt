@@ -7,7 +7,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -44,6 +47,7 @@ import com.nuvio.tv.core.danexus.RecommendationProfile
 import com.nuvio.tv.domain.model.Meta
 import com.nuvio.tv.ui.components.NuvioDialog
 import com.nuvio.tv.ui.components.ProfileAvatarCircle
+import com.nuvio.tv.ui.components.rememberBrowseArtwork
 import com.nuvio.tv.ui.theme.NuvioTheme
 import com.nuvio.tv.ui.v2.appearance.LocalV2Appearance
 import com.nuvio.tv.ui.v2.appearance.V2Atmosphere
@@ -62,8 +66,7 @@ fun DanexusRecommendDialog(
     val colors = NuvioTheme.colors
     val recipients = profiles.filter { it.id != active?.id }
     var selected by remember(active, meta.id, meta.apiType) { mutableStateOf(emptySet<String>()) }
-    val canReview = active != null && !locked && selected.isNotEmpty()
-    var confirmation by remember(active, meta.id) { mutableStateOf<Map<Int, String>?>(null) }
+    val targets = recipients.filter { it.id in selected }.associate { it.index to it.id }
     var sentCount by remember(active, meta.id) { mutableIntStateOf(0) }
     var error by remember(active, meta.id) { mutableStateOf(false) }
     var accountOpen by remember { mutableStateOf(false) }
@@ -73,22 +76,33 @@ fun DanexusRecommendDialog(
         viewModel.startSync()
         onDispose { viewModel.stopSync() }
     }
-    LaunchedEffect(active, meta.id, confirmation == null, recipients.map { it.id }, accountOpen, locked) {
+    LaunchedEffect(active, meta.id, meta.apiType, recipients.map { it.id }, accountOpen, locked) {
         repeat(2) { withFrameNanos { } }
-        if (confirmation == null && !accountOpen && !locked && active != null && recipients.isNotEmpty()) {
+        if (!accountOpen && !locked && active != null && recipients.isNotEmpty()) {
             runCatching { firstRecipient.requestFocus() }
         }
     }
 
     if (accountOpen) {
         RecommendationAccountDialog(viewModel) { accountOpen = false }
-    } else if (confirmation == null) NuvioDialog(
+    } else NuvioDialog(
         onDismiss = onDismiss,
         title = stringResource(R.string.d12_select_title),
-        subtitle = meta.name,
+        subtitle = meta.name.takeIf { meta.logo.isNullOrBlank() },
         width = 620.dp, titleTextAlign = TextAlign.Center,
         solidWithoutBlur = true
     ) {
+        meta.logo?.takeIf(String::isNotBlank)?.let { logo ->
+            var failedLogo by remember(logo) { mutableStateOf(false) }
+            if (failedLogo) {
+                Text(meta.name, Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+            } else {
+                AsyncImage(
+                    logo, meta.name, Modifier.align(Alignment.CenterHorizontally).width(200.dp).height(52.dp),
+                    contentScale = ContentScale.Fit, onError = { failedLogo = true }
+                )
+            }
+        }
         Text(stringResource(R.string.d12_select_hint), Modifier.fillMaxWidth(), color = colors.TextSecondary, textAlign = TextAlign.Center)
         if (!viewModel.remoteEnabled) {
             Text(stringResource(R.string.d12_sync_unavailable), color = colors.TextSecondary)
@@ -98,9 +112,10 @@ fun DanexusRecommendDialog(
         if (active != null && !locked && recipients.isEmpty()) {
             Text(stringResource(R.string.d12_no_profiles), color = colors.TextSecondary)
         } else if (active != null && !locked) {
-            LazyColumn(
-                Modifier.align(Alignment.CenterHorizontally).widthIn(max = 460.dp).fillMaxWidth().heightIn(max = 250.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            LazyRow(
+                Modifier.align(Alignment.CenterHorizontally).fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 3.dp)
             ) {
                 items(recipients, key = { it.id }) { profile ->
                     val chosen = profile.id in selected
@@ -110,13 +125,12 @@ fun DanexusRecommendDialog(
                             sentCount = 0
                             error = false
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.widthIn(min = 112.dp, max = 200.dp)
                             .then(if (profile.id == recipients.first().id) Modifier.focusRequester(firstRecipient) else Modifier),
                         colors = indicationButtonColors(chosen)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             IndicationProfileName(profile, viewModel.localProfileFor(profile)?.id?.let(pictures::get))
-                            Spacer(Modifier.weight(1f))
                             Icon(if (chosen) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null, Modifier.size(20.dp))
                         }
                     }
@@ -140,45 +154,28 @@ fun DanexusRecommendDialog(
             }
             if (active != null && !locked) {
                 Button(onClick = {
-                    confirmation = recipients.filter { it.id in selected }.associate { it.index to it.id }
-                }, enabled = canReview, colors = indicationButtonColors(), border = indicationFocusBorder()) {
-                    Text(stringResource(R.string.d12_review_send))
+                    val viewerId = active?.id ?: return@Button
+                    val submitted = targets
+                    if (submitted.isEmpty() || selected.isEmpty()) return@Button
+                    val previousSelection = selected
+                    selected = emptySet()
+                    viewModel.send(viewerId, submitted, meta).onSuccess {
+                        sentCount = it
+                        error = it == 0
+                        if (error) selected = previousSelection
+                    }.onFailure {
+                        error = true
+                        sentCount = 0
+                        selected = previousSelection
+                    }
+                }, enabled = targets.isNotEmpty(), colors = indicationButtonColors(), border = indicationFocusBorder()) {
+                    Text(stringResource(R.string.d12_send))
                 }
             }
             Button(onClick = onDismiss, colors = indicationButtonColors(), border = indicationFocusBorder()) { Text(stringResource(R.string.d12_close)) }
         }
     }
 
-    confirmation?.let { targets ->
-        val names = recipients.filter { targets[it.index] == it.id }.map { it.name }
-        val cancelFocus = remember { FocusRequester() }
-        LaunchedEffect(targets) {
-            repeat(2) { withFrameNanos { } }
-            runCatching { cancelFocus.requestFocus() }
-        }
-        NuvioDialog(onDismiss = { confirmation = null }, title = stringResource(R.string.d12_confirm_title),
-            subtitle = meta.name, width = 560.dp, titleTextAlign = TextAlign.Center, solidWithoutBlur = true) {
-            Text(stringResource(R.string.d12_confirm_targets, names.joinToString(", ")), Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
-                Button(onClick = { confirmation = null }, modifier = Modifier.focusRequester(cancelFocus),
-                    colors = indicationButtonColors(), border = indicationFocusBorder()) {
-                    Text(stringResource(R.string.d12_cancel))
-                }
-                Button(onClick = {
-                    confirmation = null // Avoid duplicate DPAD delivery.
-                    val viewerId = active?.id ?: return@Button
-                    viewModel.send(viewerId, targets, meta).onSuccess {
-                        sentCount = it
-                        error = it == 0
-                        if (it > 0) selected = emptySet()
-                    }.onFailure { error = true; sentCount = 0 }
-                }, enabled = targets.isNotEmpty() && names.size == targets.size,
-                    colors = indicationButtonColors(), border = indicationFocusBorder()) {
-                    Text(stringResource(R.string.d12_confirm_send, names.size))
-                }
-            }
-        }
-    }
 }
 
 @Composable
@@ -289,25 +286,30 @@ fun DanexusRecommendationsScreen(
                     Text(stringResource(R.string.d12_empty), style = MaterialTheme.typography.bodyLarge, color = colors.TextSecondary)
                 }
             } else {
+                var focusedCard by remember(active, sent, person) { mutableStateOf<String?>(null) }
                 LazyColumn(
                     modifier = Modifier.widthIn(max = 928.dp).fillMaxWidth().weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 5.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(cards, key = { it.first }) { (_, rows) ->
+                    itemsIndexed(cards, key = { _, card -> card.first }) { index, (cardKey, rows) ->
                         val row = rows.first()
                         val people = rows.mapNotNull { profilesByIndex[if (sent) it.to else it.from] }
                         val watchedFlow = remember(rows, viewModel) { viewModel.watchedRecipientCount(rows) }
                         val watchedCount by watchedFlow.collectAsStateWithLifecycle(initialValue = 0)
                         RecommendationCard(
                             row = row,
-                            backdrop = viewModel.indicationBackdrop(row),
+                            backdrop = rememberBrowseArtwork(
+                                row.contentId, row.type, viewModel.indicationBackdrop(row),
+                                resolve = focusedCard == cardKey || (focusedCard == null && index == 0)
+                            ).backdrop,
                             people = people,
                             pictureFor = { profile -> viewModel.localProfileFor(profile)?.id?.let(pictures::get) },
                             sent = sent,
                             pending = rows.any { it.uploadPending },
                             watchedCount = watchedCount,
                             recipientCount = rows.size,
+                            onFocus = { focusedCard = cardKey },
                             onOpen = { if (viewModel.open(row)) onOpen(row.contentId, row.type) },
                             onRemove = { toRemove = rows }
                         )
@@ -356,6 +358,7 @@ private fun RecommendationCard(
     pending: Boolean,
     watchedCount: Int,
     recipientCount: Int,
+    onFocus: () -> Unit,
     onOpen: () -> Unit,
     onRemove: () -> Unit
 ) {
@@ -369,7 +372,7 @@ private fun RecommendationCard(
     ) {
         Button(
             onClick = onOpen,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).onFocusChanged { if (it.isFocused) onFocus() },
             colors = ButtonDefaults.colors(
                 containerColor = colors.BackgroundCard,
                 contentColor = colors.TextPrimary,

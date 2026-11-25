@@ -67,16 +67,19 @@ class TraktPersonalRatingRepository @Inject constructor(
 ) {
     private val writes = Mutex()
 
-    suspend fun read(profileId: Int, target: TraktPersonalRatingTarget): Int? {
+    suspend fun read(profileId: Int, target: TraktPersonalRatingTarget, revalidate: suspend () -> Unit = {}): Int? {
         target.request(null) // validate the target before contacting Trakt
         var page = 1
         while (true) {
             checkOwner(profileId)
+            revalidate()
             val response = auth.executeAuthorizedRequest { authorization ->
                 checkOwner(profileId)
+                revalidate()
                 api.getRatings(authorization, target.bucket, page, 100)
             } ?: throw IOException("Trakt ratings unavailable")
             checkOwner(profileId)
+            revalidate()
             if (!response.isSuccessful) throw IOException("Trakt ratings read failed: ${response.code()}")
             response.body().orEmpty().firstNotNullOfOrNull(target::ratingIn)?.let { return it }
             val lastPage = response.headers()["X-Pagination-Page-Count"]?.toIntOrNull() ?: 1
@@ -87,15 +90,19 @@ class TraktPersonalRatingRepository @Inject constructor(
     }
 
     /** Returns false when the existing score already matches the requested state. */
-    suspend fun set(profileId: Int, target: TraktPersonalRatingTarget, rating: Int?): Boolean = writes.withLock {
+    suspend fun set(
+        profileId: Int, target: TraktPersonalRatingTarget, rating: Int?, revalidate: suspend () -> Unit = {}
+    ): Boolean = writes.withLock {
         val request = target.request(rating)
-        if (read(profileId, target) == rating) return@withLock false
+        if (read(profileId, target, revalidate) == rating) return@withLock false
         val response = auth.executeAuthorizedWriteRequest { authorization ->
             checkOwner(profileId)
+            revalidate()
             if (rating == null) api.deletePersonalRating(authorization, request)
             else api.putPersonalRating(authorization, request)
         } ?: throw IOException("Trakt ratings unavailable")
         checkOwner(profileId)
+        revalidate()
         val receipt = response.body()
         val counts = if (rating == null) receipt?.deleted else receipt?.added
         if (!response.isSuccessful || receipt == null ||

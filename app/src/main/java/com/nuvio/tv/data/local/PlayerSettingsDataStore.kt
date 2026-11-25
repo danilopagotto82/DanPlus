@@ -1558,12 +1558,7 @@ class PlayerSettingsDataStore @Inject constructor(
                         showOnlyPreferredLanguages = prefs[subtitleShowOnlyPreferredLanguagesKey] ?: false,
                         stripSdh = prefs[subtitleStripSdhKey] ?: false,
                         size = prefs[subtitleSizeKey] ?: SubtitleStyleSettings().size,
-                        ass = AssSubtitleStyleSettings(
-                            size = prefs[assSubtitleSizeKey] ?: 100,
-                            customizeInMpv = prefs[assSubtitleMpvOverrideKey] ?: false,
-                            verticalOffset = prefs[assSubtitleOffsetKey] ?: 5,
-                            importedFontId = prefs[assSubtitleFontKey]
-                        ).normalized(),
+                        ass = readAssStyle(prefs),
                         bitmapSize = (prefs[subtitleBitmapSizeKey] ?: 100).coerceIn(50, 200),
                         verticalOffset = prefs[subtitleVerticalOffsetKey] ?: 5,
                         bold = prefs[subtitleBoldKey] ?: false,
@@ -2540,10 +2535,24 @@ class PlayerSettingsDataStore @Inject constructor(
     suspend fun setSubtitleBitmapSize(size: Int) { store().edit { it[subtitleBitmapSizeKey] = size.coerceIn(50, 200) } }
     suspend fun setSubtitleSize(size: Int) { store().edit { it[subtitleSizeKey] = size.coerceIn(50, 200) } }
 
-    suspend fun setAssSubtitleStyle(profileId: Int, style: AssSubtitleStyleSettings) {
+    internal fun assStyleOwner() =
+        profileManager.activeProfileId.value to profileManager.profileSelectionRevision.value
+
+    internal suspend fun readAssStyle(profileId: Int): AssSubtitleStyleSettings =
+        readAssStyle(store(profileId).data.first())
+
+    private fun readAssStyle(prefs: Preferences) = AssSubtitleStyleSettings(
+        size = prefs[assSubtitleSizeKey] ?: 100,
+        customizeInMpv = prefs[assSubtitleMpvOverrideKey] ?: false,
+        verticalOffset = prefs[assSubtitleOffsetKey] ?: 5,
+        importedFontId = prefs[assSubtitleFontKey]
+    ).normalized()
+
+    suspend fun setAssSubtitleStyle(profileId: Int, style: AssSubtitleStyleSettings, revision: Long? = null) {
         val normalized = style.normalized()
         store(profileId).edit { prefs ->
             if (profileManager.activeProfileId.value != profileId) return@edit
+            if (revision != null && profileManager.profileSelectionRevision.value != revision) return@edit
             prefs[assSubtitleSizeKey] = normalized.size
             prefs[assSubtitleMpvOverrideKey] = normalized.customizeInMpv
             prefs[assSubtitleOffsetKey] = normalized.verticalOffset

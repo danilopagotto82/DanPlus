@@ -8,6 +8,7 @@ import com.nuvio.tv.ui.v2.components.nuvioV2Focus
 import com.nuvio.tv.ui.v2.components.GlassRole
 import com.nuvio.tv.ui.theme.NuvioTheme
 import com.nuvio.tv.ui.screens.home.HeroBackdropState
+import com.nuvio.tv.ui.components.rememberBrowseArtwork
 
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.foundation.BorderStroke
@@ -315,6 +316,17 @@ internal fun DiscoverSection(
 
             visibleResults.isNotEmpty() || (hasFilters && selectedCatalog != null &&
                 (uiState.discoverHasMore || uiState.pendingDiscoverResults.isNotEmpty())) -> {
+                val focusedItem = visibleResults.getOrNull(focusedItemIndex) ?: visibleResults.firstOrNull()
+                val artwork = focusedItem?.let {
+                    rememberBrowseArtwork(
+                        it.id, it.apiType, it.background ?: it.landscapePoster, it.imdbId, withLogo = showFocusDock
+                    )
+                }
+                LaunchedEffect(focusedItem?.id, focusedItem?.apiType, artwork?.backdrop) {
+                    focusedItem?.let { item ->
+                        HeroBackdropState.selectPageArtwork("${item.apiType}:${item.id}", artwork?.backdrop ?: item.poster)
+                    }
+                }
                 Box(modifier = (if (showFocusDock) Modifier.weight(1f) else Modifier)
                     .onFocusChanged { gridHasFocus = it.hasFocus }) {
                 DiscoverGrid(
@@ -338,7 +350,9 @@ internal fun DiscoverSection(
                     isLoadingMore = uiState.discoverLoadingMore,
                     onLoadMore = onLoadMore,
                     onItemClick = { _, item ->
-                        HeroBackdropState.update(item.backdropUrl)
+                        HeroBackdropState.updateForTitle(
+                            item.id, item.apiType, artwork?.backdrop?.takeIf { focusedItem == item } ?: item.backdropUrl
+                        )
                         onNavigateToDetail(
                             item.id,
                             item.apiType,
@@ -352,10 +366,8 @@ internal fun DiscoverSection(
                         "${uiState.selectedDiscoverLetter}|${uiState.discoverYear}|${uiState.discoverWatchFilter}"
                 )
                 }
-                if (showFocusDock) {
-                    (visibleResults.getOrNull(focusedItemIndex) ?: visibleResults.firstOrNull())?.let { item ->
-                        com.nuvio.tv.ui.components.DanPlusFocusDock(item)
-                    }
+                if (showFocusDock && focusedItem != null && artwork != null) {
+                    com.nuvio.tv.ui.components.DanPlusFocusDock(focusedItem, artwork)
                 }
             }
 

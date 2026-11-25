@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="e05_scout_filters">Advanced filters</string>
+    <string name="e05_scout_saved">Saved searches</string>
+    <string name="e05_scout_history">Suggestion history</string>
+    <string name="e05_scout_empty">Nothing here yet.</string>
+    <string name="e05_scout_phrase">Exact phrase</string>
+    <string name="e05_scout_year">Year</string>
+    <string name="e05_scout_language">Original language (e.g. ja)</string>
+    <string name="e05_scout_genres">Genres</string>
+    <string name="e05_scout_keywords">Find keywords</string>
+    <string name="e05_scout_any">Any keyword</string>
+    <string name="e05_scout_all">All keywords</string>
+    <string name="e05_scout_saved_count">Genres (%1$d)</string>
+    <string name="e05_scout_keyword_count">Keywords (%1$d)</string>
+    <string name="e05_remove">Remove</string>
+    <string name="e05_ass_title">ASS / SSA appearance</string>
+    <string name="e05_ass_subtitle">MPV keeps the original subtitle style by default.</string>
+    <string name="e05_ass_mpv">MPV style</string>
+    <string name="e05_ass_custom">Customize</string>
+    <string name="e05_ass_author">Original</string>
+    <string name="e05_ass_offset">Distance from bottom</string>
+    <string name="e05_ass_error">Unable to load or save this style.</string>
+    <string name="e05_order_failed">Unable to save the order. Try again.</string>
+    <string name="e05_rating_title">Your Trakt rating</string>
+    <string name="e05_rating_value">Your Trakt rating: %1$d/10</string>
+    <string name="e05_rating_none">Rate on Trakt</string>
+    <string name="e05_rating_error">Unable to confirm the rating on Trakt. Try again.</string>
+    <string name="e05_rating_saved">Confirmed by Trakt.</string>
+    <string name="e05_cast_films">Films</string>
+    <string name="e05_cast_series">Series</string>
+    <string name="e05_grade_age">Age rating %1$s</string>
+    <string name="e05_grade_running">Ongoing</string>
+    <string name="e05_grade_ended">Ended</string>
+    <string name="e05_grade_cancelled">Canceled</string>
+    <plurals name="e05_grade_episodes">
+        <item quantity="one">%d episode</item>
+        <item quantity="other">%d episodes</item>
+    </plurals>
+</resources>

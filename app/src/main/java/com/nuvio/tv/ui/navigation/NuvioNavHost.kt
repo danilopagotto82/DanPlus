@@ -1365,6 +1365,7 @@ private fun PlaybackNavHost(
         composable(Screen.Library.route) {
             LibraryScreen(
                 showBuiltInHeader = !hideBuiltInHeaders,
+                onDiscoverTitles = { navController.navigate(Screen.Discover.route) { launchSingleTop = true } },
                 onNavigateToDetail = { itemId, itemType, addonBaseUrl ->
                     navController.navigate(Screen.Detail.createRoute(itemId, itemType, addonBaseUrl))
                 },

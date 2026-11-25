@@ -61,6 +61,7 @@ internal fun PlaybackSettingsSections(
     onOpenDialog: (PlaybackDialog) -> Unit,
     onMemorySettingChanged: () -> Unit,
     onClearTorrentCache: () -> Unit,
+    assStyleEditor: @Composable () -> Unit,
     remoteButtons: RemoteButtonMap = RemoteButtonMap.DEFAULT,
     initialFocusRequester: FocusRequester? = null,
     onOpenConnectedServices: (() -> Unit)? = null,
@@ -117,6 +118,7 @@ internal fun PlaybackSettingsSections(
                         onOpenDialog = onOpenDialog,
                         onMemorySettingChanged = onMemorySettingChanged,
                         onClearTorrentCache = onClearTorrentCache,
+                        assStyleEditor = assStyleEditor,
                         onOpenConnectedServices = onOpenConnectedServices,
                         onShowControlLayoutEditor = onShowControlLayoutEditor,
                         qualityRulesFocusRequester = qualityRulesFocusRequester
@@ -140,6 +142,7 @@ private fun PlaybackSectionContent(
     onOpenDialog: (PlaybackDialog) -> Unit,
     onMemorySettingChanged: () -> Unit,
     onClearTorrentCache: () -> Unit,
+    assStyleEditor: @Composable () -> Unit,
     onOpenConnectedServices: (() -> Unit)?,
     onShowControlLayoutEditor: (() -> Unit)?,
     qualityRulesFocusRequester: FocusRequester?
@@ -176,7 +179,10 @@ private fun PlaybackSectionContent(
             onUpdate { setRemoteButtons(map) }
         }
         PlaybackSection.AUDIO -> PlaybackAudioSection(playerSettings, onUpdate, onOpenDialog)
-        PlaybackSection.SUBTITLES -> PlaybackSubtitlesSection(playerSettings, onUpdate, onOpenDialog)
+        PlaybackSection.SUBTITLES -> {
+            PlaybackSubtitlesSection(playerSettings, onUpdate, onOpenDialog)
+            assStyleEditor()
+        }
         PlaybackSection.VIDEO -> PlaybackVideoSection(playerSettings, transparentLetterbox, onUpdate, onOpenDialog)
         PlaybackSection.BUFFER_NETWORK -> PlaybackBufferNetworkSection(playerSettings, onUpdate, onMemorySettingChanged)
         PlaybackSection.P2P -> PlaybackP2pSection(p2p, onUpdate, onOpenDialog, onClearTorrentCache)

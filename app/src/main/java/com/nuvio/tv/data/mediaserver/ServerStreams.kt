@@ -137,6 +137,9 @@ class ServerStreams @Inject constructor(
                     ),
                     addonName = label,
                     addonLogo = logo,
+                    badges = if (isSiloStreamProvider(connection.providerId)) {
+                        listOf(com.nuvio.tv.domain.model.StreamBadge(name = "Silo"))
+                    } else emptyList(),
                     serverTarget = candidate.target,
                     durationMs = candidate.durationMs
                 )
@@ -147,6 +150,10 @@ class ServerStreams @Inject constructor(
         const val TAG = "ServerStreams"
     }
 }
+
+internal fun isSiloStreamProvider(providerId: String): Boolean =
+    providerId == com.nuvio.tv.data.mediaserver.silo.SiloNativeProvider.ID ||
+        providerId == com.nuvio.tv.data.mediaserver.silo.SiloProvider.ID
 
 /** Why a server takes no part in a stream search, or null when it is asked. A null [kind] means the title has no ids to match on. */
 internal fun serverSourceSkipReason(connection: ServerConnection, kind: ServerMediaKind?, canLookUpIds: Boolean): String? = when {

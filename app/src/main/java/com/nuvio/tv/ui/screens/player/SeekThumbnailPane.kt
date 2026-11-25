@@ -295,8 +295,17 @@ fun SeekThumbnailOverlayHost(
                 Modifier.padding(bottom = NuvioTheme.spacing.sm))
             Box(Modifier.height(height).width(height * aspect).landingFrame(shape).thumbnailSurface(shape)) {
                 if (painter != null) {
-                    Image(painter, contentDescription = null, contentScale = ContentScale.Crop,
+                    Image(painter, contentDescription = null, contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize())
+                }
+                if (matchingRemote != null && painter != null) {
+                    Text(
+                        stringResource(R.string.seekr_preview_source),
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp)
+                            .background(Color.Black.copy(alpha = .78f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 5.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall, color = Color.White
+                    )
                 }
             }
         }
@@ -373,7 +382,7 @@ private fun SeekThumbnailStrip(
                         .thumbnailSurface(tileShape)
                 ) {
                     if (painter != null) {
-                        Image(painter, contentDescription = null, contentScale = ContentScale.Crop,
+                        Image(painter, contentDescription = null, contentScale = ContentScale.Fit,
                             modifier = Modifier.fillMaxSize())
                     }
                 }
@@ -392,7 +401,7 @@ private fun SeekThumbnailStrip(
                 .thumbnailSurface(centreShape)
         ) {
             if (centre != null) {
-                Image(centre, contentDescription = null, contentScale = ContentScale.Crop,
+                Image(centre, contentDescription = null, contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize())
             }
         }

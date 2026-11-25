@@ -154,6 +154,10 @@ fun AddonManagerScreen(
     onNavigateToCollections: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val orderDraft by viewModel.orderDraft.collectAsState()
+    val orderSaving by viewModel.orderSaving.collectAsState()
+    val orderError by viewModel.orderError.collectAsState()
+    val orderedAddons = orderDraft?.display(uiState.installedAddons) { it.baseUrl } ?: uiState.installedAddons
     val firstAddonToggleFocusRequester = remember { FocusRequester() }
     val catalogOrderFocusRequester = remember { FocusRequester() }
     val collectionsFocusRequester = remember { FocusRequester() }
@@ -207,7 +211,11 @@ fun AddonManagerScreen(
         stringResource(R.string.addon_qr_scan_instruction)
     }
 
-    BackHandler { onBackPress() }
+    BackHandler {
+        if (!orderSaving) {
+            if (orderDraft == null) onBackPress() else viewModel.cancelAddonOrder()
+        }
+    }
 
     val defaultRefreshAddonsSubtitle = stringResource(R.string.addon_refresh_default_subtitle)
     val refreshedAddonsSubtitle = stringResource(R.string.addon_refresh_done_subtitle)
@@ -645,7 +653,18 @@ fun AddonManagerScreen(
                 }
             }
 
-            if (uiState.installedAddons.isEmpty() && !uiState.isLoading) {
+            if (orderDraft != null || orderError) {
+                item(key = "addon_order_draft") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (orderDraft != null) com.nuvio.tv.ui.screens.settings.OrderDraftActions(
+                            viewModel::saveAddonOrder, viewModel::cancelAddonOrder, !orderSaving
+                        )
+                        if (orderError) Text(stringResource(R.string.e05_order_failed), color = NuvioTheme.colors.Error)
+                    }
+                }
+            }
+
+            if (orderedAddons.isEmpty() && !uiState.isLoading) {
                 item {
                     Text(
                         text = stringResource(R.string.addon_empty),
@@ -655,15 +674,15 @@ fun AddonManagerScreen(
                 }
             } else {
                 itemsIndexed(
-                    items = uiState.installedAddons,
+                    items = orderedAddons,
                     key = { _, addon -> addon.baseUrl }
                 ) { index, addon ->
                     val bringIntoViewRequester = remember { BringIntoViewRequester() }
                     AddonCard(
                         modifier = Modifier.bringIntoViewRequester(bringIntoViewRequester),
                         addon = addon,
-                        canMoveUp = index > 0,
-                        canMoveDown = index < uiState.installedAddons.lastIndex,
+                        canMoveUp = !orderSaving && index > 0,
+                        canMoveDown = !orderSaving && index < orderedAddons.lastIndex,
                         onMoveUp = {
                             viewModel.moveAddonUp(addon.baseUrl)
                             addonListScope.launch {

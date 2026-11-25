@@ -178,7 +178,8 @@ class ScoutPicksFinder @Inject constructor(
     private val tmdbSettings: TmdbSettingsDataStore,
     private val engine: ScoutEngine,
     private val store: ScoutStore,
-    private val moodAi: ScoutMoodAiStore
+    private val moodAi: ScoutMoodAiStore,
+    private val collectionSources: dagger.Lazy<com.nuvio.tv.core.tmdb.TmdbCollectionSourceResolver>
 ) {
     private val fromCountryCounts = HashMap<String, Int>()
 
@@ -332,6 +333,15 @@ class ScoutPicksFinder @Inject constructor(
     }
 
     fun surprisePool(): List<ScoutPick> = pool()?.picked.orEmpty().take(SURPRISE_FROM)
+
+    internal suspend fun searchKeywords(text: String): List<Pair<Int, String>> {
+        val scope = engine.scopeFor() ?: return emptyList()
+        val query = text.trim().take(80)
+        if (query.length < 2) return emptyList()
+        val found = scoutReadPolicy { collectionSources.get().searchKeywords(query) }.orEmpty()
+        if (engine.scopeFor(scope.selection) != scope) return emptyList()
+        return found.entries.take(8).map { it.key to it.value }
+    }
 
     suspend fun fetchAdvanced(query: ScoutAdvancedSearch, answers: ScoutAnswers, page: Int): List<ScoutPick> {
         val normalized = query.normalized()

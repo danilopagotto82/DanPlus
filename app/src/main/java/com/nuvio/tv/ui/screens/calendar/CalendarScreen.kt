@@ -197,6 +197,10 @@ fun CalendarScreen(
                 formats = formats,
                 viewMode = viewMode,
                 modeFocusRequester = modeFocusRequester,
+                onToday = {
+                    if (viewMode == CalendarViewMode.LIST) uiState.today?.let(viewModel::openDayInList)
+                    else viewModel.showToday()
+                },
                 onViewMode = viewModel::setViewMode,
                 onWindowDays = viewModel::setWindowDays
             )
@@ -286,6 +290,7 @@ private fun CalendarHeader(
     formats: CalendarFormats,
     viewMode: CalendarViewMode,
     modeFocusRequester: FocusRequester,
+    onToday: () -> Unit,
     onViewMode: (CalendarViewMode) -> Unit,
     onWindowDays: (Int) -> Unit
 ) {
@@ -320,6 +325,9 @@ private fun CalendarHeader(
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)) {
+            Button(onClick = onToday, enabled = uiState.today != null) {
+                Text(stringResource(R.string.calendar_section_today))
+            }
             if (uiState.brazilMovieReleases) {
                 val windows = listOf(30, 60, 90)
                 val displayedDays = uiState.windowDays

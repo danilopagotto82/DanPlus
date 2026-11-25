@@ -2685,6 +2685,8 @@ private fun MetaDetailsContent(
                             }
                             Box(modifier = Modifier.bringIntoViewResponder(detailRowBringIntoViewResponder)) {
                             SeasonTabs(
+                                seasonPosters = meta.seasonPosters,
+                                seriesPoster = meta.poster,
                                 seasons = seasons,
                                 selectedSeason = selectedSeason,
                                 onSeasonSelected = onSeasonSelected,
@@ -2800,6 +2802,12 @@ private fun MetaDetailsContent(
                 if (showParentalGuide) {
                     detailSection(key = "parental_guide", contentType = "parental_guide", immediate = revealSecondaryImmediately) {
                         ParentalGuideSlot(entries = parentalGuide)
+                    }
+                }
+
+                if (meta.apiType == "movie" || (isSeries && episodesForSeason.isNotEmpty())) {
+                    detailSection(key = "trakt_personal_rating", contentType = "action", immediate = revealSecondaryImmediately) {
+                        TraktPersonalRatingRow(meta, episodesForSeason.takeIf { isSeries }.orEmpty())
                     }
                 }
 

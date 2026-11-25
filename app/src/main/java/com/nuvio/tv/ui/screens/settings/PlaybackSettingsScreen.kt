@@ -148,6 +148,9 @@ fun PlaybackSettingsContent(
                 releaseDecoderOnBackground = releaseDecoderOnBackground,
                 onUpdate = onUpdate,
                 onOpenDialog = { openDialog = it },
+                assStyleEditor = {
+                    AssSubtitleSettingsRow(viewModel, playerSettings.playerPreference != com.nuvio.tv.data.local.PlayerPreference.EXTERNAL)
+                },
                 onMemorySettingChanged = { memoryUsageTrigger++ },
                 onClearTorrentCache = {
                     torrentCacheClearResult = null
