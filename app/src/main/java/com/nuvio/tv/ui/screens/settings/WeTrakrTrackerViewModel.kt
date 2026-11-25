@@ -292,6 +292,7 @@ class WeTrakrTrackerViewModel @Inject constructor(
     private fun WeTrakrAuthError.message(): String = context.getString(when (this) {
         WeTrakrAuthError.MISSING_CLIENT_ID -> R.string.wetrakr_missing_client
         WeTrakrAuthError.INVALID_CLIENT -> R.string.wetrakr_error_invalid_client
+        WeTrakrAuthError.REQUEST_FORBIDDEN -> R.string.wetrakr_error_forbidden
         WeTrakrAuthError.INVALID_RESPONSE -> R.string.wetrakr_error_invalid_response
         WeTrakrAuthError.TOO_MANY_CODES -> R.string.wetrakr_error_too_many_codes
         WeTrakrAuthError.CODE_EXPIRED -> R.string.wetrakr_error_code_expired
@@ -306,6 +307,7 @@ class WeTrakrTrackerViewModel @Inject constructor(
         WeTrakrSyncError.RATE_LIMIT, WeTrakrSyncError.DAILY_LIMIT -> R.string.wetrakr_error_busy
         WeTrakrSyncError.AUTHORIZATION_REVOKED -> R.string.wetrakr_error_signin
         WeTrakrSyncError.APP_SUSPENDED -> R.string.wetrakr_error_suspended
+        WeTrakrSyncError.FORBIDDEN -> R.string.wetrakr_error_forbidden
     })
 
     private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)

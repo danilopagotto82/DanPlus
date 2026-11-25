@@ -15,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -214,6 +215,27 @@ class ServerPlaybackTest {
             harness.provider.reported.toList()
         )
         assertFalse(playback.isServerSource(url))
+    }
+
+    @Test
+    fun activePlaybackKeepsItsLastRenewedSessionWhenAnotherProfileReusesTheConnectionId() = runTest {
+        val reports = Channel<Pair<ServerPlaybackEventType, String>>(Channel.UNLIMITED)
+        val provider = object : FakeServerProvider() {
+            override suspend fun report(session: ServerSession, playback: ServerPlaybackSession, event: ServerPlaybackEvent) {
+                reports.send(event.type to session.token)
+            }
+        }
+        val harness = harness(provider, backgroundScope)
+        val connection = harness.connection
+        val session = harness.playback.prepare(ServerPlaybackTarget(ServerItemRef(connection.id, "42"), "src-42"))
+        harness.repository.setCredential(connection.id, "fixture-renewed")
+        harness.playback.onPlaybackSnapshot(session.url, 1_000L, isPlaying = true, isLoading = false, isEnded = false)
+        assertEquals(ServerPlaybackEventType.START to "fixture-renewed", withTimeout(5_000) { reports.receive() })
+
+        harness.repository.selectProfile(2)
+        harness.repository.store(connection.copy(remoteUserId = "different-user"), "fixture-other")
+        harness.playback.stop(session.url)
+        assertEquals(ServerPlaybackEventType.STOP to "fixture-renewed", withTimeout(5_000) { reports.receive() })
     }
 
     @Test

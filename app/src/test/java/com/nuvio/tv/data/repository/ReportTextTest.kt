@@ -18,6 +18,20 @@ import org.junit.Test
 import java.io.File
 
 class ReportTextTest {
+    @Test fun `quoted secrets are removed and the user's note keeps its line breaks`() {
+        val fields = """{"Authorization":"Basic synthetic-auth", "cookie":"session=synthetic-cookie",
+            "password":"synthetic password with spaces", "refresh_token":"synthetic-refresh"}"""
+        val input = fields + "\r\nDecoder: HEVC\r\nBuffer: 4 s"
+        val note = ReportText.note(input, 1000)!!
+        for (secret in listOf("synthetic-auth", "synthetic-cookie", "synthetic password", "synthetic-refresh")) {
+            assertFalse(note.contains(secret))
+        }
+        assertTrue(note.endsWith("Decoder: HEVC\nBuffer: 4 s"))
+        assertTrue(ReportText.rawLine("Cookie: synthetic\nDecoder: HEVC", 120)!!.endsWith("Decoder: HEVC"))
+        assertFalse(ReportText.fileName("https://example.test/film.mkv?X-Plex-Token=synthetic", 100)!!.contains("synthetic"))
+        assertEquals("Movie.Title.1080p.mkv", ReportText.fileName("Movie.Title.1080p.mkv", 100))
+    }
+
     @Test fun `links, keys, addresses and email addresses are taken out and useful detail stays`() {
         val text = ReportText.clean(
             "HTTP 403 from https://eu1.tb-cdn.st/dl/abc?token=SECRET123 apikey=Zx81Qw7 mail me@example.com box 192.168.1.60 " +

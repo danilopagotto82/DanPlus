@@ -31,9 +31,10 @@ class AnimeSkipSettingsDataStore @Inject constructor(
         factory.get(pid, FEATURE).data.map { it[enabledKey] ?: false }
     }
 
-    val clientId: Flow<String> = profileManager.activeProfileId.flatMapLatest { pid ->
-        factory.get(pid, FEATURE).data.map { it[clientIdKey] ?: "" }
-    }
+    val clientId: Flow<String> = profileManager.activeProfileId.flatMapLatest(::clientIdForProfile)
+
+    internal fun clientIdForProfile(profileId: Int): Flow<String> =
+        factory.get(profileId, FEATURE).data.map { it[clientIdKey] ?: "" }
 
     // Capture both values from one profile/store emission, including during profile switches.
     suspend fun snapshot(): AnimeSkipSettingsSnapshot {
@@ -46,7 +47,13 @@ class AnimeSkipSettingsDataStore @Inject constructor(
         store().edit { it[enabledKey] = enabled }
     }
 
-    suspend fun setClientId(clientId: String, profileId: Int = profileManager.activeProfileId.value) {
-        factory.get(profileId, FEATURE).edit { it[clientIdKey] = clientId.trim() }
+    suspend fun setClientId(clientId: String, profileId: Int = profileManager.activeProfileId.value) =
+        setClientIdForProfile(profileId, clientId) {}
+
+    internal suspend fun setClientIdForProfile(profileId: Int, clientId: String, requireCurrent: () -> Unit) {
+        factory.get(profileId, FEATURE).edit {
+            requireCurrent()
+            it[clientIdKey] = clientId.trim()
+        }
     }
 }

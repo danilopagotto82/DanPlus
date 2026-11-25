@@ -3,13 +3,13 @@ package com.nuvio.tv.core.sync
 import android.os.SystemClock
 import android.util.Log
 import com.nuvio.tv.core.auth.AuthManager
-import com.nuvio.tv.core.logging.forLog
 import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.data.local.AnimeSkipSettingsDataStore
 import com.nuvio.tv.data.local.DebridSettingsDataStore
 import com.nuvio.tv.data.local.MDBListSettingsDataStore
 import com.nuvio.tv.data.remote.supabase.SupabaseProviderCredential
 import com.nuvio.tv.domain.model.AuthState
+import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.postgrest.Postgrest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +22,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
@@ -45,9 +46,14 @@ private data class ProviderCredentialScope(
     val profileId: Int
 )
 
+private data class ProviderCredentialTarget(val scope: ProviderCredentialScope, val selectionRevision: Long)
+
+private class ProviderCredentialTargetChanged : CancellationException("Provider credential sync target changed")
+
 @Singleton
 class ProviderCredentialSyncService @Inject constructor(
     private val postgrest: Postgrest,
+    private val auth: Auth,
     private val authManager: AuthManager,
     private val profileManager: ProfileManager,
     private val debridSettingsDataStore: DebridSettingsDataStore,
@@ -58,7 +64,7 @@ class ProviderCredentialSyncService @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val syncMutex = Mutex()
     private val stateLock = Any()
-    private val observedSnapshots = mutableMapOf<Int, ProviderCredentialSnapshot>()
+    private val observedSnapshots = mutableMapOf<ProviderCredentialScope, ProviderCredentialSnapshot>()
     private val baselineSnapshots = mutableMapOf<ProviderCredentialScope, ProviderCredentialSnapshot>()
     private val pendingScopes = mutableSetOf<ProviderCredentialScope>()
     private var foregroundPullJob: Job? = null
@@ -69,49 +75,72 @@ class ProviderCredentialSyncService @Inject constructor(
         observeAuthState()
     }
 
-    private suspend fun <T> withJwtRefreshRetry(block: suspend () -> T): T {
+    private suspend fun <T> withJwtRefreshRetry(target: ProviderCredentialTarget, block: suspend (Postgrest) -> T): T {
+        suspend fun request(): T {
+            requireCurrentTarget(target)
+            val session = auth.currentSessionOrNull()?.takeIf { it.user?.id == target.scope.userId }
+                ?: throw ProviderCredentialTargetChanged()
+            // A request-scoped plugin reuses the existing HTTP client and cannot resolve
+            // a different account's token after the payload has already been prepared.
+            val config = Postgrest.createConfig {
+                defaultSchema = postgrest.config.defaultSchema
+                customUrl = postgrest.config.customUrl
+                propertyConversionMethod = postgrest.config.propertyConversionMethod
+                serializer = postgrest.serializer
+                jwtToken = session.accessToken
+            }
+            val result = block(Postgrest.create(postgrest.supabaseClient, config))
+            requireCurrentTarget(target)
+            return result
+        }
         return try {
-            block()
+            request()
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Exception) {
+            requireCurrentTarget(target)
             if (!authManager.refreshSessionIfJwtExpired(error)) throw error
-            block()
+            request()
         }
     }
 
     suspend fun syncFromRemote(
         profileId: Int = profileManager.activeProfileId.value
     ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val target = currentTarget(profileId) ?: return@withContext Result.success(false)
         syncMutex.withLock {
             try {
-                val credentialScope = currentScope(profileId) ?: return@withLock Result.success(false)
+                requireCurrentTarget(target)
+                val credentialScope = target.scope
                 val localSnapshot = currentSnapshot(profileId)
+                requireCurrentTarget(target)
                 val shouldPush = synchronized(stateLock) {
                     val baseline = baselineSnapshots.getOrPut(credentialScope) {
-                        observedSnapshots[profileId] ?: localSnapshot
+                        observedSnapshots[credentialScope] ?: localSnapshot
                     }
                     credentialScope in pendingScopes || baseline != localSnapshot
                 }
                 if (shouldPush) {
-                    pushSnapshot(localSnapshot)
+                    pushSnapshot(localSnapshot, target)
                     synchronized(stateLock) {
                         pendingScopes.remove(credentialScope)
                         baselineSnapshots[credentialScope] = localSnapshot
                     }
                 }
 
-                val rows = pullRows(profileId)
+                val rows = pullRows(target)
                 if (shouldSeedProviderCredentials(localSnapshot, rows)) {
-                    seedSnapshot(localSnapshot)
+                    seedSnapshot(localSnapshot, target)
                 }
-                requireCurrentScope(credentialScope)
+                requireCurrentTarget(target)
                 val remoteSnapshot = localSnapshot.mergeRemote(rows)
                 val applied = remoteSnapshot != localSnapshot
                 if (applied) {
-                    applySnapshot(remoteSnapshot)
+                    applySnapshot(remoteSnapshot, target)
                 }
-                requireCurrentScope(credentialScope)
+                requireCurrentTarget(target)
                 synchronized(stateLock) {
-                    observedSnapshots[profileId] = remoteSnapshot
+                    observedSnapshots[credentialScope] = remoteSnapshot
                     baselineSnapshots[credentialScope] = remoteSnapshot
                     pendingScopes.remove(credentialScope)
                 }
@@ -121,10 +150,12 @@ class ProviderCredentialSyncService @Inject constructor(
                     "Synchronized ${remoteSnapshot.values.size} credentials for profile $profileId applied=$applied"
                 )
                 Result.success(applied)
+            } catch (_: ProviderCredentialTargetChanged) {
+                Result.success(false)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                Log.e(PROVIDER_CREDENTIAL_TAG, "Failed to synchronize provider credentials", error.forLog())
+                Log.w(PROVIDER_CREDENTIAL_TAG, "Provider credential sync failed: ${error.javaClass.simpleName}")
                 Result.failure(error)
             }
         }
@@ -145,17 +176,17 @@ class ProviderCredentialSyncService @Inject constructor(
         }
     }
 
-    private suspend fun seedSnapshot(snapshot: ProviderCredentialSnapshot) {
+    private suspend fun seedSnapshot(snapshot: ProviderCredentialSnapshot, target: ProviderCredentialTarget) {
         val params = credentialParams(snapshot)
-        withJwtRefreshRetry {
-            postgrest.rpc("sync_seed_provider_credentials", params)
+        withJwtRefreshRetry(target) { client ->
+            client.rpc("sync_seed_provider_credentials", params)
         }
     }
 
-    private suspend fun pushSnapshot(snapshot: ProviderCredentialSnapshot) {
+    private suspend fun pushSnapshot(snapshot: ProviderCredentialSnapshot, target: ProviderCredentialTarget) {
         val params = credentialParams(snapshot)
-        withJwtRefreshRetry {
-            postgrest.rpc("sync_push_provider_credentials", params)
+        withJwtRefreshRetry(target) { client ->
+            client.rpc("sync_push_provider_credentials", params)
         }
         Log.d(
             PROVIDER_CREDENTIAL_TAG,
@@ -163,12 +194,12 @@ class ProviderCredentialSyncService @Inject constructor(
         )
     }
 
-    private suspend fun pullRows(profileId: Int): List<SupabaseProviderCredential> {
+    private suspend fun pullRows(target: ProviderCredentialTarget): List<SupabaseProviderCredential> {
         val params = buildJsonObject {
-            put("p_profile_id", profileId)
+            put("p_profile_id", target.scope.profileId)
         }
-        val response = withJwtRefreshRetry {
-            postgrest.rpc("sync_pull_provider_credentials", params)
+        val response = withJwtRefreshRetry(target) { client ->
+            client.rpc("sync_pull_provider_credentials", params)
         }
         return response.decodeList()
     }
@@ -187,71 +218,76 @@ class ProviderCredentialSyncService @Inject constructor(
     }
 
     private suspend fun currentSnapshot(profileId: Int): ProviderCredentialSnapshot {
-        check(profileManager.activeProfileId.value == profileId)
-        val debrid = debridSettingsDataStore.settings.first()
-        val mdbList = mdbListSettingsDataStore.settings.first()
-        val animeSkipClientId = animeSkipSettingsDataStore.clientId.first()
-        check(profileManager.activeProfileId.value == profileId)
+        val debrid = debridSettingsDataStore.settingsForProfile(profileId).first()
+        val mdbList = mdbListSettingsDataStore.settingsForProfile(profileId).first()
+        val animeSkipClientId = animeSkipSettingsDataStore.clientIdForProfile(profileId).first()
         return localProviderCredentials(profileId, debrid, mdbList.apiKey, animeSkipClientId)
     }
 
-    private suspend fun applySnapshot(snapshot: ProviderCredentialSnapshot) {
+    private suspend fun applySnapshot(snapshot: ProviderCredentialSnapshot, target: ProviderCredentialTarget) {
+        val profileId = target.scope.profileId
+        val requireCurrent = { requireCurrentTarget(target) }
         snapshot.values.forEach { credential ->
-            check(profileManager.activeProfileId.value == snapshot.profileId)
             when {
                 credential.provider.startsWith("debrid:") -> {
                     val providerId = credential.provider.substringAfter("debrid:")
-                    debridSettingsDataStore.setProviderApiKey(providerId, credential.value)
+                    debridSettingsDataStore.setProviderApiKeyForProfile(profileId, providerId, credential.value, requireCurrent)
                 }
                 credential.provider == ProviderCredentialIds.MDBLIST -> {
-                    mdbListSettingsDataStore.setApiKey(credential.value)
+                    mdbListSettingsDataStore.setApiKeyForProfile(profileId, credential.value, requireCurrent)
                 }
                 credential.provider == ProviderCredentialIds.ANIMESKIP -> {
-                    animeSkipSettingsDataStore.setClientId(credential.value)
+                    animeSkipSettingsDataStore.setClientIdForProfile(profileId, credential.value, requireCurrent)
                 }
             }
         }
     }
 
-    private fun currentScope(profileId: Int): ProviderCredentialScope? {
+    private fun currentTarget(profileId: Int): ProviderCredentialTarget? {
         val state = authManager.authState.value as? AuthState.FullAccount ?: return null
+        if (auth.currentSessionOrNull()?.user?.id != state.userId) return null
         if (profileManager.activeProfileId.value != profileId) return null
-        return ProviderCredentialScope(state.userId, profileId)
+        return ProviderCredentialTarget(ProviderCredentialScope(state.userId, profileId), profileManager.profileSelectionRevision.value)
     }
 
-    private fun requireCurrentScope(expected: ProviderCredentialScope) {
-        if (currentScope(expected.profileId) != expected) {
-            throw CancellationException("Provider credential sync target changed")
+    private fun requireCurrentTarget(expected: ProviderCredentialTarget) {
+        if (currentTarget(expected.scope.profileId) != expected) {
+            throw ProviderCredentialTargetChanged()
         }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     private fun observeLocalCredentials() {
         scope.launch {
-            profileManager.activeProfileId
-                .flatMapLatest { profileId ->
+            combine(authManager.authState, profileManager.activeProfileId, profileManager.profileSelectionRevision) { _, profileId, _ ->
+                currentTarget(profileId)
+            }.distinctUntilChanged()
+                .flatMapLatest { target ->
+                    if (target == null) return@flatMapLatest emptyFlow()
+                    val profileId = target.scope.profileId
                     combine(
-                        debridSettingsDataStore.settings,
-                        mdbListSettingsDataStore.settings,
-                        animeSkipSettingsDataStore.clientId
+                        debridSettingsDataStore.settingsForProfile(profileId),
+                        mdbListSettingsDataStore.settingsForProfile(profileId),
+                        animeSkipSettingsDataStore.clientIdForProfile(profileId)
                     ) { debrid, mdbList, animeSkipClientId ->
-                        localProviderCredentials(profileId, debrid, mdbList.apiKey, animeSkipClientId)
+                        target to localProviderCredentials(profileId, debrid, mdbList.apiKey, animeSkipClientId)
                     }
                 }
                 .distinctUntilChanged()
                 .debounce(PROVIDER_CREDENTIAL_PUSH_DEBOUNCE_MS)
-                .collect { snapshot ->
-                    handleLocalSnapshot(snapshot)
+                .collect { (target, snapshot) ->
+                    handleLocalSnapshot(target, snapshot)
                 }
         }
     }
 
-    private suspend fun handleLocalSnapshot(snapshot: ProviderCredentialSnapshot) {
+    private suspend fun handleLocalSnapshot(target: ProviderCredentialTarget, snapshot: ProviderCredentialSnapshot) {
         syncMutex.withLock {
+            if (currentTarget(snapshot.profileId) != target) return
+            val credentialScope = target.scope
             val previous = synchronized(stateLock) {
-                observedSnapshots.put(snapshot.profileId, snapshot)
+                observedSnapshots.put(credentialScope, snapshot)
             }
-            val credentialScope = currentScope(snapshot.profileId) ?: return
             if (previous == null) {
                 synchronized(stateLock) {
                     baselineSnapshots.putIfAbsent(credentialScope, snapshot)
@@ -265,21 +301,22 @@ class ProviderCredentialSyncService @Inject constructor(
             if (baseline == snapshot) return
 
             try {
-                pushSnapshot(snapshot)
+                pushSnapshot(snapshot, target)
                 synchronized(stateLock) {
                     baselineSnapshots[credentialScope] = snapshot
                     pendingScopes.remove(credentialScope)
                 }
+            } catch (_: ProviderCredentialTargetChanged) {
+                return@withLock
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
                 synchronized(stateLock) {
                     pendingScopes.add(credentialScope)
                 }
-                Log.e(
+                Log.w(
                     PROVIDER_CREDENTIAL_TAG,
-                    "Failed to push local provider credential changes for profile ${snapshot.profileId}",
-                    error.forLog()
+                    "Provider credential push failed for profile ${snapshot.profileId}: ${error.javaClass.simpleName}"
                 )
             }
         }

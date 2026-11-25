@@ -61,8 +61,10 @@ class DebridSettingsDataStore @Inject constructor(
     private val streamNameTemplateKey = stringPreferencesKey("debrid_stream_name_template")
     private val streamDescriptionTemplateKey = stringPreferencesKey("debrid_stream_description_template")
 
-    val settings: Flow<DebridSettings> = profileManager.activeProfileId.flatMapLatest { pid ->
-        factory.get(pid, FEATURE).data.map { prefs ->
+    val settings: Flow<DebridSettings> = profileManager.activeProfileId.flatMapLatest(::settingsForProfile)
+
+    internal fun settingsForProfile(profileId: Int): Flow<DebridSettings> =
+        store(profileId).data.map { prefs ->
             val storedStreamSortMode = enumValueOrDefault(
                 prefs[streamSortModeKey],
                 DebridStreamSortMode.DEFAULT
@@ -116,8 +118,6 @@ class DebridSettingsDataStore @Inject constructor(
                     ?: DebridStreamFormatterDefaults.DESCRIPTION_TEMPLATE
             )
         }
-    }
-
     suspend fun setEnabled(enabled: Boolean) {
         store().edit { it[enabledKey] = enabled }
     }
@@ -131,10 +131,16 @@ class DebridSettingsDataStore @Inject constructor(
         store().edit { it[preferredResolverProviderIdKey] = normalized }
     }
 
-    suspend fun setProviderApiKey(providerId: String, apiKey: String) {
+    suspend fun setProviderApiKey(providerId: String, apiKey: String) =
+        setProviderApiKeyForProfile(profileManager.activeProfileId.value, providerId, apiKey) {}
+
+    internal suspend fun setProviderApiKeyForProfile(
+        profileId: Int, providerId: String, apiKey: String, requireCurrent: () -> Unit
+    ) {
         val provider = DebridProviders.byId(providerId) ?: return
         val normalized = apiKey.trim()
-        store().edit { prefs ->
+        store(profileId).edit { prefs ->
+            requireCurrent()
             providerKey(provider.id)?.let { key -> prefs[key] = normalized }
             if (normalized.isBlank() && !hasAnyVisibleApiKeyAfter(prefs, provider.id)) {
                 prefs[enabledKey] = false

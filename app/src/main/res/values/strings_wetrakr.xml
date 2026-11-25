@@ -31,6 +31,7 @@
     <string name="wetrakr_error_suspended">WeTrakr has turned off access for this app.</string>
     <string name="wetrakr_error_signin">Sign in to WeTrakr again.</string>
     <string name="wetrakr_error_invalid_client">WeTrakr did not accept this app\'s key.</string>
+    <string name="wetrakr_error_forbidden">WeTrakr refused this request (403). Check the app and account permissions.</string>
     <string name="wetrakr_error_code_expired">The code expired. Try again.</string>
     <string name="wetrakr_error_denied">Access was refused on WeTrakr.</string>
     <string name="wetrakr_error_too_many_codes">Too many codes were asked for. Try again in 15 minutes.</string>

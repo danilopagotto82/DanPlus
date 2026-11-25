@@ -456,6 +456,7 @@ class SiloNativePlaybackTest {
         provider.report(session(), playback, ServerPlaybackEvent(ServerPlaybackEventType.PROGRESS, 10_000L, false))
         provider.report(session(), playback, ServerPlaybackEvent(ServerPlaybackEventType.PAUSE, 20_500L, true))
         provider.report(session(), playback, ServerPlaybackEvent(ServerPlaybackEventType.STOP, 21_000L, true))
+        provider.report(session(), playback, ServerPlaybackEvent(ServerPlaybackEventType.STOP, 21_000L, true))
         provider.report(session(), playback, ServerPlaybackEvent(ServerPlaybackEventType.PROGRESS, 22_000L, false))
 
         val reports = http.requests.filter { it.url.encodedPath.startsWith("/api/v2/playback/s-1") }
@@ -465,6 +466,16 @@ class SiloNativePlaybackTest {
         assertEquals(listOf("22.0", "32.5", "33.0"), bodies.map { it["position"]!!.jsonPrimitive.content })
         assertEquals("true", bodies[1]["is_paused"]!!.jsonPrimitive.content)
         assertTrue(bodies.last().containsKey("stop_id"))
+    }
+
+    @Test
+    fun aZeroStopBeforePlaybackDoesNotWriteProgressEvenWithATimelineOffset() = runTest {
+        val (provider, http) = silo(start = decision("server_remux_hls"))
+        val playback = provider.preparePlayback(session(), request(direct = false))
+        val stop = ServerPlaybackEvent(ServerPlaybackEventType.STOP, 0L, false)
+        provider.report(session(), playback, stop)
+        provider.report(session(), playback, stop)
+        assertTrue(http.requests.none { it.url.encodedPath.startsWith("/api/v2/playback/s-1") })
     }
 
     @Test

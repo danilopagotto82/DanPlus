@@ -14,10 +14,13 @@ internal object ReportText {
             ?.takeIf { it.isNotBlank() }
             ?.limit(maxLength)
 
+    fun note(value: String?, maxLength: Int): String? =
+        value?.let(::redact)?.replace("\r\n", "\n")?.replace('\r', '\n')
+            ?.trim()?.takeIf { it.isNotBlank() }?.limit(maxLength)
+
     fun rawLine(value: String, maxLength: Int): String? =
-        value.replace('\n', ' ')
+        redact(value).replace('\n', ' ')
             .replace('\r', ' ')
-            .let(::redact)
             .trim()
             .takeIf { it.isNotBlank() }
             ?.limit(maxLength)
@@ -35,7 +38,7 @@ internal object ReportText {
     /** A file name as the player or the link gives it. Release names keep their dots, dashes and underscores. */
     fun fileName(value: String?, maxLength: Int): String? =
         value?.replace('\n', ' ')?.replace('\r', ' ')?.trim()
-            ?.let { redactSecrets(it, longTokens = false).trim().limit(maxLength) }
+            ?.let { redactSecrets(redactLinks(it), longTokens = false).trim().limit(maxLength) }
             ?.takeIf { it.isNotBlank() }
 
     /** The last part of a stream link, decoded, only when it ends in a video file extension. */
@@ -52,7 +55,11 @@ internal object ReportText {
 
     fun isIptvLink(url: String?): Boolean = url != null && IPTV_LINK.containsMatchIn(url)
 
-    fun redact(value: String): String = redactSecrets(URL.replace(value) { "[link: ${ReportHosts.label(hostOf(it.value)) ?: "unknown"}]" })
+    fun redact(value: String): String = redactSecrets(redactLinks(value))
+
+    private fun redactLinks(value: String): String = URL.replace(value) {
+        "[link: ${ReportHosts.label(hostOf(it.value)) ?: "unknown"}]"
+    }
 
     private fun hostOf(link: String): String {
         val authority = link.substringAfter("://", "").substringBefore('/').substringBefore('?').substringBefore('#').substringAfterLast('@')
@@ -61,6 +68,10 @@ internal object ReportText {
 
     private fun redactSecrets(value: String, longTokens: Boolean = true): String =
         value
+            .replace(QUOTED_SECRET) { match ->
+                val (field, quote) = match.destructured
+                "$field$quote[redacted]$quote"
+            }
             .replace(XTREAM_PATH) { "/${it.groupValues[1]}/[redacted]" }
             .replace(SHORT_STREAM_PATH, "[path]")
             .replace(WINDOWS_SHARE, "[path]")
@@ -96,11 +107,14 @@ internal object ReportText {
     private val SERVER_SOURCE_NAME = Regex("""(SERVER_SOURCE name=).*?(?=\s+(?:ms|outcome)=|$)""")
     private val SERVER_THUMB_LINE = Regex("""ServerThumbSet.*""")
     private val WHITESPACE = Regex("\\s+")
-    private val URL = Regex("""\b(?:(?:https?|wss?|magnet|rtsp|smb|nfs|content|file|intent):|(?:rtsps|rtmp[a-z]?|rtp|udp|mms[a-z]?|srt)://)\S+""", RegexOption.IGNORE_CASE)
+    private val URL = Regex("""\b(?:(?:https?|wss?|magnet|rtsp|smb|nfs|content|file|intent):|(?:rtsps|rtmp[a-z]?|rtp|udp|mms[a-z]?|srt)://)[^\s"'<>]+""", RegexOption.IGNORE_CASE)
     private val IPTV_LINK = Regex("""(?i)^[a-z]+://[^/]+/(?:live|movie|series|timeshift)/[^/?#]+/[^/?#]+/""")
     private val XTREAM_PATH = Regex("""(?i)/(live|movie|series|timeshift)/[^/\s"']+/[^/\s"']+/\S*""")
     private val SHORT_STREAM_PATH = Regex("""(?<![\w.:/])/[^/\s"']+/[^/\s"']+/\d+(?:\.(?:ts|m3u8?))?(?=[\s"',;)]|$)""")
     private val WINDOWS_SHARE = Regex("""\\\\[^\s\\/]+\\\S*""")
+    private val QUOTED_SECRET = Regex(
+        """(?i)(?<![\w-])(["']?(?:authorization|proxy-authorization|cookie|set-cookie|x-api-key|x-emby-token|x-plex-token|x-mediabrowser-token|api[-_]?key|(?:access_|refresh_|session_)?token|password|passwd|pwd|client_secret|secret|username|device_id|serial)["']?\s*[:=]\s*)(["'])(?:\\.|(?!\2)[^\\])*+\2"""
+    )
     private val LOGIN_VALUE = Regex("""(?i)\b(username|passwd|pwd|(?<=\b)(?:user|pass|login|sn|serial|device_id2?|mac)(?==))\s*[:=]\s*[^\s,;&"']+""")
     private val HEADER_COLON = Regex(
         """(?i)\b(authorization|proxy-authorization|cookie|set-cookie|x-api-key|x-emby-token|x-plex-token|x-mediabrowser-token)\b\s*:\s*[^\r\n]+"""

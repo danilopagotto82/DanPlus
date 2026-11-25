@@ -37,8 +37,10 @@ class MDBListSettingsDataStore @Inject constructor(
     private val showOnHeroKey = booleanPreferencesKey("mdblist_show_on_hero")
     private val ratingOrderKey = stringPreferencesKey("mdblist_rating_order")
 
-    val settings: Flow<MDBListSettings> = profileManager.activeProfileId.flatMapLatest { pid ->
-        factory.get(pid, FEATURE).data.map { prefs ->
+    val settings: Flow<MDBListSettings> = profileManager.activeProfileId.flatMapLatest(::settingsForProfile)
+
+    internal fun settingsForProfile(profileId: Int): Flow<MDBListSettings> =
+        store(profileId).data.map { prefs ->
             MDBListSettings(
                 enabled = prefs[enabledKey] ?: false,
                 apiKey = prefs[apiKeyKey] ?: "",
@@ -56,14 +58,17 @@ class MDBListSettingsDataStore @Inject constructor(
                     ?: MDBListSettings.DEFAULT_RATING_ORDER
             )
         }
-    }
-
     suspend fun setEnabled(enabled: Boolean) {
         store().edit { it[enabledKey] = enabled }
     }
 
-    suspend fun setApiKey(apiKey: String) {
-        store().edit { it[apiKeyKey] = apiKey.trim() }
+    suspend fun setApiKey(apiKey: String) = setApiKeyForProfile(profileManager.activeProfileId.value, apiKey) {}
+
+    internal suspend fun setApiKeyForProfile(profileId: Int, apiKey: String, requireCurrent: () -> Unit) {
+        store(profileId).edit {
+            requireCurrent()
+            it[apiKeyKey] = apiKey.trim()
+        }
     }
 
     suspend fun setShowTrakt(enabled: Boolean) {

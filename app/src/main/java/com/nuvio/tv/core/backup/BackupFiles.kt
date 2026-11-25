@@ -124,12 +124,7 @@ class BackupFiles @Inject constructor(
             try {
                 folder.mkdirs()
                 val file = File(folder, name)
-                val temp = File(folder, "$name.part")
-                temp.writeText(text)
-                if (!temp.renameTo(file)) {
-                    file.delete()
-                    if (!temp.renameTo(file)) throw IllegalStateException("App folder unavailable")
-                }
+                BackupRestoreChecks.writeWhole(file, text)
                 return SavedBackup(APP_FOLDER_ID + file.name, file.name, file.lastModified(), file.length())
             } catch (error: Exception) {
                 failure = error
@@ -211,12 +206,7 @@ class BackupFiles @Inject constructor(
     private fun saveLegacy(text: String, name: String): SavedBackup {
         val folder = legacyFolder().apply { mkdirs() }
         val file = File(folder, name)
-        val temp = File(folder, "$name.part")
-        temp.writeText(text)
-        if (!temp.renameTo(file)) {
-            file.delete()
-            if (!temp.renameTo(file)) throw IllegalStateException("Downloads unavailable")
-        }
+        BackupRestoreChecks.writeWhole(file, text)
         return SavedBackup(file.name, file.name, file.lastModified(), file.length())
     }
 

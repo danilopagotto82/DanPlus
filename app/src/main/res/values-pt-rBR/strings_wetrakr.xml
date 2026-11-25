@@ -53,4 +53,5 @@
     <string name="licenses_attributions_wetrakr_body">O DanPlus utiliza o WeTrakr para histórico de assistidos, listas, acompanhamento de reprodução e títulos semelhantes. Dados do WeTrakr. O DanPlus não é afiliado nem endossado pelo WeTrakr.</string>
     <string name="wetrakr_revoke_failed">Você saiu neste aparelho, mas o WeTrakr não recebeu o aviso. Você pode revogar o acesso deste aplicativo em Aplicativos conectados no site wetrakr.com.</string>
     <string name="wetrakr_client_edit">Alterar Client ID</string>
+    <string name="wetrakr_error_forbidden">O WeTrakr recusou a solicitação (403). Confira as permissões do aplicativo e da conta.</string>
 </resources>

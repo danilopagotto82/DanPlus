@@ -89,7 +89,7 @@ internal fun buildAppReport(
     box = box,
     kind = choices.kind.key,
     where = choices.where.takeIf { choices.kind == AppReportKind.Bug },
-    note = ReportText.clean(choices.note, APP_REPORT_NOTE_MAX),
+    note = ReportText.note(choices.note, APP_REPORT_NOTE_MAX),
     logLines = if (choices.includeLog && choices.kind != AppReportKind.Crash) {
         appReportLogLines(events, recent, log, slowFrames)
     } else {

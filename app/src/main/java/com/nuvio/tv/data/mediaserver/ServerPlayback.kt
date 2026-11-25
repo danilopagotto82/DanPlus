@@ -80,13 +80,17 @@ class ServerPlayback internal constructor(
         return playback
     }
 
-    private suspend fun requestPlayback(request: ServerPlaybackRequest): ActivePlayback {
+    private suspend fun requestPlayback(
+        request: ServerPlaybackRequest,
+        ownerProfileId: Int = repository.currentProfileId
+    ): ActivePlayback {
         var pending: ActivePlayback? = null
         try {
             val prepared = repository.call(request.target.item.connectionId) { provider, session ->
+                if (repository.currentProfileId != ownerProfileId) throw CancellationException("Server profile changed")
                 val playback = provider.preparePlayback(session, request)
                 // Keep ownership inside the repository context: cancellation can discard its return value.
-                ActivePlayback(provider, session, playback).also { pending = it }
+                ActivePlayback(provider, session, playback, ownerProfileId).also { pending = it }
             }
             currentCoroutineContext().ensureActive()
             return prepared
@@ -298,6 +302,7 @@ class ServerPlayback internal constructor(
         audioStreamIndex: Int?,
         subtitleStreamIndex: Int?
     ): ServerPlaybackSession? {
+        if (repository.currentProfileId != current.ownerProfileId) return null
         val request = ServerPlaybackRequest(
             target = current.playback.target,
             capabilities = ServerPlayerCapabilities(allowDirectPlay = false),
@@ -305,7 +310,7 @@ class ServerPlayback internal constructor(
             subtitleStreamIndex = subtitleStreamIndex
         )
         val prepared = try {
-            requestPlayback(request)
+            requestPlayback(request, current.ownerProfileId)
         } catch (error: CancellationException) {
             currentCoroutineContext().ensureActive()
             Log.w(TAG, "Playback restart cancelled: server settings changed")
@@ -324,7 +329,8 @@ class ServerPlayback internal constructor(
     private inner class ActivePlayback(
         val provider: ServerProvider,
         val session: ServerSession,
-        val playback: ServerPlaybackSession
+        val playback: ServerPlaybackSession,
+        val ownerProfileId: Int
     ) {
         private val events = Channel<ServerPlaybackEvent>(Channel.UNLIMITED)
         var started = false
@@ -333,6 +339,9 @@ class ServerPlayback internal constructor(
 
         @Volatile
         var transcodeRefused = false
+
+        @Volatile
+        private var lastSession = session
 
         var scrobbleCheck: kotlinx.coroutines.Deferred<Set<String>?>? = null
         private var paused = false
@@ -361,7 +370,16 @@ class ServerPlayback internal constructor(
             }
         }
 
-        fun liveSession(): ServerSession = repository.session(session.connection.id) ?: session
+        fun liveSession(): ServerSession {
+            if (repository.currentProfileId != ownerProfileId) return lastSession
+            val original = session.connection
+            return repository.session(original.id)?.takeIf { latest ->
+                repository.currentProfileId == ownerProfileId &&
+                    latest.connection.providerId == original.providerId &&
+                    latest.connection.remoteServerId == original.remoteServerId &&
+                    latest.connection.remoteUserId == original.remoteUserId
+            }?.also { lastSession = it } ?: lastSession
+        }
 
         fun onSnapshot(positionMs: Long, isPlaying: Boolean, isLoading: Boolean) = synchronized(lock) {
             if (stopSent) return@synchronized

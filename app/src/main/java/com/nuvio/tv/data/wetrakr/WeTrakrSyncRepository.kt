@@ -28,7 +28,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
-enum class WeTrakrSyncError { UNAVAILABLE, INVALID_RESPONSE, RATE_LIMIT, DAILY_LIMIT, AUTHORIZATION_REVOKED, APP_SUSPENDED }
+enum class WeTrakrSyncError { UNAVAILABLE, INVALID_RESPONSE, RATE_LIMIT, DAILY_LIMIT, AUTHORIZATION_REVOKED, APP_SUSPENDED, FORBIDDEN }
 
 data class WeTrakrSyncState(
     val scope: WeTrakrAuthScope? = null,
@@ -53,6 +53,7 @@ internal fun Throwable.toWeTrakrSyncError(): WeTrakrSyncError = when {
     this is WeTrakrDecodingException -> WeTrakrSyncError.INVALID_RESPONSE
     this is WeTrakrApiException && isKeySuspended -> WeTrakrSyncError.APP_SUSPENDED
     this is WeTrakrApiException && isDailyLimit -> WeTrakrSyncError.DAILY_LIMIT
+    this is WeTrakrApiException && status == 403 -> WeTrakrSyncError.FORBIDDEN
     this is WeTrakrApiException && status == 429 -> WeTrakrSyncError.RATE_LIMIT
     else -> WeTrakrSyncError.UNAVAILABLE
 }

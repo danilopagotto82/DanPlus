@@ -819,14 +819,17 @@ class SiloNativeProvider internal constructor(
     override suspend fun report(session: ServerSession, playback: ServerPlaybackSession, event: ServerPlaybackEvent) {
         val sessionId = playback.playSessionId ?: return
         val state = playStates[sessionId] ?: return
-        if (event.type != ServerPlaybackEventType.STOP) state.started = true
+        if (event.type == ServerPlaybackEventType.STOP) {
+            if (!playStates.remove(sessionId, state) || (!state.started && event.positionMs <= 0L)) return
+        } else {
+            state.started = true
+        }
         val position = event.positionMs.coerceAtLeast(0L) / 1_000.0 + state.timelineOffsetSeconds
         val path = "$PLAYBACK_PATH/${pathSegment(sessionId)}"
         try {
             when (event.type) {
                 ServerPlaybackEventType.START -> Unit
                 ServerPlaybackEventType.STOP -> {
-                    playStates.remove(sessionId)
                     if (state.durationSeconds > 0.0 && position >= state.durationSeconds * WatchProgress.COMPLETED_THRESHOLD) {
                         recentlyPlayed[state.itemId] = now()
                     }

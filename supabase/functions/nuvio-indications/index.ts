@@ -13,8 +13,13 @@ type Profile = {
 };
 
 class RequestError extends Error {
-    constructor(readonly status: number, readonly code: string) {
+    readonly status: number;
+    readonly code: string;
+
+    constructor(status: number, code: string) {
         super(code);
+        this.status = status;
+        this.code = code;
     }
 }
 
@@ -205,6 +210,11 @@ async function handle(request: Request): Promise<unknown> {
             return { unlocked: false, retry_after_seconds: result?.[0]?.retry_after_seconds ?? 0 };
         }
         profiles = await profilesFor(owner, headers);
+        const verified = profiles.find((profile) => profile.id === actor.id);
+        if (!verified || verified.profile_index !== actor.profile_index ||
+            verified.pin_enabled !== actor.pin_enabled || verified.updated_at !== actor.updated_at) {
+            throw new RequestError(403, "D12_PROFILE_LOCKED");
+        }
     }
 
     const result = await database({

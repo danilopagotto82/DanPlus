@@ -88,7 +88,7 @@ class AccountReportsRepository @Inject constructor(
                 request(account.actor, body) { code, response ->
                     when {
                         code == 404 -> null // Only a missing endpoint falls back to the existing device-only relay.
-                        code == 401 || code == 429 -> ReportUpload.Unreachable("HTTP " + code)
+                        code in setOf(401, 409, 429) -> ReportUpload.Unreachable("HTTP " + code)
                         code in 200..299 -> {
                             val receipt = json.decodeFromString<Receipt>(response)
                             if (!ACCOUNT_ID.matches(receipt.reportId)) ReportUpload.Unreachable("Invalid receipt")

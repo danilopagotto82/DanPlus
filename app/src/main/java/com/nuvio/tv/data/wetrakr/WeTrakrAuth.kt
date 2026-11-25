@@ -23,6 +23,7 @@ import kotlinx.serialization.json.put
 enum class WeTrakrAuthError {
     MISSING_CLIENT_ID,
     INVALID_CLIENT,
+    REQUEST_FORBIDDEN,
     INVALID_RESPONSE,
     TOO_MANY_CODES,
     CODE_EXPIRED,
@@ -266,7 +267,8 @@ class WeTrakrAuthRepository(
         val response = post("/oauth/device/code", mapOf("client_id" to configuration.clientId), scope)
         when (response.status) {
             in 200..299 -> Unit
-            401, 403 -> throw WeTrakrAuthException(WeTrakrAuthError.INVALID_CLIENT)
+            401 -> throw WeTrakrAuthException(WeTrakrAuthError.INVALID_CLIENT)
+            403 -> throw WeTrakrAuthException(response.forbiddenReason())
             423 -> throw WeTrakrAuthException(WeTrakrAuthError.APP_SUSPENDED)
             429 -> throw WeTrakrAuthException(WeTrakrAuthError.TOO_MANY_CODES)
             else -> throw WeTrakrApiException(response.status, response.errorCode())
@@ -332,6 +334,7 @@ class WeTrakrAuthRepository(
                 store.cancelSession(WeTrakrAuthError.ACCESS_DENIED, scope)
                 WeTrakrDevicePollResult.Denied
             }
+            403 -> throw WeTrakrAuthException(response.forbiddenReason())
             404, 409, 410 -> {
                 store.cancelSession(WeTrakrAuthError.CODE_EXPIRED, scope)
                 WeTrakrDevicePollResult.Expired
@@ -427,6 +430,11 @@ class WeTrakrAuthRepository(
         runCatching { json.decodeFromString(serializer, body) }.getOrElse { invalidResponse() }
 
     private fun invalidResponse(): Nothing = throw WeTrakrAuthException(WeTrakrAuthError.INVALID_RESPONSE)
+    private fun WeTrakrHttpResponse.forbiddenReason(): WeTrakrAuthError = when (errorCode()?.lowercase()) {
+        "invalid_client", "invalid_client_id" -> WeTrakrAuthError.INVALID_CLIENT
+        "access_denied" -> WeTrakrAuthError.ACCESS_DENIED
+        else -> WeTrakrAuthError.REQUEST_FORBIDDEN
+    }
     private fun scopeChanged(): Nothing = throw WeTrakrAccountChangedException()
 
     companion object {

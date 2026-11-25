@@ -78,6 +78,35 @@ class WeTrakrAuthRepositoryTest {
     }
 
     @Test
+    fun `a bare 403 is not treated as a confirmed invalid Client ID or retried`() = runTest {
+        val harness = WeTrakrHarness()
+        harness.engine.on(WeTrakrHttpMethod.POST, "/oauth/device/code", ok("{}", status = 403))
+        val refused = runCatching { harness.auth.startDeviceAuthorization() }.exceptionOrNull() as WeTrakrAuthException
+        assertEquals(WeTrakrAuthError.REQUEST_FORBIDDEN, refused.error)
+        assertEquals(1, harness.engine.calls("/oauth/device/code").size)
+        assertNull(harness.store.state.value.session)
+        harness.signIn()
+        harness.engine.on(WeTrakrHttpMethod.POST, "/scrobble/stop", ok("{}", status = 403))
+        val error = runCatching { harness.api.post("/scrobble/stop", "{}") }.exceptionOrNull()!!
+        assertEquals(WeTrakrSyncError.FORBIDDEN, error.toWeTrakrSyncError())
+        assertEquals(1, harness.engine.calls("/scrobble/stop").size)
+        assertTrue(harness.engine.calls("/oauth/token/refresh").isEmpty())
+    }
+
+    @Test
+    fun `a write keeps the same idempotency key when retried with a renewed token`() = runTest {
+        val harness = WeTrakrHarness()
+        harness.signIn()
+        harness.engine.on(WeTrakrHttpMethod.POST, "/scrobble/stop", ok("{}", status = 401), ok("{}", status = 201))
+        harness.engine.on(WeTrakrHttpMethod.POST, "/oauth/token/refresh", ok(tokens))
+        assertEquals(201, harness.api.post("/scrobble/stop", "{}").status)
+        val writes = harness.engine.calls("/scrobble/stop")
+        assertEquals(listOf("access", "a1"), writes.map { it.accessToken })
+        assertTrue(writes[0].idempotencyKey!!.isNotBlank())
+        assertEquals(writes[0].idempotencyKey, writes[1].idempotencyKey)
+    }
+
+    @Test
     fun `a rejected token is refreshed once and the rotated refresh token is kept`() = runTest {
         val harness = WeTrakrHarness()
         harness.signIn()

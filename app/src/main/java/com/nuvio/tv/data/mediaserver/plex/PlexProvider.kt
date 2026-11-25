@@ -524,7 +524,15 @@ class PlexProvider internal constructor(
     override suspend fun report(session: ServerSession, playback: ServerPlaybackSession, event: ServerPlaybackEvent) {
         val playSession = playback.playSessionId ?: return
         val play = plays[playSession] ?: return
-        if (event.type != ServerPlaybackEventType.STOP) play.started = true
+        if (event.type == ServerPlaybackEventType.STOP) {
+            if (!play.started && event.positionMs <= 0L) {
+                discardPlay(playSession, play)
+                return
+            }
+            if (!plays.remove(playSession, play)) return
+        } else {
+            play.started = true
+        }
         val state = when {
             event.type == ServerPlaybackEventType.STOP -> "stopped"
             event.isPaused || event.type == ServerPlaybackEventType.PAUSE -> "paused"
@@ -543,7 +551,6 @@ class PlexProvider internal constructor(
             send(session, "GET", TIMELINE_PATH, query, headers)
         } finally {
             if (event.type == ServerPlaybackEventType.STOP) {
-                plays.remove(playSession)
                 if (play.durationMs > 0 && event.positionMs >= (play.durationMs * WatchProgress.COMPLETED_THRESHOLD).toLong()) {
                     recentlyPlayed[play.ratingKey] = now()
                 }

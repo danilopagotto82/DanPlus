@@ -81,6 +81,8 @@ try {
     assert.deepEqual(await call("send", sender, toSpouse), { accepted: 1 });
     assert.deepEqual(await call("send", sender, toMother), { accepted: 1 });
     assert.deepEqual(await call("send", sender, toSpouse, fire), { accepted: 1 });
+    await assert.rejects(() => call("send", sender, { ...toSpouse, media_id: "tt987" }, fire), /D12_REQUEST_REUSED/);
+    await assert.rejects(() => call("send", sender, { ...toSpouse, recipients: [other] }, fire), /D12_PROFILE_UNAVAILABLE/);
     await assert.rejects(() => call("send", sender, request(4, [spouse], {
         media_id: "tt789", backdrop_path: "https://untrusted.example/backdrop.jpg",
     })), /violates check constraint/);

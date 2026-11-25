@@ -80,7 +80,7 @@ internal fun PlaybackIssueReportRequestDto.applyViewerChoices(choices: PlaybackI
         viewer = PlaybackIssueViewerDto(
             problems = choices.problems.take(12),
             whenHappened = choices.whenHappened,
-            note = ReportText.clean(choices.note, 1000),
+            note = ReportText.note(choices.note, 1000),
             checkShown = choices.checkShown?.take(40)
         )
     )

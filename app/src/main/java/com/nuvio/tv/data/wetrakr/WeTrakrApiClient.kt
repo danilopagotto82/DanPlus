@@ -1,5 +1,6 @@
 package com.nuvio.tv.data.wetrakr
 
+import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
@@ -67,6 +68,7 @@ class WeTrakrApiClient(
         acceptedStatuses: Set<Int>
     ): WeTrakrHttpResponse {
         var authorization = auth.authorization(scope)
+        val idempotencyKey = if (method == WeTrakrHttpMethod.GET) null else UUID.randomUUID().toString()
         val request = { token: String ->
             WeTrakrHttpRequest(
                 method = method,
@@ -74,6 +76,7 @@ class WeTrakrApiClient(
                 query = query,
                 body = body,
                 accessToken = token,
+                idempotencyKey = idempotencyKey,
                 limitKey = limitKey(scope, store.state.value.user)
             )
         }

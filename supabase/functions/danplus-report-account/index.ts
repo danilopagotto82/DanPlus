@@ -11,7 +11,12 @@ type Dependencies = {
 };
 
 class SupportError extends Error {
-    constructor(readonly status: number, message: string) { super(message); }
+    readonly status: number;
+
+    constructor(status: number, message: string) {
+        super(message);
+        this.status = status;
+    }
 }
 
 function isObject(value: unknown): value is Body {

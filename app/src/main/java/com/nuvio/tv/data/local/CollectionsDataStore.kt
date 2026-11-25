@@ -204,9 +204,11 @@ class CollectionsDataStore @Inject constructor(
         serverProfileId: String,
         request: SpecialHighlightSnapshot,
         revision: Long,
-        selection: SpecialHighlightSelection?
+        selection: SpecialHighlightSelection?,
+        stillCurrent: () -> Boolean
     ) {
         store(profileId).edit { prefs ->
+            if (!stillCurrent()) return@edit
             val bound = prefs[highlightProfileKey] == serverProfileId
             val currentRevision = if (bound) prefs[highlightRevisionKey] ?: 0 else 0
             val currentMutation = if (bound) prefs[highlightMutationKey] else null

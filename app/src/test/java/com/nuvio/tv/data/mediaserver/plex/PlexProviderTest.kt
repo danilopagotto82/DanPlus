@@ -584,6 +584,7 @@ class PlexProviderTest {
         provider.report(session(), playback, ServerPlaybackEvent(ServerPlaybackEventType.PROGRESS, 61_000L, isPaused = false))
         provider.report(session(), playback, ServerPlaybackEvent(ServerPlaybackEventType.PAUSE, 62_000L, isPaused = true))
         provider.report(session(), playback, ServerPlaybackEvent(ServerPlaybackEventType.STOP, 63_000L, isPaused = false))
+        provider.report(session(), playback, ServerPlaybackEvent(ServerPlaybackEventType.STOP, 63_000L, isPaused = false))
         provider.report(session(), playback, ServerPlaybackEvent(ServerPlaybackEventType.PROGRESS, 64_000L, isPaused = false))
 
         val timeline = http.requests.filter { it.url.encodedPath == "/:/timeline" }
@@ -592,6 +593,27 @@ class PlexProviderTest {
         assertEquals("8160000", timeline.first().url.queryParameter("duration"))
         assertEquals("101", timeline.first().url.queryParameter("ratingKey"))
         assertEquals(playback.playSessionId, timeline.first().header("X-Plex-Session-Identifier"))
+        assertEquals(1, http.requests.count { it.url.encodedPath == "/video/:/transcode/universal/stop" })
+    }
+
+    @Test
+    fun aZeroStopForUnstartedPlaybackOnlyReleasesTranscoding() = runTest {
+        val (provider, http) = plex { request ->
+            when (request.url.encodedPath) {
+                "/library/metadata/101" -> Reply(200, container(""""Metadata":[$movie]"""))
+                "/video/:/transcode/universal/decision" -> Reply(200, container(""""generalDecisionCode":1000"""))
+                "/:/timeline", "/video/:/transcode/universal/stop" -> Reply(200, "")
+                else -> null
+            }
+        }
+        val request = ServerPlaybackRequest(
+            ServerPlaybackTarget(ServerItemRef("c1", "101"), "21"), ServerPlayerCapabilities(allowDirectPlay = false)
+        )
+        val playback = provider.preparePlayback(session(), request)
+        val stop = ServerPlaybackEvent(ServerPlaybackEventType.STOP, 0L, isPaused = false)
+        provider.report(session(), playback, stop)
+        provider.report(session(), playback, stop)
+        assertTrue(http.requests.none { it.url.encodedPath == "/:/timeline" })
         assertEquals(1, http.requests.count { it.url.encodedPath == "/video/:/transcode/universal/stop" })
     }
 

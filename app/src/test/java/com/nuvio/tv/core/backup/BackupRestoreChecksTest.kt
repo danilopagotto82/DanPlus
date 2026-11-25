@@ -1,7 +1,9 @@
 package com.nuvio.tv.core.backup
 
 import java.io.File
+import java.io.IOException
 import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -55,11 +57,34 @@ class BackupRestoreChecksTest {
     fun `a file is replaced whole and leaves no part file`() {
         val folder = Files.createTempDirectory("backup").toFile()
         val file = File(folder, "scout/taste_1.json")
-        BackupRestoreChecks.writeWhole(file, "one")
-        BackupRestoreChecks.writeWhole(file, "two")
+        val replace = { source: File, destination: File ->
+            Files.move(source.toPath(), destination.toPath(), StandardCopyOption.ATOMIC_MOVE)
+            Unit
+        }
+        BackupRestoreChecks.writeWhole(file, "one", replace)
+        BackupRestoreChecks.writeWhole(file, "two", replace)
         assertEquals("two", file.readText())
-        assertFalse(File(file.parentFile, "taste_1.json.part").exists())
+        assertEquals(listOf(file.name), file.parentFile!!.list()?.toList())
         assertTrue(folder.deleteRecursively())
+    }
+
+    @Test
+    fun `a failed replacement preserves the earlier backup and removes the partial file`() {
+        val folder = Files.createTempDirectory("backup-failed").toFile()
+        try {
+            val file = File(folder, "previous.json").apply { writeText("previous backup") }
+            assertThrows(IOException::class.java) {
+                BackupRestoreChecks.writeWhole(file, "new backup") { temp, destination ->
+                    assertEquals("new backup", temp.readText())
+                    assertEquals("previous backup", destination.readText())
+                    throw IOException("Simulated rename failure")
+                }
+            }
+            assertEquals("previous backup", file.readText())
+            assertEquals(listOf(file.name), folder.list()?.toList())
+        } finally {
+            folder.deleteRecursively()
+        }
     }
 
     @Test

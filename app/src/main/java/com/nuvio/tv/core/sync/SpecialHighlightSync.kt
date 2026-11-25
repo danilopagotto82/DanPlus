@@ -31,7 +31,9 @@ class SpecialHighlightSync @Inject constructor(
     private val profileManager: ProfileManager,
     private val collections: CollectionsDataStore
 ) {
-    private data class Target(val userId: String, val profileId: Int, val serverProfileId: String)
+    private data class Target(
+        val userId: String, val profileId: Int, val serverProfileId: String, val selectionRevision: Long
+    )
     @Serializable
     private data class RemoteState(val revision: Long, val selection: SpecialHighlightSelection? = null)
 
@@ -40,9 +42,10 @@ class SpecialHighlightSync @Inject constructor(
 
     init {
         scope.launch {
-            combine(account.changes, profileManager.activeProfileId, profileManager.profiles, changes) { user, active, profiles, tick ->
+            combine(account.changes, profileManager.activeProfileId, profileManager.profiles,
+                profileManager.profileSelectionRevision, changes) { user, active, profiles, selectionRevision, tick ->
                 val remoteId = profiles.firstOrNull { it.id == active }?.serverProfileId
-                val target = if (user != null && remoteId != null) Target(user, active, remoteId) else null
+                val target = if (user != null && remoteId != null) Target(user, active, remoteId, selectionRevision) else null
                 target to tick
             }.distinctUntilChanged().collectLatest { (target, _) ->
                 if (target == null) return@collectLatest
@@ -60,12 +63,14 @@ class SpecialHighlightSync @Inject constructor(
     internal fun refresh() { changes.update { it + 1 } }
 
     private fun isCurrent(target: Target): Boolean =
-        account.owner == target.userId && profileManager.activeProfile?.let {
+        account.owner == target.userId && profileManager.profileSelectionRevision.value == target.selectionRevision &&
+        profileManager.activeProfile?.let {
             it.id == target.profileId && it.serverProfileId == target.serverProfileId
         } == true
 
     private suspend fun synchronize(target: Target): Boolean = try {
         val local = collections.specialHighlightSnapshot(target.profileId, target.serverProfileId)
+        check(isCurrent(target))
         val payload = buildJsonObject {
             local.mutation?.let { mutation ->
                 put("mutation", mutation)
@@ -81,7 +86,7 @@ class SpecialHighlightSync @Inject constructor(
         if (isCurrent(target)) {
             collections.applySpecialHighlight(
                 target.profileId, target.serverProfileId, local, remote.revision, remote.selection
-            )
+            ) { isCurrent(target) }
         }
         true
     } catch (cancelled: CancellationException) {

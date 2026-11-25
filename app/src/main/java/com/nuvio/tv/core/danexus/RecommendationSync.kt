@@ -37,6 +37,9 @@ internal data class RemoteRecommendation(
 @Serializable
 internal data class RecommendationUnlock(val unlocked: Boolean, val proof: String? = null)
 
+@Serializable
+private data class RecommendationSendReceipt(val accepted: Int)
+
 @Singleton
 class RecommendationSync @Inject constructor(
     internal val account: RecommendationAccount,
@@ -87,7 +90,7 @@ class RecommendationSync @Inject constructor(
     internal suspend fun send(owner: String, profileId: String, row: ProfileRecommendation) {
         val recipient = checkNotNull(row.toServerId)
         val mediaType = if (row.type.equals("movie", ignoreCase = true)) "movie" else "series"
-        rpc(owner, profileId, "send", buildJsonObject {
+        val receipt = rpc(owner, profileId, "send", buildJsonObject {
             put("request_id", row.key)
             row.sendId?.let { put("send_id", it) }
             put("recipients", buildJsonArray { add(JsonPrimitive(recipient)) })
@@ -99,6 +102,9 @@ class RecommendationSync @Inject constructor(
             row.backdrop?.let(::tmdbArtworkPath)?.let { put("backdrop_path", it) }
             put("episode_keys", buildJsonArray { row.episodeKeys.forEach { add(JsonPrimitive(it)) } })
         })
+        check(account.decode<RecommendationSendReceipt>(receipt).accepted == 1) {
+            "Indication delivery not confirmed"
+        }
     }
 
     internal suspend fun list(owner: String, profileId: String, sent: Boolean): List<RemoteRecommendation> {

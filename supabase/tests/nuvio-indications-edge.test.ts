@@ -19,6 +19,8 @@ Deno.test("Nuvio authorizes the account and PIN before Supabase accepts a write"
     const nativeFetch = globalThis.fetch;
     let authenticate = false;
     let pinVerified = false;
+    let changeVersionOnVerify = false;
+    let version = profile.updated_at;
     const mutations: Record<string, unknown>[] = [];
     Deno.env.set("SUPABASE_URL", "https://danplus.test");
     Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "test-service-key");
@@ -29,8 +31,11 @@ Deno.test("Nuvio authorizes the account and PIN before Supabase accepts a write"
             assert.equal(headers.get("Authorization"), "Bearer " + token);
             if (url.pathname === "/auth/v1/user") return Response.json({ id: user }, { status: authenticate ? 200 : 401 });
             if (url.pathname.endsWith("/get_sync_owner")) return Response.json(owner);
-            if (url.pathname.endsWith("/sync_pull_profiles")) return Response.json([profile]);
-            if (url.pathname.endsWith("/verify_profile_pin")) return Response.json([{ unlocked: pinVerified }]);
+            if (url.pathname.endsWith("/sync_pull_profiles")) return Response.json([{ ...profile, updated_at: version }]);
+            if (url.pathname.endsWith("/verify_profile_pin")) {
+                if (changeVersionOnVerify) version = "2026-11-13T00:00:01Z";
+                return Response.json([{ unlocked: pinVerified }]);
+            }
             if (url.pathname.endsWith("/sync_pull_watched_items")) {
                 assert.equal(url.searchParams.get("content_id"), 'in.("tt123")');
                 return Response.json([{ content_id: "tt123", content_type: "movie", season: null, episode: null, watched_at: Date.parse(indication.created_at) + 1000 }]);
@@ -60,6 +65,12 @@ Deno.test("Nuvio authorizes the account and PIN before Supabase accepts a write"
         assert.deepEqual(await (await request(unlock)).json(), { unlocked: false, retry_after_seconds: 0 });
         assert.equal(mutations.length, 0);
         pinVerified = true;
+        changeVersionOnVerify = true;
+        const changed = await request(unlock);
+        assert.equal(changed.status, 403);
+        assert.deepEqual(await changed.json(), { code: "D12_PROFILE_LOCKED" });
+        assert.equal(mutations.length, 0);
+        changeVersionOnVerify = false;
         assert.equal((await request(unlock)).status, 200);
         const mutation = mutations[0];
         assert.ok(mutation);
