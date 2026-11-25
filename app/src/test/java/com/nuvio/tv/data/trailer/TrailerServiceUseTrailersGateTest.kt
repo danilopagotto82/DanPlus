@@ -65,6 +65,27 @@ class TrailerServiceUseTrailersGateTest {
     }
 
     @Test
+    fun `Details fallback respects Disable Trailers and never tries addon video ids`() = runTest {
+        val service = newServiceWithUseTrailers(enabled = false)
+        val (trailerApi, tmdbApi, extractor) = service.collaborators
+
+        val result = service.target.getDetailTrailerPlaybackSource(
+            tmdbId = "12345",
+            itemId = "tt0181689",
+            type = "movie",
+            title = "Minority Report",
+            year = "2002",
+            imdbId = "tt0181689",
+            youtubeIds = listOf("dQw4w9WgXcQ")
+        )
+
+        assertNull(result)
+        coVerify(exactly = 0) { tmdbApi.getMovieVideos(any(), any(), any()) }
+        coVerify(exactly = 0) { extractor.extractPlaybackSource(any()) }
+        coVerify(exactly = 0) { trailerApi.getTrailer(any(), any(), any()) }
+    }
+
+    @Test
     fun `getExternalTrailerUrl returns null when useTrailers is false`() = runTest {
         val service = newServiceWithUseTrailers(enabled = false)
         val (_, tmdbApi, _) = service.collaborators

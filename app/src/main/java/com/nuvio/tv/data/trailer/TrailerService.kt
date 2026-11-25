@@ -31,6 +31,12 @@ private const val TMDB_TRAILER_FALLBACK_LANGUAGE = "en-US"
 private const val TMDB_TRAILER_MAX_CANDIDATES = 3
 private const val YOUTUBE_REFUSAL_REST_MS = 10 * 60_000L
 
+/** Keeps Details' PT-BR-first rule without discarding a trailer found by poster previews. */
+internal suspend fun preferDetailTrailerSource(
+    preferredPtBr: suspend () -> TrailerPlaybackSource?,
+    previewFallback: suspend () -> TrailerPlaybackSource?
+): TrailerPlaybackSource? = preferredPtBr() ?: previewFallback()
+
 @Singleton
 class TrailerService(
     private val trailerApi: TrailerApi,
@@ -255,6 +261,49 @@ class TrailerService(
     ): TrailerPlaybackSource? {
         if (brazilianPortugueseOnly && tmdbSettingsDataStore.settings.first().useTrailers.not()) return null
         return lookupTmdbTrailer(tmdbId, type, title, year, languageOverride, brazilianPortugueseOnly).source
+    }
+
+    /**
+     * Details must not lose a trailer that the focused poster can already play.
+     * Try a Brazilian Portuguese TMDB trailer first. If unavailable or unplayable,
+     * reuse the same provider / title / item-video-id fallback as poster previews.
+     *
+     * The TMDB 'useTrailers' preference is a hard gate for Details, including
+     * addon video ids, so this does not bypass a user's opt-out.
+     */
+    suspend fun getDetailTrailerPlaybackSource(
+        tmdbId: String?,
+        itemId: String,
+        type: String,
+        title: String,
+        year: String?,
+        imdbId: String?,
+        youtubeIds: List<String>
+    ): TrailerPlaybackSource? {
+        if (!tmdbSettingsDataStore.settings.first().useTrailers) return null
+        return preferDetailTrailerSource(
+            preferredPtBr = {
+                getTrailerPlaybackSourceFromTmdbId(
+                    tmdbId = tmdbId,
+                    type = type,
+                    title = title,
+                    year = year,
+                    brazilianPortugueseOnly = true
+                )
+            },
+            previewFallback = {
+                lookupTrailerPreview(
+                    trailerService = this,
+                    tmdbService = tmdbService,
+                    itemId = itemId,
+                    apiType = type,
+                    title = title,
+                    year = year,
+                    imdbId = imdbId,
+                    ytIds = trailerPreviewYtIds(youtubeIds)
+                ).source
+            }
+        )
     }
 
     private suspend fun lookupTmdbTrailer(
