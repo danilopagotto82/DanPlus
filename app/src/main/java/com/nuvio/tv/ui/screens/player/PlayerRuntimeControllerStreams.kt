@@ -30,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flowOf
@@ -1080,16 +1081,22 @@ internal fun PlayerRuntimeController.switchToSourceStream(
                 stream.serverTarget != null -> prepareServerStream(stream, quiet = automatic) to null
                 else -> resolveDirectDebridStreamIfNeeded(stream, currentSeason, currentEpisode).let { it.stream to it.failureRes }
             }
-            kotlinx.coroutines.currentCoroutineContext().ensureActive()
-            debridResolveJob = null
-            if (requestKey != currentSourceRequestKey() || activeProfileId.value != profileId || originalUrl != currentStreamUrl) {
-                resolved?.takeIf { it.serverTarget != null }?.getStreamUrl()?.let { serverPlayback.stop(it) }
+            val preparationContext = kotlinx.coroutines.currentCoroutineContext()
+            if (!preparationContext.isActive || requestKey != currentSourceRequestKey() ||
+                activeProfileId.value != profileId || originalUrl != currentStreamUrl
+            ) {
+                resolved?.takeIf { it.serverTarget != null }?.getStreamUrl()
+                    ?.takeUnless { it == currentStreamUrl }?.let { serverPlayback.stop(it) }
+                preparationContext.ensureActive()
                 return@launch
             }
+            debridResolveJob = null
             val resolvedAddress = SourceFailoverSelection.addressKey(resolved?.getStreamUrl())
             if (automatic && (resolvedAddress == null ||
                     deadSourceStreamUrls.any { SourceFailoverSelection.addressKey(it) == resolvedAddress })
             ) {
+                resolved?.takeIf { it.serverTarget != null }?.getStreamUrl()
+                    ?.takeUnless { it == currentStreamUrl }?.let { serverPlayback.stop(it) }
                 _uiState.update { it.copy(isLoadingSourceStreams = false) }
                 val message = context.getString(com.nuvio.tv.R.string.player_stream_error_invalid_url)
                 if (!advanceToNextLiveSource(message, allowAfterFirstFrame = hasPresentedPlayback)) {
@@ -1721,6 +1728,12 @@ internal fun PlayerRuntimeController.switchToEpisodeStream(
         _uiState.update { it.copy(isLoadingEpisodeStreams = true, episodeStreamsError = null) }
         debridResolveJob = scope.launch {
             val prepared = prepareServerStream(stream, replacing = forcedTargetVideo != null)
+            val preparationContext = kotlinx.coroutines.currentCoroutineContext()
+            if (!preparationContext.isActive || activeProfileId.value != profileId) {
+                prepared?.getStreamUrl()?.takeUnless { it == currentStreamUrl }?.let { serverPlayback.stop(it) }
+                preparationContext.ensureActive()
+                return@launch
+            }
             debridResolveJob = null
             if (prepared != null) {
                 switchToEpisodeStream(prepared, forcedTargetVideo, isAutoPlay)

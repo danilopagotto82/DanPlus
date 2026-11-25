@@ -73,10 +73,11 @@ internal fun PlayerRuntimeController.maybeAutoSwitchInternalPlayerOnStartupError
 
 internal fun PlayerRuntimeController.switchToInternalPlayerEngine(
     targetEngine: InternalPlayerEngine,
-    reason: String = "manual-switch"
+    reason: String = "manual-switch",
+    preserveSourceFailover: Boolean = false
 ) {
     if (currentStreamUrl.isBlank()) return
-    finishSourceFailover()
+    if (!preserveSourceFailover) finishSourceFailover()
 
     beginSwitchTraceSession(reason = reason, targetEngine = targetEngine)
     val targetEngineLabel = targetEngineLabel(targetEngine)

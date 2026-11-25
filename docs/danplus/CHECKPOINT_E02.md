@@ -54,3 +54,27 @@ Análise dirigida de B4-D18 não estabeleceu necessidade neste lote. A2-11 e B1-
 ## Próxima decisão
 
 Auditoria independente do commit E02 pelo ChatGPT coordenador, com revisão dos fluxos de expiração e cancelamento e da cobertura prevista no E10. A campanha de runtime depende de FREEZE/E10. E04 depende de decisão do coordenador. Nenhuma instalação, publicação de APK, release ou merge integra esta entrega.
+
+## E02-R1 — ajuste pós-auditoria · 25/11/2026
+
+Base preservada em `af4b06335a450ce2dbe19e91423aed2bd37d8f1d`. A correção é um commit complementar na mesma branch e worktree.
+
+### Retry HTTP/2
+
+O cliente do retry desativa o prazo total da chamada, que incluía o corpo. Os limites herdados de conexão e de cada leitura continuam valendo, inclusive na espera pelos headers da resposta. A negociação ALPN, a validação TLS, a origem, os headers, Range, o cancelamento e o limite de um retry continuam no mesmo caminho. A política global de rede e os parâmetros REMUX foram preservados.
+
+### Cancelamento de preparação
+
+- Debrid contabiliza os consumidores de cada resolução compartilhada. Quando o último sai, a tarefa é cancelada. Uma resolução ainda aguardada por outro consumidor continua.
+- A preparação de servidor retém a sessão antes que a troca de contexto devolva o resultado. Se o solicitante não receber ou descartar a sessão, a limpeza libera os recursos adquiridos sem enviar progresso fictício. Plex usa sua operação existente de parada de transcode. Silo descarta o estado local. O encerramento remoto de uma preparação Silo sem gravar posição segue sem contrato comprovado. Também continua incerto o estado remoto se o cancelamento ocorre antes de o servidor devolver o identificador.
+
+### Janela global de recuperação
+
+O fallback automático por formato de ExoPlayer para MPV chamava o caminho que encerrava a janela de 120 s. Agora mantém a mesma janela, o mesmo prazo e as tentativas registradas. A troca manual mantém sua função de encerramento. O fallback MPV → ExoPlayer já preservava a janela.
+
+### Verificações e próximos passos
+
+- **PASS estático** — revisão dirigida dos fluxos, inspeção sintática dos Kotlin alterados e `git diff --check`.
+- **NÃO TESTADO** — preparados casos de corpo saudável que ultrapassa o prazo de conexão no cliente derivado, cancelamento Debrid com um ou dois consumidores e descarte de sessão durante a entrega pelo repositório. O teste de streaming usa HTTP/2 por conexão direta em loopback. A negociação ALPN real e o prazo global durante as trocas de motor ficam para validação no E10.
+- **NÃO TESTADO** — build e smoke nos aparelhos. Nenhum Gradle, build, instalação, push, merge, release ou E04 nesta rodada.
+- Próximo passo — revisão do commit complementar pelo coordenador. Verificar em ambiente de homologação a troca de motor com a janela parcialmente consumida e o contrato de descarte remoto do Silo.

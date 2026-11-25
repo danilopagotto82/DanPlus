@@ -11,12 +11,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -37,7 +39,8 @@ class DirectDebridResolver @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val mutex = Mutex()
     private val resolvedCache = mutableMapOf<String, CachedDirectDebridResolve>()
-    private val inFlightResolves = mutableMapOf<String, Deferred<DirectDebridResolveResult>>()
+    private class InFlightResolve(val deferred: Deferred<DirectDebridResolveResult>, var waiters: Int = 0)
+    private val inFlightResolves = mutableMapOf<String, InFlightResolve>()
 
     /**
      * [mayAddToAccount] false keeps Real-Debrid, AllDebrid and TorBox to titles already in the account. Premiumize
@@ -81,48 +84,35 @@ class DirectDebridResolver @Inject constructor(
         }
 
         val flightKey = if (mayAddToAccount) cacheKey else "$cacheKey|account"
-        var ownsResolve = false
-        val newResolve = scope.async(start = CoroutineStart.LAZY) {
-            resolveUncached(stream, season, episode, mayAddToAccount)
-        }
-        val activeResolve = mutex.withLock {
+        val flight = mutex.withLock {
             getCachedResultLocked(cacheKey)?.let { cached ->
-                return@withLock null to cached
+                return cached
             }
-            val existing = inFlightResolves[flightKey]
-            if (existing != null) {
-                existing to null
-            } else {
-                inFlightResolves[flightKey] = newResolve
-                ownsResolve = true
-                newResolve to null
-            }
+            inFlightResolves.getOrPut(flightKey) {
+                InFlightResolve(scope.async(start = CoroutineStart.LAZY) {
+                    val result = resolveUncached(stream, season, episode, mayAddToAccount)
+                    if (result is DirectDebridResolveResult.Success) {
+                        mutex.withLock {
+                            resolvedCache[cacheKey] = CachedDirectDebridResolve(
+                                result = result,
+                                cachedAtMs = System.currentTimeMillis()
+                            )
+                        }
+                        linkStore.put(cacheKey, result)
+                    }
+                    result
+                })
+            }.also { it.waiters++ }
         }
-        activeResolve.second?.let {
-            newResolve.cancel()
-            return it
-        }
-        val deferred = activeResolve.first ?: return DirectDebridResolveResult.Error
-        if (!ownsResolve) newResolve.cancel()
-        if (ownsResolve) deferred.start()
-
         return try {
-            val result = deferred.await()
-            if (ownsResolve && result is DirectDebridResolveResult.Success) {
-                mutex.withLock {
-                    resolvedCache[cacheKey] = CachedDirectDebridResolve(
-                        result = result,
-                        cachedAtMs = System.currentTimeMillis()
-                    )
-                }
-                linkStore.put(cacheKey, result)
-            }
-            result
+            flight.deferred.await()
         } finally {
-            if (ownsResolve) {
+            // Playback cancellation releases its claim even if the mutex is contended.
+            withContext(NonCancellable) {
                 mutex.withLock {
-                    if (inFlightResolves[flightKey] === deferred) {
+                    if (--flight.waiters == 0) {
                         inFlightResolves.remove(flightKey)
+                        flight.deferred.cancel()
                     }
                 }
             }

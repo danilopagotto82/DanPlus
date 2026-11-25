@@ -21,6 +21,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -1145,14 +1146,15 @@ internal fun PlayerRuntimeController.advanceToNextLiveSource(
             val name = next.getDisplayName().lineSequence().first().take(100)
             showSourceFailoverOverlay(context.getString(R.string.player_source_recovery_candidate, name))
             val resolved = prepareSourceForFailover(next)
-            if (!stillCurrent() || !stillWaitingForData() ||
+            val preparationContext = currentCoroutineContext()
+            if (!preparationContext.isActive || !stillCurrent() || !stillWaitingForData() ||
                 window.remainingMs(SystemClock.elapsedRealtime()) == 0L
             ) {
-                resolved?.takeIf { it.serverTarget != null }?.getStreamUrl()?.let { serverPlayback.stop(it) }
-                currentCoroutineContext().ensureActive()
+                resolved?.takeIf { it.serverTarget != null }?.getStreamUrl()
+                    ?.takeUnless { it == currentStreamUrl }?.let { serverPlayback.stop(it) }
+                preparationContext.ensureActive()
                 break
             }
-            currentCoroutineContext().ensureActive()
             val resolvedUrl = resolved?.getStreamUrl()
             val address = SourceFailoverSelection.addressKey(resolvedUrl)
             if (resolved != null && address != null &&

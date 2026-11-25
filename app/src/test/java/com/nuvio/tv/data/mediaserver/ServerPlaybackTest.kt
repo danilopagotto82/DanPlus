@@ -10,8 +10,12 @@ import com.nuvio.tv.domain.model.WatchProgress
 import com.nuvio.tv.domain.repository.MetaRepository
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -86,6 +90,32 @@ class ServerPlaybackTest {
         assertEquals("Fake", harness.playback.providerName(session.url))
         assertEquals(null, harness.playback.providerName("https://elsewhere.example/file.mkv"))
         assertEquals(null, harness.playback.providerName(null))
+    }
+
+    @Test
+    fun cancellationAtRepositoryHandoffDiscardsThePreparedSessionWithoutReportingProgress() = runTest {
+        val discarded = CompletableDeferred<ServerPlaybackSession>()
+        val provider = object : FakeServerProvider() {
+            override suspend fun preparePlayback(session: ServerSession, request: ServerPlaybackRequest): ServerPlaybackSession {
+                val prepared = super.preparePlayback(session, request)
+                currentCoroutineContext().cancel()
+                return prepared
+            }
+
+            override suspend fun discardPreparedPlayback(session: ServerSession, playback: ServerPlaybackSession) {
+                discarded.complete(playback)
+            }
+        }
+        val harness = harness(provider, backgroundScope)
+        val target = ServerPlaybackTarget(ServerItemRef(harness.connection.id, "42"), "src-42")
+        val preparing = async { harness.playback.prepare(target) }
+        preparing.join()
+
+        assertTrue(preparing.isCancelled)
+        val prepared = withTimeout(5_000) { discarded.await() }
+        assertEquals(target, prepared.target)
+        assertNull(harness.playback.session(prepared.url))
+        assertTrue(provider.reported.isEmpty())
     }
 
     @Test

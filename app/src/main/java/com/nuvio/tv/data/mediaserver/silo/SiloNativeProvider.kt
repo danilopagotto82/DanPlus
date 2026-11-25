@@ -809,6 +809,13 @@ class SiloNativeProvider internal constructor(
         !timeline.canSeekAnywhere && delivery.startsWith("server_remux") && (source.durationSeconds ?: 0.0) > 0.0 &&
             planId.isNotBlank() && planAttemptKey.isNotBlank()
 
+    override suspend fun discardPreparedPlayback(session: ServerSession, playback: ServerPlaybackSession) {
+        val sessionId = playback.playSessionId ?: return
+        val state = playStates[sessionId]?.takeUnless { it.started } ?: return
+        // The known remote stop contract submits a watch position. Discard the local state without writing one.
+        playStates.remove(sessionId, state)
+    }
+
     override suspend fun report(session: ServerSession, playback: ServerPlaybackSession, event: ServerPlaybackEvent) {
         val sessionId = playback.playSessionId ?: return
         val state = playStates[sessionId] ?: return

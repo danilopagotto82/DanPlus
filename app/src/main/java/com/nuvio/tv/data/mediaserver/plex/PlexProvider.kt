@@ -427,12 +427,20 @@ class PlexProvider internal constructor(
     /** A new playback replaces any that never started (failed direct play, fallback, track change); old entries expire. */
     private suspend fun dropUnstartedPlays() {
         val dropped = plays.entries.filter { (_, play) -> !play.started || play.expired() }
-        dropped.forEach { (playSession, play) ->
-            if (!plays.remove(playSession, play) || !play.transcoded) return@forEach
-            withTimeoutOrNull(TRANSCODE_STOP_WAIT_MS) {
-                runCatching {
-                    send(play.session, "GET", TRANSCODE_STOP_PATH, mapOf("session" to playSession), mapOf("X-Plex-Session-Identifier" to playSession))
-                }
+        dropped.forEach { (playSession, play) -> discardPlay(playSession, play) }
+    }
+
+    override suspend fun discardPreparedPlayback(session: ServerSession, playback: ServerPlaybackSession) {
+        val playSession = playback.playSessionId ?: return
+        val play = plays[playSession]?.takeUnless { it.started } ?: return
+        discardPlay(playSession, play)
+    }
+
+    private suspend fun discardPlay(playSession: String, play: PlexPlay) {
+        if (!plays.remove(playSession, play) || !play.transcoded) return
+        withTimeoutOrNull(TRANSCODE_STOP_WAIT_MS) {
+            runCatching {
+                send(play.session, "GET", TRANSCODE_STOP_PATH, mapOf("session" to playSession), mapOf("X-Plex-Session-Identifier" to playSession))
             }
         }
     }

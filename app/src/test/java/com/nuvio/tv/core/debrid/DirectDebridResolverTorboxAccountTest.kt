@@ -8,8 +8,14 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -67,6 +73,47 @@ class DirectDebridResolverTorboxAccountTest {
         assertEquals(link, result)
         coVerify(exactly = 1) { torbox.resolve(any(), 1, 2) }
         coVerify(exactly = 0) { torboxCopies.inTorboxList(any<Stream>()) }
+    }
+
+    @Test
+    fun `last cancelled consumer cancels the preparation`() = runBlocking {
+        withTimeout(5_000) {
+            val started = CompletableDeferred<Unit>()
+            val finished = CompletableDeferred<Unit>()
+            coEvery { torbox.resolve(any(), any(), any()) } coAnswers {
+                try {
+                    started.complete(Unit)
+                    CompletableDeferred<DirectDebridResolveResult>().await()
+                } finally {
+                    finished.complete(Unit)
+                }
+            }
+            val resolver = resolver()
+            val caller = async { resolver.resolve(stream(), 1, 2) }
+            started.await()
+            caller.cancelAndJoin()
+            finished.await()
+        }
+    }
+
+    @Test
+    fun `another consumer can finish after the first cancels`() = runBlocking {
+        withTimeout(5_000) {
+            val started = CompletableDeferred<Unit>()
+            val result = CompletableDeferred<DirectDebridResolveResult>()
+            coEvery { torbox.resolve(any(), any(), any()) } coAnswers {
+                started.complete(Unit)
+                result.await()
+            }
+            val resolver = resolver()
+            val first = async { resolver.resolve(stream(), 1, 2) }
+            started.await()
+            val second = async(start = CoroutineStart.UNDISPATCHED) { resolver.resolve(stream(), 1, 2) }
+            first.cancelAndJoin()
+            result.complete(link)
+            assertEquals(link, second.await())
+            coVerify(exactly = 1) { torbox.resolve(any(), 1, 2) }
+        }
     }
 
     private fun resolver(): DirectDebridResolver {

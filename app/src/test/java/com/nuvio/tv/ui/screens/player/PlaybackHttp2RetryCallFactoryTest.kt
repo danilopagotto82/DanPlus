@@ -11,14 +11,47 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import okhttp3.TlsVersion
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 class PlaybackHttp2RetryCallFactoryTest {
+    @Test
+    fun retryTransportReadsHealthyBodyPastTheConnectionTimeout() {
+        val playback = OkHttpClient.Builder()
+            .connectTimeout(500, TimeUnit.MILLISECONDS)
+            .readTimeout(3, TimeUnit.SECONDS)
+            .build()
+        val retry = PlayerPlaybackNetworking.http2RetryClient(playback)
+        assertEquals(0, retry.callTimeoutMillis)
+        assertEquals(playback.connectTimeoutMillis, retry.connectTimeoutMillis)
+        assertEquals(playback.readTimeoutMillis, retry.readTimeoutMillis)
+
+        // Exercise HTTP/2 framing in loopback without a TLS certificate. ALPN qualification is separate.
+        val fixtureClient = retry.newBuilder()
+            .protocols(listOf(Protocol.H2_PRIOR_KNOWLEDGE))
+            .apply { networkInterceptors().clear() }
+            .build()
+        MockWebServer().use { server ->
+            server.protocols = listOf(Protocol.H2_PRIOR_KNOWLEDGE)
+            val expected = "healthy".repeat(1024)
+            server.enqueue(MockResponse().setBody(expected).throttleBody(1024, 150, TimeUnit.MILLISECONDS))
+            val started = System.nanoTime()
+            val request = Request.Builder().url(server.url("/long-stream")).build()
+            fixtureClient.newCall(request).execute().use { response ->
+                assertEquals(Protocol.H2_PRIOR_KNOWLEDGE, response.protocol)
+                assertEquals(expected, requireNotNull(response.body).string())
+            }
+            assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started) > retry.connectTimeoutMillis)
+        }
+    }
+
     @Test
     fun retriesAQualified403OnceWithTheOriginalHeadersAndRange() {
         val h = Harness()

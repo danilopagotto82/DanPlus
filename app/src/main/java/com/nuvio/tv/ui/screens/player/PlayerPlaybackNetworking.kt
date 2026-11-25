@@ -294,13 +294,18 @@ internal object PlayerPlaybackNetworking {
             requestHeaders.keys.none { !it.equals("Range", ignoreCase = true) }
         ) return client
 
-        val http2 = client.newBuilder()
+        return PlaybackHttp2RetryCallFactory(client, http2RetryClient(client), url)
+    }
+
+    internal fun http2RetryClient(client: OkHttpClient): OkHttpClient =
+        client.newBuilder()
             .apply { interceptors().remove(playbackSslFallbackInterceptor) }
             .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
             .followRedirects(false)
             .followSslRedirects(false)
             .retryOnConnectionFailure(false)
-            .callTimeout(15, TimeUnit.SECONDS)
+            // Keep the inherited connect and per-read timeouts, including the wait for response headers.
+            .callTimeout(0, TimeUnit.MILLISECONDS)
             .addNetworkInterceptor { chain ->
                 if (chain.connection()?.protocol() != Protocol.HTTP_2) {
                     throw IOException("Playback server did not negotiate HTTP/2")
@@ -308,8 +313,6 @@ internal object PlayerPlaybackNetworking {
                 chain.proceed(chain.request())
             }
             .build()
-        return PlaybackHttp2RetryCallFactory(client, http2, url)
-    }
 
     @UnstableApi
     fun createHttpDataSourceFactory(

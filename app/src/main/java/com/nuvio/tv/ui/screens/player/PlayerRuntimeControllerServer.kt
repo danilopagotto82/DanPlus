@@ -22,6 +22,8 @@ import com.nuvio.tv.domain.model.enabledAddons
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -160,6 +162,12 @@ internal suspend fun PlayerRuntimeController.prepareServerStream(
             Toast.makeText(context, context.getString(message), length).show()
         }
         return null
+    }
+    try {
+        currentCoroutineContext().ensureActive()
+    } catch (error: CancellationException) {
+        serverPlayback.discardPrepared(session)
+        throw error
     }
     val hints = stream.behaviorHints ?: StreamBehaviorHints(null, null, null, null)
     return stream.copy(

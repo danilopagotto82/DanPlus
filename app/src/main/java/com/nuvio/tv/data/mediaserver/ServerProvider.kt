@@ -58,6 +58,9 @@ interface ServerProvider {
 
     suspend fun preparePlayback(session: ServerSession, request: ServerPlaybackRequest): ServerPlaybackSession
 
+    /** Releases preparation resources without reporting playback progress. */
+    suspend fun discardPreparedPlayback(session: ServerSession, playback: ServerPlaybackSession) = Unit
+
     suspend fun report(session: ServerSession, playback: ServerPlaybackSession, event: ServerPlaybackEvent) = Unit
 
     suspend fun signOut(session: ServerSession) = Unit

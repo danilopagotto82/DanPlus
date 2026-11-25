@@ -10,7 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 
-internal class FakeServerProvider(
+internal open class FakeServerProvider(
     private val movieCount: Int = 120,
     private val transcodes: Boolean = false,
     private val offersTranscode: Boolean = false,

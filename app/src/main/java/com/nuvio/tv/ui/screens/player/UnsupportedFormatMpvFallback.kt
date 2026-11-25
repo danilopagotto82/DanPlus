@@ -123,7 +123,11 @@ internal fun PlayerRuntimeController.switchToMpvForUnsupportedFormat(reason: Str
         "FORMAT_FALLBACK: ExoPlayer cannot play this stream ($reason), mime=$currentVideoTrackMimeType; switching to MPV"
     )
     com.nuvio.tv.core.formatcheck.FormatCheckSession.onMovedToMpv()
-    switchToInternalPlayerEngine(InternalPlayerEngine.MVP_PLAYER, reason = "unsupported-format:$reason")
+    switchToInternalPlayerEngine(
+        InternalPlayerEngine.MVP_PLAYER,
+        reason = "unsupported-format:$reason",
+        preserveSourceFailover = true
+    )
     return true
 }
 

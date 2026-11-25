@@ -69,17 +69,31 @@ class ServerPlayback internal constructor(
     }
 
     private suspend fun open(target: ServerPlaybackTarget): ServerPlaybackSession {
-        val (provider, session, playback) = repository.call(target.item.connectionId) { provider, session ->
-            Triple(provider, session, provider.preparePlayback(session, ServerPlaybackRequest(target, ServerPlayerCapabilities())))
-        }
+        val prepared = requestPlayback(ServerPlaybackRequest(target, ServerPlayerCapabilities()))
+        val playback = prepared.playback
         val orphans = synchronized(lock) {
             val unstarted = active.filterValues { !it.started }.keys.toList()
-            active[playback.url] = ActivePlayback(provider, session, playback)
-            unstarted.mapNotNull(active::remove)
+            unstarted.mapNotNull(active::remove).also { active[playback.url] = prepared }
         }
         orphans.forEach { it.stop() }
         scope.launch { runCatching { scrobbledServices(playback.url) } }
         return playback
+    }
+
+    private suspend fun requestPlayback(request: ServerPlaybackRequest): ActivePlayback {
+        var pending: ActivePlayback? = null
+        try {
+            val prepared = repository.call(request.target.item.connectionId) { provider, session ->
+                val playback = provider.preparePlayback(session, request)
+                // Keep ownership inside the repository context: cancellation can discard its return value.
+                ActivePlayback(provider, session, playback).also { pending = it }
+            }
+            currentCoroutineContext().ensureActive()
+            return prepared
+        } catch (error: Throwable) {
+            pending?.stop()
+            throw error
+        }
     }
 
     fun canFallback(url: String?): Boolean {
@@ -270,6 +284,14 @@ class ServerPlayback internal constructor(
         playback.stop()
     }
 
+    internal fun discardPrepared(session: ServerPlaybackSession) {
+        val prepared = synchronized(lock) {
+            active[session.url]?.takeIf { it.playback === session && !it.started }
+                ?.also { active.remove(session.url) }
+        }
+        prepared?.stop()
+    }
+
     private suspend fun restart(
         url: String,
         current: ActivePlayback,
@@ -282,10 +304,8 @@ class ServerPlayback internal constructor(
             audioStreamIndex = audioStreamIndex,
             subtitleStreamIndex = subtitleStreamIndex
         )
-        val (provider, session, playback) = try {
-            repository.call(request.target.item.connectionId) { provider, session ->
-                Triple(provider, session, provider.preparePlayback(session, request))
-            }
+        val prepared = try {
+            requestPlayback(request)
         } catch (error: CancellationException) {
             currentCoroutineContext().ensureActive()
             Log.w(TAG, "Playback restart cancelled: server settings changed")
@@ -295,8 +315,8 @@ class ServerPlayback internal constructor(
             return null
         }
         stop(url)
-        synchronized(lock) { active[playback.url] = ActivePlayback(provider, session, playback) }
-        return playback
+        synchronized(lock) { active[prepared.playback.url] = prepared }
+        return prepared.playback
     }
 
     private fun List<ServerTrack>.selectedIndex(): Int? = firstOrNull { it.selected }?.index
@@ -330,11 +350,21 @@ class ServerPlayback internal constructor(
                     Log.w(TAG, "Playback report ${event.type} failed: ${error.serverFailure()}")
                 }
             }
+            if (synchronized(lock) { !started }) {
+                try {
+                    withTimeoutOrNull(REPORT_TIMEOUT_MS) { provider.discardPreparedPlayback(liveSession(), playback) }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    Log.w(TAG, "Playback preparation cleanup failed: ${error.serverFailure()}")
+                }
+            }
         }
 
         fun liveSession(): ServerSession = repository.session(session.connection.id) ?: session
 
         fun onSnapshot(positionMs: Long, isPlaying: Boolean, isLoading: Boolean) = synchronized(lock) {
+            if (stopSent) return@synchronized
             if (!isLoading || positionMs > 0L) lastPositionMs = positionMs
             if (!started) {
                 if (isPlaying && !isLoading) {
@@ -359,9 +389,10 @@ class ServerPlayback internal constructor(
             }
         }
 
-        /** A session that never started sends nothing: a stop at 0 would replace the server's resume point. */
-        fun stop() = synchronized(lock) {
-            if (started && !stopSent) send(ServerPlaybackEventType.STOP, lastPositionMs, isPaused = true)
+        /** Unstarted sessions release preparation resources without sending a progress update. */
+        fun stop(): Unit = synchronized(lock) {
+            if (stopSent) return@synchronized
+            if (started) send(ServerPlaybackEventType.STOP, lastPositionMs, isPaused = true)
             stopSent = true
             events.close()
         }
