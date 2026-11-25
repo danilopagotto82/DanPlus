@@ -20,6 +20,18 @@ class PlayerStartPositionTest {
     }
 
     @Test
+    fun `engine fallback restores a pending seek or the recovery position before saved progress`() {
+        fun fallbackPosition(pending: Long?) = PlayerStartPosition.choose(
+            SourceFailoverSelection.startPositionMs(pending, null, 600_000L, 7_200_000L),
+            null
+        ) { 120_000L }
+
+        assertEquals(600_000L, fallbackPosition(null))
+        assertEquals(920_000L, fallbackPosition(920_000L))
+        assertEquals(0L, fallbackPosition(0L))
+    }
+
+    @Test
     fun `a share-only resume is applied once the length is known and the file can seek`() {
         assertTrue(PlayerStartPosition.percentResumeDue(0L, 42f, 7_200_000L, seekable = true, firstFrameShown = false))
         assertFalse(PlayerStartPosition.percentResumeDue(0L, 42f, Long.MIN_VALUE + 1, seekable = true, firstFrameShown = false))

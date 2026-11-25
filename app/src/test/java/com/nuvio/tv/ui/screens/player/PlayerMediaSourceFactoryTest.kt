@@ -126,6 +126,33 @@ class PlayerMediaSourceFactoryTest {
     }
 
     @Test
+    fun `literal manifest path wins over a conflicting addon filename and content type`() {
+        assertEquals(
+            MimeTypes.APPLICATION_M3U8,
+            PlayerMediaSourceFactory.inferMimeType(
+                "https://example.com/live/master.m3u8?ticket=mock#fragment", "movie.mpd",
+                mapOf("Content-Type" to "application/dash+xml")
+            )
+        )
+        assertEquals(
+            MimeTypes.APPLICATION_MPD,
+            PlayerMediaSourceFactory.inferMimeType(
+                "https://example.com/live/manifest.mpd?ticket=mock", "movie.m3u8",
+                mapOf("Content-Type" to "application/vnd.apple.mpegurl")
+            )
+        )
+    }
+
+    @Test
+    fun `only HTTP disc clip paths or filenames are BDAV candidates`() {
+        assertTrue(PlayerMediaSourceFactory.isHttpDiscClip("https://example.com/BDMV/STREAM/00001.M2TS?x=1", null))
+        assertTrue(PlayerMediaSourceFactory.isHttpDiscClip("http://example.com/movie?id=1", "00001.mts"))
+        assertFalse(PlayerMediaSourceFactory.isHttpDiscClip("https://example.com/movie?file=00001.m2ts", null))
+        assertFalse(PlayerMediaSourceFactory.isHttpDiscClip("https://example.com/BDMV/PLAYLIST/00001.mpls", null))
+        assertFalse(PlayerMediaSourceFactory.isHttpDiscClip("file:///BDMV/STREAM/00001.m2ts", null))
+    }
+
+    @Test
     fun `inferMimeType recognizes playlist endpoints with numeric or token ids as HLS`() {
         val urls = listOf(
             "https://example.com/playlist/759755?token=mock_token_123&expires=1788170323&h=1&lang=it",

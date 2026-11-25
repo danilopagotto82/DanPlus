@@ -27,6 +27,7 @@ internal fun PlayerRuntimeController.maybeAutoSwitchInternalPlayerOnStartupError
         (currentInternalPlayerEngine == InternalPlayerEngine.AUTO && mpvView != null)
     if (!mpvActive) return false
     val targetEngine = InternalPlayerEngine.EXOPLAYER
+    val startPositionMs = captureSourceSwitchPosition()
     beginSwitchTraceSession(reason = "startup-failover", targetEngine = targetEngine)
     logSwitchTrace(
         stage = "startup-failover-trigger",
@@ -61,7 +62,8 @@ internal fun PlayerRuntimeController.maybeAutoSwitchInternalPlayerOnStartupError
         url = currentStreamUrl,
         headers = currentHeaders,
         overrideInternalPlayerEngine = targetEngine,
-        allowEngineFailover = false
+        allowEngineFailover = false,
+        startPositionMs = startPositionMs
     )
     hidePlayerEngineSwitchInfoJob = scope.launch {
         delay(2200)

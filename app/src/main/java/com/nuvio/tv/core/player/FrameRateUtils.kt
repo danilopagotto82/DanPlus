@@ -31,6 +31,7 @@ object FrameRateUtils {
     private const val TAG = "FrameRateUtils"
     private const val SWITCH_TIMEOUT_MS = 4000L
     private const val REFRESH_MATCH_MIN_TOLERANCE_HZ = 0.08f
+    private const val CADENCE_ROUNDING_TOLERANCE_HZ = 0.01f
     private const val NTSC_FILM_FPS = 24000f / 1001f
     private const val CINEMA_24_FPS = 24f
     private const val MIN_VALID_VIDEO_FPS = 10f
@@ -323,7 +324,10 @@ object FrameRateUtils {
     private fun isSeamlessFrom(activeMode: DisplayModeSpec, mode: DisplayModeSpec): Boolean {
         if (mode.modeId == activeMode.modeId) return true
         if (mode.width != activeMode.width || mode.height != activeMode.height) return false
-        return activeMode.alternativeRefreshRates.any { matchesTargetRefresh(mode.refreshRate, it) }
+        // Display mode capabilities distinguish 24 from 23.976 and 60 from 59.94.
+        return activeMode.alternativeRefreshRates.any {
+            abs(mode.refreshRate - it) <= CADENCE_ROUNDING_TOLERANCE_HZ
+        }
     }
 
     private fun matchesTargetRefresh(refreshRate: Float, target: Float): Boolean {
@@ -434,6 +438,12 @@ object FrameRateUtils {
     private fun ModeMatchQuality.isExactOrDouble() =
         this == ModeMatchQuality.EXACT || this == ModeMatchQuality.DOUBLE
 
+    private fun withinCadenceRounding(candidateRate: Float, chosenRate: Float, frameRate: Float): Boolean =
+        abs(candidateRate - frameRate) <= abs(chosenRate - frameRate) + CADENCE_ROUNDING_TOLERANCE_HZ
+
+    private fun ModeChoice.equivalentFrameRate(): Float =
+        if (quality == ModeMatchQuality.DOUBLE) mode.refreshRate / 2f else mode.refreshRate
+
     private fun chooseBestModeForFrameRate(
         activeMode: DisplayModeSpec,
         modes: List<DisplayModeSpec>,
@@ -445,7 +455,10 @@ object FrameRateUtils {
         val seamlessModes = modes.filter { isSeamlessFrom(activeMode, it) }
         if (seamlessModes.isEmpty()) return choice
         val seamless = chooseBestCadence(activeMode, seamlessModes, frameRate)
-        return if (seamless.quality.isExactOrDouble()) seamless else choice
+        if (seamless.quality.isExactOrDouble() &&
+            withinCadenceRounding(seamless.equivalentFrameRate(), choice.equivalentFrameRate(), frameRate)
+        ) return seamless
+        return choice
     }
 
     private fun chooseBestCadence(
@@ -456,17 +469,12 @@ object FrameRateUtils {
         // 25 and 29.97/30 fps play at 50 and 59.94/60 Hz when the display has them: the same clean cadence,
         // with menus, subtitles and the TV's motion handling at their usual rate. Interlaced sources show up
         // here as 25/29.97 and need the field rate anyway.
-        if (prefersDoubleRate(frameRate)) {
-            pickBestForTarget(modes, frameRate * 2f)?.let {
-                return ModeChoice(it, ModeMatchQuality.DOUBLE)
-            }
-        }
-        pickBestForTarget(modes, frameRate)?.let {
-            return ModeChoice(it, ModeMatchQuality.EXACT)
-        }
-        pickBestForTarget(modes, frameRate * 2f)?.let {
-            return ModeChoice(it, ModeMatchQuality.DOUBLE)
-        }
+        val exact = pickBestForTarget(modes, frameRate)
+        val double = pickBestForTarget(modes, frameRate * 2f)
+        if (double != null && (exact == null || prefersDoubleRate(frameRate) &&
+                withinCadenceRounding(double.refreshRate / 2f, exact.refreshRate, frameRate))
+        ) return ModeChoice(double, ModeMatchQuality.DOUBLE)
+        if (exact != null) return ModeChoice(exact, ModeMatchQuality.EXACT)
         val pulldown = pickBestForTarget(modes, frameRate * 2.5f)
         val pulldownError = pulldown?.let { refreshError(it.refreshRate, frameRate * 2.5f) } ?: Float.MAX_VALUE
         // A clean multiple only wins when it matches the frame rate at least as closely as pulldown.

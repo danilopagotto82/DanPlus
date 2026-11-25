@@ -1,7 +1,9 @@
 package com.nuvio.tv.ui.screens.player
 
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.util.UnstableApi
 import com.nuvio.tv.core.player.AudioPassthroughPolicy
+import com.nuvio.tv.core.player.dvmkv.DtsStreamType
 import kotlinx.coroutines.flow.update
 
 /**
@@ -17,8 +19,8 @@ import kotlinx.coroutines.flow.update
  * language. When nothing lossless qualifies and the engine landed on a commentary,
  * the main track is chosen instead. A track is
  * ranked only when its codec or name proves the tier (mpv reports plain "dts",
- * so it needs an MA / Master Audio hint; ExoPlayer's DTS-HD mime ranks as
- * lossless). The default is never persisted.
+ * so it needs an MA / Master Audio hint; the DTS-HD default rank is retained
+ * when no bitstream subtype is known). The default is never persisted.
  *
  * Lossless that the app would only re-encode is not lossless at the receiver: when the top
  * pick would be transcoded, a surround track of the same language that the output takes as it
@@ -43,9 +45,18 @@ internal object LosslessAudioTrackDefault {
      * codec names ("truehd", "mlp", "dts", "flac", "pcm_s24le", ...).
      * [name] is the display name, used for MA hints and PCM/LPCM hints only.
      */
-    fun losslessTier(codec: String?, name: String?): Int? {
+    @androidx.annotation.OptIn(UnstableApi::class)
+    fun losslessTier(codec: String?, name: String?, codecDetail: String? = null): Int? {
         val c = codec?.trim()?.lowercase().orEmpty()
         val n = name?.trim()?.lowercase().orEmpty()
+
+        if (c == "dts" || c == "dts-hd") {
+            when (codecDetail) {
+                DtsStreamType.HIGH_RESOLUTION.label, DtsStreamType.EXPRESS.label -> return null
+                DtsStreamType.MASTER_AUDIO.label, DtsStreamType.DTS_X.label,
+                DtsStreamType.DTS_X_IMAX.label -> return TIER_DTS_HD_MA
+            }
+        }
 
         if (c == "truehd" || c == "mlp" || "truehd" in n || "true hd" in n) return TIER_TRUEHD
 
@@ -102,7 +113,7 @@ internal object LosslessAudioTrackDefault {
         val pool = languagePool(tracks, preferredLanguages, languageMatches)
 
         val ranked = pool.mapNotNull { track ->
-            losslessTier(track.codec, track.name)?.let { tier -> track to tier }
+            losslessTier(track.codec, track.name, track.codecDetail)?.let { tier -> track to tier }
         }
         if (ranked.isEmpty()) return null
 

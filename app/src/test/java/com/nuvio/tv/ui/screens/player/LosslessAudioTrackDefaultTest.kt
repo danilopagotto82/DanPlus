@@ -68,6 +68,16 @@ class LosslessAudioTrackDefaultTest {
     }
 
     @Test
+    fun `detected DTS subtype decides lossless ranking before the track name`() {
+        assertNull(LosslessAudioTrackDefault.losslessTier("DTS-HD", "English DTS-HD MA", "DTS-HD HRA"))
+        assertNull(LosslessAudioTrackDefault.losslessTier("DTS-HD", "English DTS-HD MA", "DTS Express"))
+        assertEquals(
+            LosslessAudioTrackDefault.TIER_DTS_HD_MA,
+            LosslessAudioTrackDefault.losslessTier("DTS-HD", "English", "DTS:X")
+        )
+    }
+
+    @Test
     fun `lossy codecs are unranked`() {
         assertNull(LosslessAudioTrackDefault.losslessTier("AC-3", "English (AC-3 5.1)"))
         assertNull(LosslessAudioTrackDefault.losslessTier("E-AC-3", "English"))

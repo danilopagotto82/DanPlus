@@ -495,10 +495,15 @@ internal class PlayerMediaSourceFactory(
             else -> PlaybackTransferCoverage.PROGRESSIVE
         })
         val countedMediaFactory = CountingDataSourceFactory(progressiveFactory, transferSession)
-        val defaultSourceFactory = if (subtitleConfigurations.isNotEmpty()) {
-            SubtitleRoutingDataSourceFactory(countedMediaFactory, url, headers, subtitleRoutes)
+        val mediaFactory = if (resolvedMimeType == MimeTypes.VIDEO_MP2T && isHttpDiscClip(url, filename)) {
+            BdavM2tsDataSourceFactory(countedMediaFactory)
         } else {
             countedMediaFactory
+        }
+        val defaultSourceFactory = if (subtitleConfigurations.isNotEmpty()) {
+            SubtitleRoutingDataSourceFactory(mediaFactory, url, headers, subtitleRoutes)
+        } else {
+            mediaFactory
         }
         // Media-only listeners belong to this source. Adaptive instrumentation remains unavailable;
         // chunk prestart/retained-session coverage is explicitly partial until reconciled.
@@ -1122,6 +1127,13 @@ internal class PlayerMediaSourceFactory(
                 delegate.onSpanTouched(cache, oldSpan, newSpan)
         }
 
+        internal fun isHttpDiscClip(url: String, filename: String?): Boolean {
+            val httpUrl = url.toHttpUrlOrNull() ?: return false
+            return listOfNotNull(httpUrl.pathSegments.lastOrNull(), filename).any {
+                it.endsWith(".m2ts", ignoreCase = true) || it.endsWith(".mts", ignoreCase = true)
+            }
+        }
+
         private fun inferAdaptiveMimeTypeFromPath(path: String?): String? {
             val normalized = path?.trim()?.lowercase(Locale.US)?.takeIf { it.isNotBlank() } ?: return null
             val pathWithoutFragment = normalized.substringBefore('#')
@@ -1141,8 +1153,8 @@ internal class PlayerMediaSourceFactory(
             filename: String?,
             responseHeaders: Map<String, String>? = null
         ): String? {
-            val adaptiveMime = inferAdaptiveMimeTypeFromPath(filename)
-                ?: inferAdaptiveMimeTypeFromPath(url)
+            val adaptiveMime = inferAdaptiveMimeTypeFromPath(url)
+                ?: inferAdaptiveMimeTypeFromPath(filename)
             if (adaptiveMime != null) {
                 return adaptiveMime
             }

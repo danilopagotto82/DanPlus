@@ -64,6 +64,30 @@ class FrameRateSeamlessTest {
         assertEquals(24f, pick(active, 24f), 0.01f)
     }
 
+    @Test
+    fun `a nominal 60 Hz mode does not replace the 59 point 94 cadence`() {
+        val active = modes[0].copy(alternativeRefreshRates = listOf(48f, 50f))
+        assertEquals(59.94f, pick(active, 60000f / 1001f), 0.002f)
+        assertEquals(59.94f, pick(active, 30000f / 1001f), 0.002f)
+        assertEquals(60f, pick(active, 30f), 0.002f)
+    }
+
+    @Test
+    fun `an alternate 48 Hz mode cannot replace the fractional film cadence`() {
+        val active = modes[0].copy(alternativeRefreshRates = listOf(48f, 50f))
+        assertEquals(23.976f, pick(active, film), 0.002f)
+        assertEquals(48f, pick(active, 24f), 0.002f)
+    }
+
+    @Test
+    fun `matching 29 point 97 Hz beats an integer double when 59 point 94 is absent`() {
+        val active = modes[0]
+        val fractional = mode(15, 3840, 2160, 30000f / 1001f)
+        val table = listOf(active, fractional)
+        val result = FrameRateUtils.selectDisplayMode(table, active, fractional.refreshRate, null, null, false)
+        assertEquals(fractional.modeId, result?.modeId)
+    }
+
     private fun pick(
         active: DisplayModeSpec,
         frameRate: Float,
