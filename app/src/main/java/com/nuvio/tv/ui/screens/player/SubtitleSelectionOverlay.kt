@@ -167,7 +167,7 @@ internal fun SubtitleSelectionOverlay(
             unknownLabel = unknownLabel
         ).filter { it.key != SubtitleOffLanguageKey }
     }
-    val optionsByLanguage = remember(languageItems, sessionAddonSubtitles) {
+    val optionsByLanguage = remember(languageItems, sessionAddonSubtitles, builtInLabel, forcedLabel) {
         val addonSubtitlesByLanguage = groupAddonSubtitlesByLanguageKey(sessionAddonSubtitles)
         languageItems.associate { language ->
             language.key to buildSubtitleOptionRailItems(
@@ -1362,10 +1362,10 @@ private fun buildSubtitleOptionRailItems(
             SubtitleOptionRailItem(
                 id = "internal:${track.index}",
                 kind = SubtitleOptionKind.INTERNAL,
-                title = track.name,
+                title = track.title?.takeIf(String::isNotBlank) ?: track.name,
                 sourceLabel = builtInLabel,
                 meta = listOfNotNull(
-                    track.codec,
+                    if (PlayerSubtitleUtils.isAssCodec(track.codec)) "ASS/SSA" else track.codec,
                     if (track.isForced) forcedLabel else null
                 ).joinToString(" • ").ifBlank { null },
                 isSelected = "internal:${track.index}" == selectedOptionId,

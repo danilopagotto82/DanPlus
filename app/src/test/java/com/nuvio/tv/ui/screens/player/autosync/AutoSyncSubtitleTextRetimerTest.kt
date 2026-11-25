@@ -6,6 +6,17 @@ import org.junit.Test
 
 class AutoSyncSubtitleTextRetimerTest {
     @Test
+    fun crOnlyAssRetimesAfterFontsAndPreservesSdhAndFormatting() {
+        val body = "[Script Info]\r[Fonts]\rfontname: test.ttf\rAAAAAAAA\r[Events]\r" +
+            "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\r" +
+            "Dialogue: 0,0:00:01.00,0:00:02.50,Default,,0,0,0,,{\\an8}[MÚSICA] Olá"
+        val timeline = timeline(listOf(AutoSyncRetimedCue(1_000L, 2_500L, 1_250L, 2_750L)), interceptMs = 250.0)
+        assertEquals(
+            body.replace('\r', '\n').replace("0:00:01.00,0:00:02.50", "0:00:01.25,0:00:02.75"),
+            AutoSyncSubtitleTextRetimer.retime(body, timeline)
+        )
+    }
+    @Test
     fun srtShiftsTimestampsAndKeepsText() {
         val body = """
             1

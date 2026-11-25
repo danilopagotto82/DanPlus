@@ -145,6 +145,15 @@ val AVAILABLE_TMDB_LANGUAGES = AVAILABLE_SUBTITLE_LANGUAGES + listOf(
 /**
  * Data class representing subtitle style settings
  */
+data class AssSubtitleStyleSettings(
+    val size: Int = 100,
+    val customizeInMpv: Boolean = false,
+    val verticalOffset: Int = 5,
+    val importedFontId: String? = null
+) {
+    internal fun normalized() = copy(size = size.coerceIn(50, 200), verticalOffset = verticalOffset.coerceIn(-20, 50))
+}
+
 data class SubtitleStyleSettings(
     val preferredLanguage: String = "en",
     val isPreferredLanguageSystemDefault: Boolean = true,
@@ -174,8 +183,21 @@ data class SubtitleStyleSettings(
     val hdrBrightness: Int = HDR_BRIGHTNESS_DEFAULT, // 0-100, see hdrBrightnessFactor
     val hdrDimPlayerControls: Boolean = false,
     val shadowDepth: Int = DEFAULT_SUBTITLE_SHADOW_DEPTH,
-    val importedFontId: String? = null
+    val importedFontId: String? = null,
+    val ass: AssSubtitleStyleSettings = AssSubtitleStyleSettings()
 ) {
+    internal fun forMpvTrack(isAss: Boolean): SubtitleStyleSettings {
+        if (!isAss) return this
+        val custom = ass.takeIf { it.customizeInMpv }?.normalized()
+        return SubtitleStyleSettings(
+            size = custom?.size ?: 100,
+            verticalOffset = custom?.verticalOffset ?: 0,
+            importedFontId = custom?.importedFontId,
+            stripSdh = stripSdh,
+            ass = ass
+        )
+    }
+
     val effectiveEdgeStyle: SubtitleEdgeStyle
         get() = edgeStyle ?: if (outlineEnabled) SubtitleEdgeStyle.OUTLINE else SubtitleEdgeStyle.NONE
 
@@ -949,6 +971,10 @@ class PlayerSettingsDataStore @Inject constructor(
     private val subtitlePreferAddonKey = booleanPreferencesKey("subtitle_prefer_addon")
     private val subtitleStripSdhKey = booleanPreferencesKey("subtitle_strip_sdh")
     private val subtitleSizeKey = intPreferencesKey("subtitle_size")
+    private val assSubtitleSizeKey = intPreferencesKey("ass_subtitle_size")
+    private val assSubtitleMpvOverrideKey = booleanPreferencesKey("ass_subtitle_mpv_override")
+    private val assSubtitleOffsetKey = intPreferencesKey("ass_subtitle_offset")
+    private val assSubtitleFontKey = stringPreferencesKey("ass_subtitle_imported_font")
     private val subtitleBitmapSizeKey = intPreferencesKey("subtitle_bitmap_size")
     private val subtitleVerticalOffsetKey = intPreferencesKey("subtitle_vertical_offset")
     private val subtitleBoldKey = booleanPreferencesKey("subtitle_bold")
@@ -1532,6 +1558,12 @@ class PlayerSettingsDataStore @Inject constructor(
                         showOnlyPreferredLanguages = prefs[subtitleShowOnlyPreferredLanguagesKey] ?: false,
                         stripSdh = prefs[subtitleStripSdhKey] ?: false,
                         size = prefs[subtitleSizeKey] ?: SubtitleStyleSettings().size,
+                        ass = AssSubtitleStyleSettings(
+                            size = prefs[assSubtitleSizeKey] ?: 100,
+                            customizeInMpv = prefs[assSubtitleMpvOverrideKey] ?: false,
+                            verticalOffset = prefs[assSubtitleOffsetKey] ?: 5,
+                            importedFontId = prefs[assSubtitleFontKey]
+                        ).normalized(),
                         bitmapSize = (prefs[subtitleBitmapSizeKey] ?: 100).coerceIn(50, 200),
                         verticalOffset = prefs[subtitleVerticalOffsetKey] ?: 5,
                         bold = prefs[subtitleBoldKey] ?: false,
@@ -2507,6 +2539,18 @@ class PlayerSettingsDataStore @Inject constructor(
     }
     suspend fun setSubtitleBitmapSize(size: Int) { store().edit { it[subtitleBitmapSizeKey] = size.coerceIn(50, 200) } }
     suspend fun setSubtitleSize(size: Int) { store().edit { it[subtitleSizeKey] = size.coerceIn(50, 200) } }
+
+    suspend fun setAssSubtitleStyle(profileId: Int, style: AssSubtitleStyleSettings) {
+        val normalized = style.normalized()
+        store(profileId).edit { prefs ->
+            if (profileManager.activeProfileId.value != profileId) return@edit
+            prefs[assSubtitleSizeKey] = normalized.size
+            prefs[assSubtitleMpvOverrideKey] = normalized.customizeInMpv
+            prefs[assSubtitleOffsetKey] = normalized.verticalOffset
+            val imported = normalized.importedFontId
+            if (imported == null) prefs.remove(assSubtitleFontKey) else prefs[assSubtitleFontKey] = imported
+        }
+    }
     suspend fun setSubtitleVerticalOffset(offset: Int) { store().edit { it[subtitleVerticalOffsetKey] = offset.coerceIn(-20, 50) } }
     suspend fun setSubtitleBold(bold: Boolean) { store().edit { it[subtitleBoldKey] = bold } }
     suspend fun setSubtitleTextColor(color: Int) { store().edit { it[subtitleTextColorKey] = color } }

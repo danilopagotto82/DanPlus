@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="scout_show_in_menu">Show For You in the menu</string>
     <string name="scout_title">For You</string>
     <string name="scout_rate">Rate</string>
     <string name="scout_rate_not_for_me">Not for me</string>

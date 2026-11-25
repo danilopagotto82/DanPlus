@@ -216,7 +216,7 @@ fun ScoutScreen(
     val activeId by viewModel.activeProfileId.collectAsStateWithLifecycle()
     val storedWatchDisplay by viewModel.watchedDisplay.collectAsStateWithLifecycle()
     val watchDisplay = storedWatchDisplay.takeIf { it.profileId == activeId } ?: ScoutWatchDisplay(activeId)
-    val appliesWatchFilter = !state.asking && !state.surprise && state.moreLike == null && state.tab != ScoutTab.Taste
+    val appliesWatchFilter = !state.asking && state.moreLike == null && state.tab != ScoutTab.Taste
     val hideWatched = appliesWatchFilter && !watchDisplay.showWatched
     val shownRow = remember(state.row, hideWatched, watchDisplay) {
         if (hideWatched) state.row.filterNot(watchDisplay::isWatched) else state.row

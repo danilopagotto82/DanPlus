@@ -1,9 +1,11 @@
 package com.nuvio.tv.ui.screens.player.autosync
 
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -14,6 +16,7 @@ import okhttp3.mockwebserver.SocketPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EmbeddedSubtitleTimelineLoaderTest {
@@ -57,5 +60,46 @@ class EmbeddedSubtitleTimelineLoaderTest {
             assertNull(withTimeout(3_000L) { autoSync.await() })
             assertEquals(2, server.requestCount)
         }
+    }
+
+    @Test
+    fun readFailureDoesNotBecomeACachedMissingTrack() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setResponseCode(503))
+            server.enqueue(MockResponse().setBody("not a supported container"))
+            val url = server.url("/video.mkv").toString()
+            val headers = mapOf("Authorization" to "Bearer fixture")
+            assertNull(EmbeddedSubtitleTimelineLoader.load(url, headers))
+            assertNull(EmbeddedSubtitleTimelineLoader.load(url, headers))
+            assertEquals(2, server.requestCount)
+            repeat(2) {
+                val request = requireNotNull(server.takeRequest(5, TimeUnit.SECONDS))
+                assertTrue(request.getHeader("Range").orEmpty().startsWith("bytes=0-"))
+                assertEquals("Bearer fixture", request.getHeader("Authorization"))
+            }
+        }
+    }
+
+    @Test
+    fun cancellationDoesNotPublishANegativeResultForTheNextLoad() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+            server.enqueue(MockResponse().setBody("fixture"))
+            val url = server.url("/cancel.mkv").toString()
+            val running = launch(start = CoroutineStart.UNDISPATCHED) { EmbeddedSubtitleTimelineLoader.load(url) }
+            assertNotNull(server.takeRequest(5, TimeUnit.SECONDS))
+            running.cancelAndJoin()
+            assertNull(EmbeddedSubtitleTimelineLoader.load(url))
+            assertEquals(2, server.requestCount)
+        }
+    }
+
+    @Test
+    fun legacyAssIsRecognizedWithoutClassifyingSrtOrPgsAsAss() {
+        listOf("S_TEXT/ASS", "S_TEXT/SSA", "s_ass", "s_ssa").forEach {
+            assertTrue(EmbeddedSubtitleTimelineLoader.isMatroskaAssCodec(it))
+        }
+        assertEquals(false, EmbeddedSubtitleTimelineLoader.isMatroskaAssCodec("S_HDMV/PGS"))
+        assertEquals(false, EmbeddedSubtitleTimelineLoader.isMatroskaAssCodec("S_TEXT/UTF8"))
     }
 }

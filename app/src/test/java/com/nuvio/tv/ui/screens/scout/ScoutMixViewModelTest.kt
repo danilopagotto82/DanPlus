@@ -33,6 +33,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -76,7 +77,11 @@ class ScoutMixViewModelTest {
     )
     private val allWatched = (1..6).map { 1 to it }.toSet()
 
-    private fun viewModel(keepPlaying: Boolean = true, seenEverything: Boolean = false): ScoutMixViewModel {
+    private fun viewModel(
+        keepPlaying: Boolean = true,
+        seenEverything: Boolean = false,
+        profileFlow: MutableStateFlow<Int> = MutableStateFlow(profile)
+    ): ScoutMixViewModel {
         val store = mockk<ScoutMixStore>(relaxed = true)
         val mixes = listOf(ScoutMix("m", "Mix", listOf(show), keepPlaying = keepPlaying))
         every { store.observe(profile) } returns flowOf(mixes)
@@ -92,7 +97,7 @@ class ScoutMixViewModelTest {
         val suggestions = mockk<ScoutMixSuggestions>()
         coEvery { suggestions.forMix(any()) } returns listOf(offer)
         val profiles = mockk<ProfileManager>(relaxed = true)
-        every { profiles.activeProfileId } returns MutableStateFlow(profile)
+        every { profiles.activeProfileId } returns profileFlow
         val settings = mockk<PlayerSettingsDataStore>(relaxed = true)
         every { settings.playerSettings } returns flowOf(PlayerSettings(stillWatchingEnabled = false))
         val layout = mockk<LayoutPreferenceDataStore>(relaxed = true)
@@ -103,6 +108,17 @@ class ScoutMixViewModelTest {
     }
 
     private lateinit var lastStore: ScoutMixStore
+
+    @Test
+    fun `preview shares the prepared queue and stops exposing it after a profile switch`() = runTest(mainDispatcherRule.dispatcher) {
+        val active = MutableStateFlow(profile)
+        val vm = viewModel(profileFlow = active)
+        runCurrent()
+        assertTrue(vm.preview().isNotEmpty())
+        active.value = profile + 1
+        assertTrue(vm.preview().isEmpty())
+        assertNull(vm.play())
+    }
 
     @Test
     fun `a mix with nothing left offers shows, and only then`() = runTest(mainDispatcherRule.dispatcher) {

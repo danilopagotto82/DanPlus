@@ -49,7 +49,8 @@ data class ScoutSettings(
     val tasteRow: String = "titles",
     val sendToTrackers: Boolean = false,
     val useTrackerRatings: Boolean = true,
-    val listEmojis: Boolean = false
+    val listEmojis: Boolean = false,
+    val showInMenu: Boolean = true
 )
 
 data class ScoutProfile(

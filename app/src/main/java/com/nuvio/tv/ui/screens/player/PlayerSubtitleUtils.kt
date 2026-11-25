@@ -9,10 +9,27 @@ import com.nuvio.tv.ui.util.LANGUAGE_WHITESPACE_RUN
 import com.nuvio.tv.ui.util.resolveLanguageNameAlias
 
 internal object PlayerSubtitleUtils {
+    internal fun isAssCodec(codec: String?): Boolean = when (codec?.trim()?.lowercase(java.util.Locale.ROOT)) {
+        "ass", "ssa", "s_ass", "s_ssa", "s_text/ass", "s_text/ssa", "text/x-ssa", "text/x-ass" -> true
+        else -> false
+    }
+
+    private const val MAX_LANGUAGE_CACHE = 256
+    private val normalizedLanguages = object : LinkedHashMap<String, String>(MAX_LANGUAGE_CACHE, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>): Boolean =
+            size > MAX_LANGUAGE_CACHE
+    }
+
     fun normalizeLanguageCode(lang: String): String {
         val code = lang.trim().lowercase()
-        if (code.isBlank()) return ""
+        if (code.isEmpty()) return ""
+        if (code.length > 128) return normalizeUncached(code)
+        return synchronized(normalizedLanguages) {
+            normalizedLanguages.getOrPut(code) { normalizeUncached(code) }
+        }
+    }
 
+    private fun normalizeUncached(code: String): String {
         val normalizedCode = code.replace('_', '-')
         val tokenized = normalizedCode
             .replace('-', ' ')

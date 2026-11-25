@@ -98,6 +98,12 @@ internal fun ExoPlayer.Builder.buildWithAssSupportCompat(
 
 internal fun ExoPlayer.getAssHandlerCompat(): AssHandler? = assBindingsByPlayer[this]?.handler
 
+internal fun AssHandler.applyAssFontScale(percent: Int) {
+    val scale = percent.coerceIn(50, 200) / 100f
+    renderCallback = { renderer -> renderer?.setFontScale(scale) }
+    render?.setFontScale(scale)
+}
+
 /**
  * The frame callback for [AssHandler.videoFrameCallback]: [render] gets the subtitle time with the
  * player's audio and subtitle delays applied.

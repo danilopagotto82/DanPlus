@@ -391,6 +391,9 @@ internal fun PlayerRuntimeController.observeSubtitleSettings() {
             .collect { snapshot ->
             val settings = snapshot.settings
             val currentState = _uiState.value
+            if (currentState.subtitleStyle.ass.size != settings.subtitleStyle.ass.size) {
+                _exoPlayer?.getAssHandlerCompat()?.applyAssFontScale(settings.subtitleStyle.ass.size)
+            }
             val showOnlyPreferredLanguagesChanged =
                 currentState.subtitleStyle.showOnlyPreferredLanguages != settings.subtitleStyle.showOnlyPreferredLanguages
             val wasRememberingAudioDelayPerDevice = rememberAudioDelayPerDeviceEnabled

@@ -411,6 +411,10 @@ class PlaybackSettingsViewModel @Inject constructor(
         playerSettingsDataStore.setSubtitleStripSdh(enabled)
     }
 
+    suspend fun setAssSubtitleStyle(profileId: Int, style: com.nuvio.tv.data.local.AssSubtitleStyleSettings) {
+        playerSettingsDataStore.setAssSubtitleStyle(profileId, style)
+    }
+
     suspend fun setSubtitleSize(size: Int) {
         playerSettingsDataStore.setSubtitleSize(size)
     }

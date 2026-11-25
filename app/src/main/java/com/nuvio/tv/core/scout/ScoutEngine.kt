@@ -105,6 +105,8 @@ class ScoutEngine @Inject constructor(
 
     fun activeProfile(): Int = profileManager.activeProfileId.value
 
+    internal fun activePool(): ScoutPool? = _pool.value.takeIf { loadedProfile == activeProfile() }
+
     @Volatile private var loadedProfile: Int? = null
 
     private fun file(profileId: Int) = File(context.filesDir, "scout/pool_$profileId.json")
@@ -294,16 +296,17 @@ class ScoutEngine @Inject constructor(
         }
         if (ceiling != null) levels = picksBuilder.knownAgeLevels(now)
 
+        suspend fun ratedForProfile(list: List<ScoutPick>): List<ScoutPick> =
+            if (limit == null) list else ratingGate.keepFitting(limit, list) { "tmdb:${it.tmdbId}" to if (it.tv) "series" else "movie" }
         val because = seeds.filter { it.weight > 0 && it.finishedOrder != null }
             .sortedBy { it.finishedOrder }
             .take(BECAUSE_ROWS)
             .mapNotNull { seed ->
                 val own = results.firstOrNull { it.first.contentId == seed.contentId }?.second.orEmpty()
-                val picks = own.filterNot(full::blocks).filter(::fits).take(BECAUSE_ITEMS)
+                val candidates = own.filterNot(full::blocks).filter(::fits).take(BECAUSE_ITEMS * 2)
+                val picks = ratedForProfile(candidates).take(BECAUSE_ITEMS)
                 if (picks.isEmpty()) null else ScoutBecause(seed.name, picks)
             }
-        suspend fun ratedForProfile(list: List<ScoutPick>): List<ScoutPick> =
-            if (limit == null) list else ratingGate.keepFitting(limit, list) { "tmdb:${it.tmdbId}" to if (it.tv) "series" else "movie" }
         val gems = ratedForProfile((gemFilms + gemSeries).filterNot(full::blocks).filter(::fits)).take(GEM_ITEMS)
         val suitable = ratedForProfile((improved?.picked?.takeIf { it.isNotEmpty() } ?: picked).filter(::fits))
         val rows = improved?.rows.orEmpty().map { row ->

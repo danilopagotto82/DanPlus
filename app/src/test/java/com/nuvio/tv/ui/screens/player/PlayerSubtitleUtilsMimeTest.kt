@@ -9,6 +9,15 @@ import org.junit.Test
 import java.util.Locale
 
 class PlayerSubtitleUtilsMimeTest {
+    @Test
+    fun languageCacheKeepsPortugueseVariantsAcrossAnEviction() {
+        assertEquals("pt-br", PlayerSubtitleUtils.normalizeLanguageCode("pt_BR"))
+        repeat(400) { PlayerSubtitleUtils.normalizeLanguageCode("unknown$it") }
+        assertEquals("pt-br", PlayerSubtitleUtils.normalizeLanguageCode("pt_BR"))
+        assertEquals("pt", PlayerSubtitleUtils.normalizeLanguageCode("pt-PT"))
+        assertTrue(PlayerSubtitleUtils.isAssCodec("S_SSA"))
+        assertFalse(PlayerSubtitleUtils.isAssCodec("hdmv_pgs_subtitle"))
+    }
 
     @Test
     fun mimeTypeFromUrl_detectsCommonExtensions() {

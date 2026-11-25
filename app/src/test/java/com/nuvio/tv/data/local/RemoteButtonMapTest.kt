@@ -16,7 +16,7 @@ class RemoteButtonMapTest {
         assertEquals(RemoteButtonJob.SKIP_INTRO_OR_NEXT, default.overrideFor(KeyEvent.KEYCODE_MEDIA_NEXT)?.job)
         assertEquals(RemoteButtonJob.RESTART, default.overrideFor(KeyEvent.KEYCODE_MEDIA_PREVIOUS)?.job)
         assertEquals(RemoteButtonJob.SOURCES, default.overrideFor(KeyEvent.KEYCODE_PROG_RED)?.job)
-        assertEquals(RemoteButtonJob.NEXT_AUDIO, default.overrideFor(KeyEvent.KEYCODE_MEDIA_AUDIO_TRACK)?.job)
+        assertEquals(RemoteButtonJob.AUDIO, default.overrideFor(KeyEvent.KEYCODE_MEDIA_AUDIO_TRACK)?.job)
         assertEquals(RemoteButtonJob.EPISODES, default.overrideFor(KeyEvent.KEYCODE_GUIDE)?.job)
         val channelUp = default.overrideFor(KeyEvent.KEYCODE_CHANNEL_UP)
         assertEquals(RemoteButtonJob.SKIP_FORWARD, channelUp?.job)

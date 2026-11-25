@@ -215,7 +215,7 @@ class RemoteButtonMap private constructor(
             KeyEvent.KEYCODE_PROG_YELLOW to RemoteButtonBinding(RemoteButtonJob.AUDIO),
             KeyEvent.KEYCODE_PROG_BLUE to RemoteButtonBinding(RemoteButtonJob.STATS),
             KeyEvent.KEYCODE_MUSIC to RemoteButtonBinding(RemoteButtonJob.NEXT_AUDIO),
-            KeyEvent.KEYCODE_MEDIA_AUDIO_TRACK to RemoteButtonBinding(RemoteButtonJob.NEXT_AUDIO),
+            KeyEvent.KEYCODE_MEDIA_AUDIO_TRACK to RemoteButtonBinding(RemoteButtonJob.AUDIO),
             KeyEvent.KEYCODE_CAPTIONS to RemoteButtonBinding(RemoteButtonJob.SUBTITLES),
             KeyEvent.KEYCODE_GUIDE to RemoteButtonBinding(RemoteButtonJob.EPISODES)
         )

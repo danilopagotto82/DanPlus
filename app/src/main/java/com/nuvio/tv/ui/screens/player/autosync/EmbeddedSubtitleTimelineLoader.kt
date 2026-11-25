@@ -15,17 +15,18 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import com.nuvio.tv.ui.screens.player.PlayerPlaybackNetworking
+import java.io.IOException
 import okhttp3.Response
 import java.util.ArrayDeque
 import java.util.LinkedHashMap
@@ -122,16 +123,16 @@ internal object EmbeddedSubtitleTimelineLoader {
         .build()
 
     private val cacheLock = Any()
-    private val cache = object : LinkedHashMap<String, CachedLoadResult>(
+    private val cache = object : LinkedHashMap<IndexSource, CachedLoadResult>(
         MAX_CACHE_ENTRIES,
         0.75f,
         true,
     ) {
         override fun removeEldestEntry(
-            eldest: MutableMap.MutableEntry<String, CachedLoadResult>?,
+            eldest: MutableMap.MutableEntry<IndexSource, CachedLoadResult>?,
         ): Boolean = size > MAX_CACHE_ENTRIES
     }
-    private val inFlight = mutableMapOf<String, CompletableDeferred<IndexedEmbeddedTimeline?>>()
+    private val inFlight = mutableMapOf<IndexSource, CompletableDeferred<IndexedEmbeddedTimeline?>>()
 
     /**
      * Starts loading the index in [scope] so a later [load] finds it cached or joins the
@@ -155,7 +156,7 @@ internal object EmbeddedSubtitleTimelineLoader {
             return null
         }
 
-        val cacheKey = "$sourceUrl#${sourceHeaders.hashCode()}"
+        val cacheKey = IndexSource(sourceUrl, sourceHeaders.toMap())
         val nowNs = System.nanoTime()
         val ownedLoad = CompletableDeferred<IndexedEmbeddedTimeline?>()
         val activeLoad = synchronized(cacheLock) {
@@ -195,42 +196,28 @@ internal object EmbeddedSubtitleTimelineLoader {
     }
 
     private suspend fun loadAndCache(
-        cacheKey: String,
+        cacheKey: IndexSource,
         sourceUrl: String,
         sourceHeaders: Map<String, String>,
     ): IndexedEmbeddedTimeline? {
         return try {
-            val loaded = try {
-                withTimeout(TOTAL_TIMEOUT_MS) {
-                    withContext(Dispatchers.IO) {
-                        loadMatroskaCueIndex(sourceUrl, sourceHeaders)
-                    }
+            val loaded = withTimeoutOrNull(TOTAL_TIMEOUT_MS) {
+                withContext(Dispatchers.IO) {
+                    IndexedRead(loadMatroskaCueIndex(sourceUrl, sourceHeaders))
                 }
-            } catch (_: TimeoutCancellationException) {
-                // A transient deadline is not evidence that the container is unsupported.
-                // Do not publish a negative cache entry for timed-out work.
-                return null
-            } catch (_: IndexRequestTimedOut) {
-                return null
-            }
+            } ?: return null
 
             synchronized(cacheLock) {
                 cache[cacheKey] = CachedLoadResult(
-                    timeline = loaded,
+                    timeline = loaded.timeline,
                     createdAtNs = System.nanoTime(),
                 )
             }
-            loaded
+            loaded.timeline
         } catch (cancel: CancellationException) {
-            // External cancellation must remain observable and must never publish cache state.
             throw cancel
         } catch (_: Exception) {
-            synchronized(cacheLock) {
-                cache[cacheKey] = CachedLoadResult(
-                    timeline = null,
-                    createdAtNs = System.nanoTime(),
-                )
-            }
+            // Preserve live fallback. A failed read or parser exception cannot prove absence.
             null
         }
     }
@@ -241,6 +228,7 @@ internal object EmbeddedSubtitleTimelineLoader {
     ): IndexedEmbeddedTimeline? {
         val startedAtNs = System.nanoTime()
         val stats = RangeStats(
+            calls = PlayerPlaybackNetworking.playbackCallFactory(httpClient, sourceUrl, sourceHeaders),
             deadlineNs = System.nanoTime() + TOTAL_TIMEOUT_MS * 1_000_000L,
             maxBytes = MAX_TOTAL_DOWNLOAD_BYTES,
             maxRequests = MAX_RANGE_REQUESTS,
@@ -1295,9 +1283,11 @@ internal object EmbeddedSubtitleTimelineLoader {
         )
     }
 
-    private fun isMatroskaAssCodec(codecId: String?): Boolean =
+    internal fun isMatroskaAssCodec(codecId: String?): Boolean =
         codecId.equals(MATROSKA_ASS_CODEC_ID, ignoreCase = true) ||
-            codecId.equals(MATROSKA_SSA_CODEC_ID, ignoreCase = true)
+            codecId.equals(MATROSKA_SSA_CODEC_ID, ignoreCase = true) ||
+            codecId.equals("S_ASS", ignoreCase = true) ||
+            codecId.equals("S_SSA", ignoreCase = true)
 
     private fun buildFallbackTrackLabel(track: MatroskaSubtitleTrack): String {
         val language = track.languageIetf?.takeIf { it.isNotBlank() }
@@ -1406,7 +1396,7 @@ internal object EmbeddedSubtitleTimelineLoader {
         requireExactLength: Boolean = false,
     ): RangeResponse? {
         if (length <= 0 || start < 0L) return null
-        if (!stats.canRequest(length)) return null
+        if (!stats.canRequest(length)) throw IOException("Embedded index probe budget exhausted")
         val end = start + length - 1L
         if (end < start) return null
 
@@ -1426,10 +1416,10 @@ internal object EmbeddedSubtitleTimelineLoader {
         }
 
         val remainingBudgetMs = stats.remainingBudgetMs()
-        if (remainingBudgetMs <= 0L) return null
+        if (remainingBudgetMs <= 0L) throw IOException("Embedded index probe timed out")
 
         stats.requests++
-        val call = httpClient.newCall(requestBuilder.build())
+        val call = stats.calls.newCall(requestBuilder.build())
         call.timeout().timeout(
             minOf(remainingBudgetMs.coerceAtLeast(1L), REQUEST_TIMEOUT_MS),
             TimeUnit.MILLISECONDS,
@@ -1459,19 +1449,25 @@ internal object EmbeddedSubtitleTimelineLoader {
 
                         try {
                             val result = response.use { current ->
-                                if (!current.isSuccessful) return@use null
-                                if (requirePartialContent && current.code != 206) return@use null
-                                if (start > 0L && current.code != 206) return@use null
+                                if (!current.isSuccessful) throw IOException("Embedded index HTTP ${current.code}")
+                                if ((requirePartialContent || start > 0L) && current.code != 206) {
+                                    throw IOException("Embedded index range unavailable")
+                                }
 
                                 val contentRange = parseContentRange(
                                     current.header("Content-Range"),
                                 )
                                 if (current.code == 206) {
-                                    val parsedRange = contentRange ?: return@use null
-                                    if (parsedRange.start != start) return@use null
+                                    val returnedEnd = contentRange?.end
+                                    val total = contentRange?.total
+                                    if (contentRange?.start != start || returnedEnd == null || returnedEnd !in start..end ||
+                                        (total != null && returnedEnd >= total)
+                                    ) {
+                                        throw IOException("Embedded index received a mismatched range")
+                                    }
                                 }
 
-                                val body = current.body ?: return@use null
+                                val body = current.body ?: throw IOException("Embedded index response has no body")
                                 val input = body.byteStream()
                                 val bytes = ByteArray(length)
                                 var offset = 0
@@ -1480,7 +1476,7 @@ internal object EmbeddedSubtitleTimelineLoader {
                                         stats.remainingBudgetMs() <= 0L ||
                                         stats.remainingByteBudget() <= 0L
                                     ) {
-                                        return@use null
+                                        throw IOException("Embedded index read budget exhausted")
                                     }
                                     val allowedRead = minOf(
                                         length - offset,
@@ -1495,8 +1491,10 @@ internal object EmbeddedSubtitleTimelineLoader {
                                     offset += read
                                     stats.bytesDownloaded += read.toLong()
                                 }
-                                if (offset == 0) return@use null
-                                if (requireExactLength && offset != length) return@use null
+                                val expected = contentRange?.end?.let { it - start + 1L }
+                                if (offset == 0 || expected != null && offset.toLong() != expected ||
+                                    requireExactLength && offset != length
+                                ) throw IOException("Embedded index range is truncated")
 
                                 val returnedBytes =
                                     if (offset == length) bytes else bytes.copyOf(offset)
@@ -1685,6 +1683,14 @@ internal object EmbeddedSubtitleTimelineLoader {
         val headerSize: Int,
     )
 
+    // Equality includes headers so different credentials cannot share a cached probe.
+    private class IndexSource(val url: String, val headers: Map<String, String>) {
+        override fun equals(other: Any?): Boolean = other is IndexSource && url == other.url && headers == other.headers
+        override fun hashCode(): Int = 31 * url.hashCode() + headers.hashCode()
+    }
+
+    private data class IndexedRead(val timeline: IndexedEmbeddedTimeline?)
+
     private data class CachedLoadResult(
         val timeline: IndexedEmbeddedTimeline?,
         val createdAtNs: Long,
@@ -1696,6 +1702,7 @@ internal object EmbeddedSubtitleTimelineLoader {
     )
 
     private data class RangeStats(
+        val calls: Call.Factory,
         var requests: Int = 0,
         var bytesDownloaded: Long = 0L,
         val deadlineNs: Long,

@@ -9,6 +9,8 @@ import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.core.scout.sync.ImportChange
 import com.nuvio.tv.core.scout.sync.OutAction
 import com.nuvio.tv.domain.model.ScoutAskTarget
+import com.nuvio.tv.domain.model.ScoutDiscoveryHistory
+import com.squareup.moshi.Moshi
 import com.nuvio.tv.domain.model.ScoutProfile
 import com.nuvio.tv.domain.model.ScoutRating
 import com.nuvio.tv.domain.model.ScoutRatingEntry
@@ -50,11 +52,14 @@ class ScoutStore @Inject constructor(
     private val gemsRow = booleanPreferencesKey("gems_row")
     private val tilesRow = booleanPreferencesKey("tiles_row_chosen")
     private val showWatched = booleanPreferencesKey("show_watched")
+    private val showInMenu = booleanPreferencesKey("show_in_menu")
     private val listEmojis = booleanPreferencesKey("list_emojis")
     private val leaveOutGenres = stringSetPreferencesKey("leave_out_genres")
     private val leaveOutLanguages = stringSetPreferencesKey("leave_out_languages")
     private val asked = stringSetPreferencesKey("asked")
     private val savedSlices = stringPreferencesKey("saved_slices")
+    private val discovery = stringPreferencesKey("discovery_history_v1")
+    private val discoveryAdapter = Moshi.Builder().build().adapter(ScoutDiscoveryHistory::class.java)
     private val tasteRow = stringPreferencesKey("taste_row")
     private val sendToTrackers = booleanPreferencesKey("send_to_trackers")
     private val useTrackerRatings = booleanPreferencesKey("use_tracker_ratings")
@@ -67,6 +72,24 @@ class ScoutStore @Inject constructor(
     val profile: Flow<ScoutProfile> = profileManager.activeProfileId.flatMapLatest { id ->
         factory.get(id, FEATURE).data.map { readProfile(id, it) }
     }.distinctUntilChanged().flowOn(Dispatchers.Default)
+
+    fun observeDiscovery(profileId: Int): Flow<ScoutDiscoveryHistory> =
+        factory.get(profileId, FEATURE).data.map { decodeDiscovery(it[discovery]) }.distinctUntilChanged()
+
+    internal suspend fun updateDiscovery(
+        profileId: Int,
+        update: (ScoutDiscoveryHistory) -> ScoutDiscoveryHistory
+    ) {
+        factory.get(profileId, FEATURE).edit { prefs ->
+            prefs[discovery] = discoveryAdapter.toJson(update(decodeDiscovery(prefs[discovery])))
+        }
+    }
+
+    private fun decodeDiscovery(raw: String?): ScoutDiscoveryHistory =
+        raw?.let { runCatching { discoveryAdapter.fromJson(it) }.getOrNull() } ?: ScoutDiscoveryHistory()
+
+    fun observeShowInMenu(profileId: Int): Flow<Boolean> =
+        factory.get(profileId, FEATURE).data.map { it[showInMenu] ?: true }.distinctUntilChanged()
 
     fun observeShowWatched(profileId: Int): Flow<Boolean> =
         factory.get(profileId, FEATURE).data.map { it[showWatched] ?: true }.distinctUntilChanged()
@@ -221,10 +244,11 @@ class ScoutStore @Inject constructor(
             it[sendToTrackers] = next.sendToTrackers
             it[useTrackerRatings] = next.useTrackerRatings
             it[listEmojis] = next.listEmojis
+            it[showInMenu] = next.showInMenu
         }
     }
 
-    suspend fun current(): ScoutProfile = profile.first()
+    suspend fun current(): ScoutProfile = profileOf(profileManager.activeProfileId.value)
 
     suspend fun profileOf(profileId: Int): ScoutProfile = readProfile(profileId, factory.get(profileId, FEATURE).data.first())
 
@@ -242,7 +266,8 @@ class ScoutStore @Inject constructor(
         tasteRow = p[tasteRow] ?: "titles",
         sendToTrackers = p[sendToTrackers] ?: false,
         useTrackerRatings = p[useTrackerRatings] ?: true,
-        listEmojis = p[listEmojis] ?: false
+        listEmojis = p[listEmojis] ?: false,
+        showInMenu = p[showInMenu] ?: true
     )
 
     private fun readProfile(profileId: Int, p: Preferences): ScoutProfile {

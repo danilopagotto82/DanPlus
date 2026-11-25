@@ -226,7 +226,15 @@ class ScoutMixViewModel @Inject constructor(
         stopCountdown()
     }
 
+    /** Preview shares the prepared queue and leaves playback history untouched. */
+    fun preview(): List<ScoutMixPick.Episode> {
+        if (profiles.activeProfileId.value != profileId) return emptyList()
+        val current = _state.value
+        return mixQueueTiles(current.pick as? ScoutMixPick.Episode, current.coming)
+    }
+
     fun remix() {
+        if (profiles.activeProfileId.value != profileId) return
         stopCountdown()
         inARow = 0
         noLinkRow = 0
@@ -242,6 +250,7 @@ class ScoutMixViewModel @Inject constructor(
 
     /** Marks the pick as this mix's and hands it to the sources page. */
     fun play(): ScoutMixPick.Episode? {
+        if (profiles.activeProfileId.value != profileId) return null
         stopCountdown()
         val pick = _state.value.pick as? ScoutMixPick.Episode ?: return null
         session.start(profileId, mixId, pick.meta.id, pick.video.id)
@@ -251,6 +260,7 @@ class ScoutMixViewModel @Inject constructor(
 
     /** Plays an episode from the row. The rest of the queue stays as it was. */
     fun playFrom(episode: ScoutMixPick.Episode): ScoutMixPick.Episode? {
+        if (profiles.activeProfileId.value != profileId) return null
         stopCountdown()
         _state.update { it.copy(pick = episode, coming = it.coming.filter { queued -> queued.key != episode.key }) }
         return play()?.also { picked -> mix.value?.let { fillComing(it, picked) } }

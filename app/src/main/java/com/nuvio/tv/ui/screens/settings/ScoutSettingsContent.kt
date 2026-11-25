@@ -227,6 +227,13 @@ internal fun ScoutSettingsContent(
                 }
             )
         }
+        SettingsToggleRow(
+            title = stringResource(R.string.scout_show_in_menu),
+            subtitle = null,
+            leadingIcon = Icons.Default.ThumbsUpDown,
+            checked = settings.showInMenu,
+            onToggle = { viewModel.updateSettings { it.copy(showInMenu = !it.showInMenu) } }
+        )
         SettingsGroupCard(title = stringResource(R.string.scout_settings_ratings)) {
             SettingsToggleRow(
                 title = stringResource(R.string.scout_ratings_enabled),

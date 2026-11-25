@@ -285,6 +285,9 @@ open class MainActivity : ComponentActivity() {
     lateinit var layoutPreferenceDataStore: LayoutPreferenceDataStore
 
     @Inject
+    lateinit var scoutStore: com.nuvio.tv.data.local.ScoutStore
+
+    @Inject
     lateinit var experienceModeDataStore: ExperienceModeDataStore
 
     @Inject
@@ -1207,8 +1210,15 @@ open class MainActivity : ComponentActivity() {
                     val calendarInMenu by calendarInMenuFlow.collectAsState(
                         initial = com.nuvio.tv.ui.screens.calendar.calendarMenuVisible(calendarSettingsDataStore.settings.value)
                     )
-                    val rootRoutes = remember(discoverLocation, calendarInMenu) {
-                        appRootRoutes(discoverInSidebar = discoverLocation == DiscoverLocation.IN_SIDEBAR, calendarInMenu = calendarInMenu)
+                    val scoutInMenu by key(activeProfileId) {
+                        remember(activeProfileId) { scoutStore.observeShowInMenu(activeProfileId) }.collectAsState(initial = true)
+                    }
+                    val rootRoutes = remember(discoverLocation, calendarInMenu, scoutInMenu) {
+                        appRootRoutes(
+                            discoverInSidebar = discoverLocation == DiscoverLocation.IN_SIDEBAR,
+                            calendarInMenu = calendarInMenu,
+                            scoutInMenu = scoutInMenu
+                        )
                     }
 
                     SideEffect {
@@ -1243,7 +1253,8 @@ open class MainActivity : ComponentActivity() {
                         strNavSettings,
                         strNavCalendar,
                         discoverLocation,
-                        calendarInMenu
+                        calendarInMenu,
+                        scoutInMenu
                     ) {
                         buildList {
                             add(
@@ -1269,7 +1280,7 @@ open class MainActivity : ComponentActivity() {
                                     iconRes = R.raw.sidebar_search
                                 )
                             )
-                            if (com.nuvio.tv.domain.model.ScoutFeature.available) {
+                            if (scoutInMenu && com.nuvio.tv.domain.model.ScoutFeature.available) {
                                 add(DrawerItem(route = Screen.Scout.route, label = strNavScout, iconRes = R.raw.sidebar_scout))
                             }
                             add(
@@ -2877,10 +2888,14 @@ internal fun launchTargetsReady(storedMode: ExperienceMode?, hasChosenLayout: Bo
     resolveStartExperienceMode(storedMode, hasChosenLayout) != null
 
 /** Pages with a menu entry; a page without one, such as a hidden Calendar opened from a reminder, goes Back to Home. */
-internal fun appRootRoutes(discoverInSidebar: Boolean, calendarInMenu: Boolean): Set<String> = buildSet {
+internal fun appRootRoutes(
+    discoverInSidebar: Boolean,
+    calendarInMenu: Boolean,
+    scoutInMenu: Boolean = true
+): Set<String> = buildSet {
     add(Screen.Home.route)
     add(Screen.Search.route)
-    if (com.nuvio.tv.domain.model.ScoutFeature.available) add(Screen.Scout.route)
+    if (scoutInMenu && com.nuvio.tv.domain.model.ScoutFeature.available) add(Screen.Scout.route)
     add(Screen.Library.route)
     add(Screen.DanexusRecommendations.route)
     if (calendarInMenu) add(Screen.Calendar.route)

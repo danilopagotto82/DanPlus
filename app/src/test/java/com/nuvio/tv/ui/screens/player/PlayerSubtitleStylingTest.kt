@@ -12,6 +12,7 @@ import androidx.media3.ui.PlayerView
 import androidx.media3.ui.SubtitleView
 import com.nuvio.tv.R
 import com.nuvio.tv.data.local.SubtitleStyleSettings
+import com.nuvio.tv.data.local.AssSubtitleStyleSettings
 import io.mockk.*
 import org.junit.Assert.*
 import org.junit.Before
@@ -19,6 +20,24 @@ import org.junit.After
 import org.junit.Test
 
 class PlayerSubtitleStylingTest {
+    @Test
+    fun assHasSeparateSizeAndFontAndMpvPreservesAuthorStyleByDefault() {
+        val text = SubtitleStyleSettings(
+            size = 155, verticalOffset = 40, bitmapSize = 125, importedFontId = "text",
+            ass = AssSubtitleStyleSettings(size = 120, verticalOffset = 12, importedFontId = "ass")
+        )
+
+        val original = text.forMpvTrack(isAss = true)
+        assertEquals(100, original.size)
+        assertNull(original.importedFontId)
+        assertSame(text, text.forMpvTrack(isAss = false))
+        assertEquals(125, text.forMpvTrack(isAss = false).bitmapSize)
+
+        val optedIn = text.copy(ass = text.ass.copy(customizeInMpv = true)).forMpvTrack(isAss = true)
+        assertEquals(120, optedIn.size)
+        assertEquals(12, optedIn.verticalOffset)
+        assertEquals("ass", optedIn.importedFontId)
+    }
     private val view = mockk<PlayerView>(relaxed = true)
     private val subtitles = mockk<SubtitleView>(relaxed = true)
     private val player = mockk<ExoPlayer>(relaxed = true)

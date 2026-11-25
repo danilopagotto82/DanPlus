@@ -456,10 +456,13 @@ class NuvioMpvSurfaceView @JvmOverloads constructor(
     }.getOrDefault(false)
     var subtitleLiftFraction: Double = 0.0
 
-    fun applySubtitleStyle(style: SubtitleStyleSettings) {
+    fun applySubtitleStyle(textStyle: SubtitleStyleSettings) {
         if (!initialized) return
         runCatching {
-            val scale = subtitleScale(style) * plainFontScale(style)
+            val isAss = isAssOrSsaSubtitleSelectedNow()
+            val style = textStyle.forMpvTrack(isAss)
+            mpv.setPropertyString("sub-ass-override", if (isAss && textStyle.ass.customizeInMpv) "force" else "no")
+            val scale = subtitleScale(style) * if (isAss) 1.0 else plainFontScale(style)
             val clampedOffset = style.verticalOffset.coerceIn(
                 SUBTITLE_VERTICAL_OFFSET_MIN,
                 SUBTITLE_VERTICAL_OFFSET_MAX
@@ -470,7 +473,7 @@ class NuvioMpvSurfaceView @JvmOverloads constructor(
                 (normalizedOffset * (MPV_SUB_POS_AT_BOTTOM - MPV_SUB_POS_AT_TOP))
             val subMarginY = (MPV_SUB_MARGIN_Y_MIN +
                 (normalizedOffset * (MPV_SUB_MARGIN_Y_MAX - MPV_SUB_MARGIN_Y_MIN))).toInt()
-            val edges = mpvSubtitleEdges(style, isAssOrSsaSubtitleSelectedNow())
+            val edges = mpvSubtitleEdges(style, isAss)
             val importedFont = com.nuvio.tv.core.player.ImportedSubtitleFonts.get(context, style.importedFontId)
             mpv.setPropertyString("sub-font", importedFont?.family ?: style.font.mpvFontName(style.bold))
 
@@ -551,6 +554,9 @@ class NuvioMpvSurfaceView @JvmOverloads constructor(
 
     private fun isAssOrSsaSubtitleSelectedNow(): Boolean {
         if (!initialized) return false
+        mpv.getPropertyString("current-tracks/sub/codec")?.takeIf(String::isNotBlank)?.let {
+            return PlayerSubtitleUtils.isAssCodec(it)
+        }
         val trackCount = mpv.getPropertyInt("track-list/count") ?: return false
         if (trackCount <= 0) return false
 
@@ -570,7 +576,7 @@ class NuvioMpvSurfaceView @JvmOverloads constructor(
                 ?.trim()
                 ?.lowercase(Locale.US)
                 ?: return false
-            return codec.contains("ass") || codec.contains("ssa")
+            return PlayerSubtitleUtils.isAssCodec(codec)
         }
         return false
     }

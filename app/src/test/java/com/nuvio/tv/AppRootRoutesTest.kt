@@ -10,6 +10,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppRootRoutesTest {
+    @Test fun `Descubra-me can be hidden from the root menu`() {
+        assertFalse(Screen.Scout.route in appRootRoutes(discoverInSidebar = false, calendarInMenu = false, scoutInMenu = false))
+    }
     @Test fun `a hidden Calendar is not a menu page, so Back from it goes Home`() {
         assertTrue(Screen.Calendar.route in appRootRoutes(discoverInSidebar = false, calendarInMenu = true))
         assertFalse(Screen.Calendar.route in appRootRoutes(discoverInSidebar = false, calendarInMenu = false))

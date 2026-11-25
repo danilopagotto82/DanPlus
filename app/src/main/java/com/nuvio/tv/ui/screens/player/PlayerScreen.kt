@@ -969,7 +969,7 @@ fun PlayerScreen(
             }
         }
     }
-    val remoteButtonsReady = uiState.error == null &&
+    val remoteButtonsReady = uiState.error == null && !uiState.showDiscTitlePicker &&
         !uiState.showEpisodesPanel && !uiState.showChaptersPanel && !uiState.showSourcesPanel &&
         !uiState.showAudioOverlay && !uiState.showSubtitleOverlay &&
         !uiState.showSubtitleStylePanel && !uiState.showSpeedDialog &&
@@ -3052,7 +3052,7 @@ private fun MpvPlayerSurface(
         mpvView.applyAspectMode(aspectMode)
     }
 
-    LaunchedEffect(mpvView, subtitleStyle, subtitleLiftPx) {
+    LaunchedEffect(mpvView, subtitleStyle, subtitleLiftPx, subtitleTrackKey) {
         val height = mpvView.height
         mpvView.subtitleLiftFraction = if (subtitleLiftPx > 0f && height > 0) {
             (subtitleLiftPx / height).toDouble()

@@ -315,7 +315,8 @@ interface TmdbApi {
         @Query("api_key") apiKey: String,
         @Query("query") query: String,
         @Query("language") language: String? = null,
-        @Query("include_adult") includeAdult: Boolean = false
+        @Query("include_adult") includeAdult: Boolean = false,
+        @Query("page") page: Int = 1
     ): Response<TmdbDiscoverResponse>
 
     @GET("search/tv")
@@ -323,7 +324,8 @@ interface TmdbApi {
         @Query("api_key") apiKey: String,
         @Query("query") query: String,
         @Query("language") language: String? = null,
-        @Query("include_adult") includeAdult: Boolean = false
+        @Query("include_adult") includeAdult: Boolean = false,
+        @Query("page") page: Int = 1
     ): Response<TmdbDiscoverResponse>
 
     @GET("search/company")

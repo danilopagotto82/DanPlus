@@ -1791,6 +1791,7 @@ internal fun PlayerRuntimeController.initializePlayer(
 
             if (useLibass) {
                 _exoPlayer?.getAssHandlerCompat()?.let { handler ->
+                    handler.applyAssFontScale(playerSettings.subtitleStyle.ass.size)
                     // The effect is added on the rebuild that follows an ASS track; it re-renders
                     // every frame, which Dolby Vision, the native FEL plane and tunnelling cannot take.
                     val shouldApplyEffects = hasDetectedAssSsaTrackForCurrentStream &&

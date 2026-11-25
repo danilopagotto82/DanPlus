@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="scout_title">Descubra-me</string>
+    <string name="scout_show_in_menu">Mostrar Descubra-me no menu</string>
     <string name="scout_rate">Avaliar</string>
     <string name="scout_rate_not_for_me">Não é para mim</string>
     <string name="scout_rate_like">Gostei</string>

@@ -5,6 +5,7 @@ import com.nuvio.tv.core.ratinglimit.RatingLimit
 import com.nuvio.tv.core.ratinglimit.ratingLimitGateOrNull
 import com.nuvio.tv.core.ratinglimit.ratingRank
 import com.nuvio.tv.domain.model.isAnimeRecap
+import com.nuvio.tv.domain.model.ScoutAdvancedSearch
 import android.util.Log
 import com.nuvio.tv.data.local.ScoutStore
 import com.nuvio.tv.data.local.TmdbSettingsDataStore
@@ -234,8 +235,8 @@ class ScoutPicksFinder @Inject constructor(
     }
 
     private suspend fun fullRowKey(key: String): String {
-        val rated = store.current().ratings.values.sumOf { it.ratedAt }
         val profile = engine.activeProfile()
+        val rated = store.profileOf(profile).ratings.values.sumOf { it.ratedAt }
         val moodsChecked = withContext(Dispatchers.IO) { moodAi.read(profile).moods.values.sumOf { it.checkedAt } }
         return "$key|${tmdbSettings.settings.first().language}|${pool()?.builtAt}|$rated|$profile|$moodsChecked"
     }
@@ -254,14 +255,16 @@ class ScoutPicksFinder @Inject constructor(
         }
     }
 
-    suspend fun keepRow(key: String, picks: List<ScoutPick>) {
-        keptRows[fullRowKey(key)] = ScoutKeptRow(picks, System.currentTimeMillis())
+    suspend fun keepRow(key: String, picks: List<ScoutPick>, profileId: Int = engine.activeProfile()) {
+        if (engine.activeProfile() != profileId) return
+        val fullKey = fullRowKey(key)
+        if (engine.activeProfile() == profileId) keptRows[fullKey] = ScoutKeptRow(picks, System.currentTimeMillis())
     }
 
     suspend fun exclusions(): ScoutExclusions {
-        val profile = store.current()
-        val now = System.currentTimeMillis()
         val profileId = engine.activeProfile()
+        val profile = store.profileOf(profileId)
+        val now = System.currentTimeMillis()
         val seen = seenExclusions?.takeIf { it.profileId == profileId }
             ?: return engine.exclusions(profile).also { seenExclusions = SeenExclusions(profileId, profile, now, it) }
         if ((seen.profile != profile || now - seen.at >= EXCLUSIONS_FRESH_MS) && refreshingExclusions.compareAndSet(false, true)) {
@@ -277,7 +280,7 @@ class ScoutPicksFinder @Inject constructor(
         return seen.exclusions.withNotForMe(profile)
     }
 
-    fun pool(): ScoutPool? = engine.pool.value
+    fun pool(): ScoutPool? = engine.activePool()
 
     suspend fun refreshPool() = engine.refreshIfDue()
 
@@ -308,7 +311,49 @@ class ScoutPicksFinder @Inject constructor(
         }
     }
 
-    fun surprisePool(): List<ScoutPick> = engine.pool.value?.picked.orEmpty().take(SURPRISE_FROM)
+    fun surprisePool(): List<ScoutPick> = pool()?.picked.orEmpty().take(SURPRISE_FROM)
+
+    suspend fun fetchAdvanced(query: ScoutAdvancedSearch, answers: ScoutAnswers, page: Int): List<ScoutPick> {
+        val normalized = query.normalized()
+        val profileId = engine.activeProfile()
+        val slice = answers.slice()
+        val language = tmdbSettings.settings.first().language
+        fun TmdbCollectionFilters.withQuery(): TmdbCollectionFilters {
+            val year = normalized.year
+            val earliest = listOfNotNull(releaseDateGte, year?.let { "$it-01-01" }).maxOrNull()
+            val latest = listOfNotNull(releaseDateLte, year?.let { "$it-12-31" }).minOrNull()
+            return copy(
+                withGenres = listOfNotNull(withGenres, normalized.genreIds.takeIf { it.isNotEmpty() }?.joinToString(","))
+                    .joinToString(",").ifEmpty { null },
+                withKeywords = listOfNotNull(withKeywords, normalized.keywordExpression()).joinToString(",").ifEmpty { null },
+                withOriginalLanguage = withOriginalLanguage ?: normalized.originalLanguage,
+                releaseDateGte = earliest,
+                releaseDateLte = latest,
+            )
+        }
+        val matches = coroutineScope {
+            suspend fun candidates(filters: TmdbCollectionFilters?, tv: Boolean): List<ScoutPick> {
+                if (filters == null) return emptyList()
+                val canUseTitleSearch = answers.watch in setOf(ScoutWatch.ANYTHING, ScoutWatch.MOVIE, ScoutWatch.SERIES) &&
+                    answers.copy(watch = ScoutWatch.ANYTHING).isUnset
+                if (normalized.exactPhrase.isNotEmpty() && canUseTitleSearch && normalized.keywordIds.isEmpty()) {
+                    val apiKey = com.nuvio.tv.core.tmdb.TmdbApiKey.value
+                    val response = try {
+                        if (tv) tmdbApi.searchTv(apiKey, normalized.exactPhrase, language, page = page)
+                        else tmdbApi.searchMovies(apiKey, normalized.exactPhrase, language, page = page)
+                    } catch (_: java.io.IOException) {
+                        return emptyList()
+                    }
+                    return eligibleForActiveProfile(response.body()?.results.orEmpty().mapNotNull { it.toPick(tv) })
+                }
+                return discover(filters.withQuery(), tv, slice.sortBy, page, language)
+            }
+            val movies = async { candidates(slice.movie, false) }
+            val series = async { candidates(slice.tv, true) }
+            movies.await() + series.await()
+        }
+        return if (engine.activeProfile() == profileId) matches.filter(normalized::matches) else emptyList()
+    }
 
     suspend fun moreLike(pick: ScoutPick): List<ScoutPick> {
         val language = tmdbSettings.settings.first().language
