@@ -16,6 +16,14 @@ internal fun PlayerRuntimeController.releasePlayer(
     keepTorrentStream: Boolean = false,
     trimBufferInBackground: Boolean = false
 ) {
+    if (discPlaybackSession != null || discPreparationJob != null) {
+        discPreparationJob?.cancel()
+        discPreparationJob = null
+        cancelStartupWatchdog()
+        cancelFirstFrameWatchdog()
+        cancelStallWatchdog()
+        cancelTunnelAvSyncWatchdog()
+    }
     if (!preserveRecovery) {
         playbackRecoveryJob?.cancel()
         playbackRecoveryJob = null
@@ -162,6 +170,7 @@ internal fun PlayerRuntimeController.releasePlayer(
     currentExoPlayerListener = null
     currentExoAnalyticsListener = null
     resetPlaybackTimeline()
+    if (flushPlaybackState && !keepTorrentStream) clearDiscPlayback()
     isReleasingPlayer = false
 }
 

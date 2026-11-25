@@ -9,8 +9,12 @@ import androidx.media3.datasource.DataSpec
  * Each progressive media source keeps its detected layout when it reopens for a seek.
  */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-internal class BdavM2tsDataSourceFactory(private val upstream: DataSource.Factory) : DataSource.Factory {
+internal class BdavM2tsDataSourceFactory(
+    private val requireBdav: Boolean = false,
+    private val upstream: DataSource.Factory
+) : DataSource.Factory {
     @Volatile private var bdavDetected: Boolean? = null
+    val hasDetectedBdav: Boolean get() = bdavDetected == true
 
     override fun createDataSource(): DataSource = BdavM2tsDataSource(upstream.createDataSource())
 
@@ -54,6 +58,7 @@ internal class BdavM2tsDataSourceFactory(private val upstream: DataSource.Factor
                     !hasSyncPattern(0, TS_PACKET_SIZE)
                 bdavDetected = stripPrefixes
             }
+            if (requireBdav && !stripPrefixes) throw java.io.IOException("Invalid BDAV packet layout")
             if (!stripPrefixes || rawLength == C.LENGTH_UNSET.toLong()) return rawLength
             return toTsPosition(Math.addExact(rawPosition, rawLength)) - start
         }

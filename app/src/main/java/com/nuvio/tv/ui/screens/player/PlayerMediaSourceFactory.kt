@@ -69,6 +69,7 @@ internal class PlayerMediaSourceFactory(
     private val isMediaServerUrl: (String) -> Boolean = { false }
 ) {
     private var customExtractorsFactory: ExtractorsFactory? = null
+    private var decorateBdavExtractors: (ExtractorsFactory) -> ExtractorsFactory = { it }
     private var customSubtitleParserFactory: SubtitleParser.Factory? = null
     private val loadErrorHandlingPolicy = PlayerLoadErrorHandlingPolicy()
     private val playbackStart = NewPlaybackGate()
@@ -199,6 +200,10 @@ internal class PlayerMediaSourceFactory(
     ) {
         customExtractorsFactory = extractorsFactory
         customSubtitleParserFactory = subtitleParserFactory
+    }
+
+    fun configureBdavExtractors(decorator: (ExtractorsFactory) -> ExtractorsFactory) {
+        decorateBdavExtractors = decorator
     }
 
     /**
@@ -486,7 +491,7 @@ internal class PlayerMediaSourceFactory(
         }
         Log.i(LOG_TAG, "VOD_CACHE: eligible=$useVodCache ready=${sharedSimpleCache != null}")
 
-        val extractorsFactory = customExtractorsFactory ?: DefaultExtractorsFactory()
+        val defaultExtractors = customExtractorsFactory ?: DefaultExtractorsFactory()
         // MediaItem subtitle tracks load through this factory too; route addon subtitles through the
         // subtitle download path so they don't inherit the stream's headers and client.
         val transferSession = PlaybackByteCounter.beginSource(url, when {
@@ -495,11 +500,13 @@ internal class PlayerMediaSourceFactory(
             else -> PlaybackTransferCoverage.PROGRESSIVE
         })
         val countedMediaFactory = CountingDataSourceFactory(progressiveFactory, transferSession)
-        val mediaFactory = if (resolvedMimeType == MimeTypes.VIDEO_MP2T && isHttpDiscClip(url, filename)) {
-            BdavM2tsDataSourceFactory(countedMediaFactory)
-        } else {
-            countedMediaFactory
-        }
+        val bdav = if (resolvedMimeType == MimeTypes.VIDEO_MP2T && isHttpDiscClip(url, filename)) {
+            BdavM2tsDataSourceFactory(upstream = countedMediaFactory)
+        } else null
+        val mediaFactory: DataSource.Factory = bdav ?: countedMediaFactory
+        val extractorsFactory = bdav?.let {
+            BlurayMediaSources.extractors(it, defaultExtractors, decorateBdavExtractors)
+        } ?: defaultExtractors
         val defaultSourceFactory = if (subtitleConfigurations.isNotEmpty()) {
             SubtitleRoutingDataSourceFactory(mediaFactory, url, headers, subtitleRoutes)
         } else {

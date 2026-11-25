@@ -50,11 +50,16 @@ internal class DolbyVisionExtractorsFactory(
     private val stripDvRpu: Boolean = false,
     private val stripHdr10PlusSei: Boolean = false,
     private val injectHdr10Sei: Boolean = false,
-    autoSyncObservesText: Boolean = false
+    private val autoSyncObservesText: Boolean = false
 ) : ExtractorsFactory {
 
     private val subtitleParsers =
         RenderTimeSubtitles.extractionParsers(DefaultSubtitleParserFactory(), autoSyncObservesText)
+
+    fun withDelegate(factory: ExtractorsFactory): DolbyVisionExtractorsFactory =
+        DolbyVisionExtractorsFactory(
+            factory, config, stripDvRpu, stripHdr10PlusSei, injectHdr10Sei, autoSyncObservesText
+        )
 
     override fun createExtractors(): Array<Extractor> =
         delegate.createExtractors().map(::wrap).toTypedArray()

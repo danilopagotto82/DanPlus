@@ -1315,6 +1315,7 @@ internal fun PlayerRuntimeController.surfaceSourceFailoverError(
  * source for this session.
  */
 internal fun PlayerRuntimeController.attemptStartupExhaustedSourceFailover(detailedError: String): Boolean {
+    if (returnToDiscFeature(discPlaybackSession?.extraSession?.ticket, failed = true)) return true
     if (hasPresentedPlayback) return false
     Log.w(
         PlayerRuntimeController.TAG,

@@ -694,6 +694,10 @@ internal fun PlayerRuntimeController.selectAddonSubtitle(subtitle: Subtitle) {
  * Wipes ExoPlayer's in-memory buffer — used only when the hot sidecar path cannot handle the format.
  */
 internal fun PlayerRuntimeController.attachAddonSubtitleViaMediaReload(subtitle: Subtitle) {
+    if (discPlaybackSession?.feature != null) {
+        android.widget.Toast.makeText(context, R.string.player_disc_subtitle_unsupported, android.widget.Toast.LENGTH_SHORT).show()
+        return
+    }
     val player = _exoPlayer ?: return
     stopSidecarAddonSubtitle(clearView = true)
     val normalizedLang = PlayerSubtitleUtils.normalizeLanguageCode(subtitle.lang)
@@ -812,6 +816,7 @@ internal fun trackPreferenceForPersistence(
 }
 
 internal fun PlayerRuntimeController.persistTrackPreference() {
+    if (isPlayingDiscExtra) return
     val id = contentId ?: return
     // Use the currently-effective preference (remembered OR previously persisted)
     // so that a delay-only change does not wipe a previously-saved track selection.

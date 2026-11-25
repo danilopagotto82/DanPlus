@@ -113,6 +113,7 @@ internal object UnsupportedFormatMpvFallbackPolicy {
 
 /** Switches the current stream to MPV. Returns false when the stream already took this route once. */
 internal fun PlayerRuntimeController.switchToMpvForUnsupportedFormat(reason: String): Boolean {
+    if (discPlaybackSession?.feature != null) return false
     val url = currentStreamUrl
     if (url.isBlank() || !mpvFormatFallbackStreamUrls.add(url)) return false
     if (UnsupportedFormatMpvFallbackPolicy.isHighBitDepthH264(currentVideoTrackMimeType, currentVideoTrackCodecs)) {

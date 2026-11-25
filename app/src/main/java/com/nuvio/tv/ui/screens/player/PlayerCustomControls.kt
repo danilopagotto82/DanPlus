@@ -69,7 +69,7 @@ internal fun playerControlLabel(action: PlayerControlAction, playing: Boolean = 
     PlayerControlAction.PLAY_PAUSE -> if (playing) R.string.player_pill_pause else R.string.player_pill_play
     PlayerControlAction.RESTART -> R.string.player_pill_restart
     PlayerControlAction.EPISODES -> R.string.player_pill_episodes
-    PlayerControlAction.CHAPTERS -> R.string.player_chapters
+    PlayerControlAction.CHAPTERS -> if (LocalDiscTitlesAvailable.current) R.string.player_disc_titles else R.string.player_chapters
     PlayerControlAction.NEXT_EPISODE -> R.string.player_pill_next_episode
     PlayerControlAction.STATS -> R.string.cd_playback_stats
     PlayerControlAction.AUDIO -> R.string.cd_audio_tracks
@@ -246,7 +246,8 @@ internal fun PlayerCustomControls(
                 }
                 .onFocusChanged { focus.buttonFocused = it.hasFocus }.focusGroup(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                PlayerControlDeck(layout, available, focus::target, state.isPlaying, enabled = !warming,
+                CompositionLocalProvider(LocalDiscTitlesAvailable provides (state.discTitles.size > 1)) {
+                    PlayerControlDeck(layout, available, focus::target, state.isPlaying, enabled = !warming,
                     moreExpanded = state.showMoreDialog,
                     popupSelected = focus.requested ?: focus.pendingReturn,
                     onMoreDismiss = {
@@ -258,6 +259,7 @@ internal fun PlayerCustomControls(
                     upFocus = if (hasSeekTimeline) progressFocus else progressUpFocus ?: containerFocus,
                     onBottom = actions.hide, onClick = ::invoke,
                     onFocused = { focus.lastFocused = it; actions.interaction() }, modifier = Modifier.weight(1f))
+                }
             }
             if (reportCodeVisible && !state.playbackIssueReportId.isNullOrBlank()) Text(
                 state.playbackIssueReportId, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -266,3 +268,5 @@ internal fun PlayerCustomControls(
     }
     }
 }
+
+private val LocalDiscTitlesAvailable = staticCompositionLocalOf { false }

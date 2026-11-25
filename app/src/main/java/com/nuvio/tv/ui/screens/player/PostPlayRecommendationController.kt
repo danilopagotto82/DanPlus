@@ -254,7 +254,7 @@ internal class PostPlayRecommendationController(
                         inputs = inputs
                     ),
                     contentType = playerState.contentType,
-                    postPlayRecommendationsEnabled = playerSettings.postPlayRecommendationsEnabled,
+                    postPlayRecommendationsEnabled = playerSettings.postPlayRecommendationsEnabled && playerState.discExtraId == null,
                     postPlayMovieThresholdPercent = playerSettings.postPlayMovieThresholdPercent,
                     isNextEpisodeMetadataResolved = playerState.isNextEpisodeMetadataResolved,
                     nextEpisodeHasAired = playerState.nextEpisode?.hasAired,

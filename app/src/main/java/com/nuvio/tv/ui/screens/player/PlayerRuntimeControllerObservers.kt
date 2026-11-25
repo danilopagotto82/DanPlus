@@ -1101,6 +1101,7 @@ internal fun PlayerRuntimeController.scheduleStartupWatchdog() {
                 }
                 is StartupWatchdogDecision.Step.Fire -> Unit
             }
+            if (returnToDiscFeature(discPlaybackSession?.extraSession?.ticket, failed = true)) return@launch
             val stateName = when (livePlayer.playbackState) {
                 Player.STATE_IDLE -> "IDLE"
                 Player.STATE_BUFFERING -> "BUFFERING"

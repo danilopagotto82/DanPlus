@@ -79,6 +79,10 @@ internal fun PlayerRuntimeController.switchToInternalPlayerEngine(
     preserveSourceFailover: Boolean = false
 ) {
     if (currentStreamUrl.isBlank()) return
+    if (discPlaybackSession?.feature != null) {
+        android.widget.Toast.makeText(context, R.string.player_disc_exoplayer, android.widget.Toast.LENGTH_SHORT).show()
+        return
+    }
     if (!preserveSourceFailover) finishSourceFailover()
 
     beginSwitchTraceSession(reason = reason, targetEngine = targetEngine)
@@ -176,7 +180,7 @@ internal fun PlayerRuntimeController.clearPendingEngineSwitchTrackPreference() {
     pendingEngineSwitchTrackPreference = null
 }
 
-private fun PlayerRuntimeController.rememberCurrentTrackPreferenceForEngineSwitch() {
+internal fun PlayerRuntimeController.rememberCurrentTrackPreferenceForEngineSwitch() {
     val state = _uiState.value
     val sourceEngine = currentInternalPlayerEngine
     logSwitchTrace(

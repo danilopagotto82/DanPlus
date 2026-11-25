@@ -410,6 +410,8 @@ internal fun PlayerRuntimeController.initializePlayer(
         _uiState.update { it.copy(error = context.getString(R.string.player_error_no_stream_url), showLoadingOverlay = false) }
         return
     }
+    discPreparationJob?.cancel()
+    if (discPlaybackSession?.let { it.url != url || it.headers != headers } == true) clearDiscPlayback()
     playbackRecoveryJob?.cancel()
     playbackRecoveryJob = null
     if (playbackRecoveryGate.begin(url, headers)) nativeFelDisabledStreamUrls.clear()
@@ -423,6 +425,10 @@ internal fun PlayerRuntimeController.initializePlayer(
     scope.launch {
         if (initializationGeneration != playbackRecoveryGate.generation) return@launch
         try {
+            val discSource = BlurayPlaylistResolver.locate(url)?.let { location ->
+                prepareDiscPlayback(location, url, headers, initializationGeneration, startPaused, startPositionMs)
+                    ?: return@launch
+            }
             // Player reuse: snapshot the live player's constructor-baked companions
             // before the per-stream resets and construction overwrite the fields.
             // Consumed only on the reuse branch at the build fork.
@@ -547,6 +553,7 @@ internal fun PlayerRuntimeController.initializePlayer(
             if (effectiveInternalPlayerEngine == InternalPlayerEngine.AUTO) {
                 effectiveInternalPlayerEngine = resolveAutoInternalPlayerEngine()
             }
+            if (discSource != null) effectiveInternalPlayerEngine = InternalPlayerEngine.EXOPLAYER
             // A format check always starts on the main player, whatever player is chosen; MPV only as its fallback.
             if (overrideInternalPlayerEngine == null && com.nuvio.tv.core.formatcheck.FormatCheckSession.active) {
                 effectiveInternalPlayerEngine = InternalPlayerEngine.EXOPLAYER
@@ -592,12 +599,15 @@ internal fun PlayerRuntimeController.initializePlayer(
                 message = context.getString(R.string.player_loading_detecting_format)
             )
 
-            resolveCurrentStreamMimeType(
-                url = url,
-                headers = headers
-            )
+            if (discSource == null) {
+                resolveCurrentStreamMimeType(url, headers)
+            } else {
+                currentStreamMimeType = MimeTypes.VIDEO_MP2T
+            }
 
             val afrJob = async {
+                // Playlist titles can share a URL but have a different cadence. Use their actual video tracks.
+                if (discSource != null) return@async
                 if (effectiveInternalPlayerEngine == InternalPlayerEngine.MVP_PLAYER) {
                     // MPV has no track-format path; keep the full probing preflight.
                     // Thread the resolved mimeType through so the
@@ -1565,7 +1575,7 @@ internal fun PlayerRuntimeController.initializePlayer(
             // feature is active it wraps with an inactive config - only the
             // Matroska swap fires (for the DTS-HD sniff); MP4/TS extractors are
             // returned untouched via the early return in wrap().
-            val dolbyVisionExtractorsFactory: ExtractorsFactory =
+            val dolbyVisionExtractorsFactory =
                     DolbyVisionExtractorsFactory(
                         delegate = extractorsFactory,
                         config = DolbyVisionConversionConfig(
@@ -1591,6 +1601,11 @@ internal fun PlayerRuntimeController.initializePlayer(
                 com.nuvio.tv.core.player.thumbnail.PlaybackTap.wrap(
                     autoSyncExtractorsFactory(dolbyVisionExtractorsFactory, url, headers) // AutoSync hook
                 )
+            mediaSourceFactory.configureBdavExtractors { factory ->
+                com.nuvio.tv.core.player.thumbnail.PlaybackTap.wrap(
+                    autoSyncExtractorsFactory(dolbyVisionExtractorsFactory.withDelegate(factory), url, headers)
+                )
+            }
 
             setLoadingStatus(
                 phase = "building_player",
@@ -1835,8 +1850,10 @@ internal fun PlayerRuntimeController.initializePlayer(
                 val secondary = playerSettings.subtitleStyle.secondaryPreferredLanguage
                 val tertiary = playerSettings.subtitleStyle.tertiaryPreferredLanguage
                 applySubtitlePreferences(preferred, secondary, tertiary)
-                applyStartupSubtitlePreparation(startupSubtitlePreparation)
-                val startupSubtitleConfigurations = buildStartupSubtitleConfigurations(startupSubtitlePreparation)
+                val applicableSubtitles = if (discSource == null) startupSubtitlePreparation
+                    else startupSubtitlePreparation.copy(attachedSubtitles = emptyList())
+                applyStartupSubtitlePreparation(applicableSubtitles)
+                val startupSubtitleConfigurations = buildStartupSubtitleConfigurations(applicableSubtitles)
                 // Join the saved-progress read before the
                 // resume position is resolved. Runway to here is the whole
                 // player build; SAVED_PROGRESS_AWAIT prices the residual.
@@ -1858,9 +1875,26 @@ internal fun PlayerRuntimeController.initializePlayer(
                         "vodCache=${mediaSourceFactory.vodCacheEnabled} tunneling=$isTunnelingActiveForCurrentPlayback"
                 playbackAnalyticsDiagnostics.recordRawEventLine(playerInitLine)
                 TtffTrace.mirror(playerInitLine)
-                noteSpeedupHint(url)
-                armStartCushion(url)
-                val initialMediaSource = mediaSourceFactory.createMediaSource(
+                if (discSource == null) {
+                    noteSpeedupHint(url)
+                    armStartCushion(url)
+                }
+                val initialMediaSource = if (discSource != null) {
+                    AudioDelayMediaSource(
+                        BlurayMediaSources.create(
+                            url, discSource.titleId, discSource.clips, headers, buildMediaSessionMetadata(),
+                            decorate = dolbyVisionExtractorsFactory::withDelegate
+                        ) {
+                            scope.launch notifyLpcm@{
+                                if (!playbackRecoveryGate.isCurrent(initializationGeneration, url, headers)) return@notifyLpcm
+                                android.widget.Toast.makeText(
+                                    context, R.string.player_disc_lpcm_unsupported, android.widget.Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        },
+                        audioDelayUs::get
+                    )
+                } else mediaSourceFactory.createMediaSource(
                     context = context,
                     url = url,
                     headers = headers,
@@ -1887,7 +1921,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                     message = context.getString(R.string.player_loading_starting)
                 )
                 // The thumbnails screen comes up from an index read early: the film opens when it ends.
-                val deferOpen = partyBridge?.inParty != true &&
+                val deferOpen = discSource == null && partyBridge?.inParty != true &&
                     com.nuvio.tv.core.player.thumbnail.SeekThumbnails.takeDeferredOpen()
                 if (!deferOpen) scheduleStartupWatchdog()
                 val isTunneledPlayback = isTunnelingActiveForCurrentPlayback
@@ -1918,12 +1952,16 @@ internal fun PlayerRuntimeController.initializePlayer(
                 currentExoPlayerListener?.let { staleListener -> removeListener(staleListener) }
                 currentExoPlayerListener = null
                 val exoPlayerListenerForStream = object : Player.Listener {
+                    private fun isStaleDiscCallback() = discSource != null &&
+                        (isReleasingPlayer || _exoPlayer !== this@apply ||
+                            initializationGeneration != playbackRecoveryGate.generation)
+
                     override fun onPositionDiscontinuity(
                         oldPosition: Player.PositionInfo,
                         newPosition: Player.PositionInfo,
                         reason: Int
                     ) {
-                        if (isReleasingPlayer || reason != Player.DISCONTINUITY_REASON_SEEK) return
+                        if (isReleasingPlayer || isStaleDiscCallback() || reason != Player.DISCONTINUITY_REASON_SEEK) return
                         com.nuvio.tv.core.report.PlaybackRecorder.seek(oldPosition.positionMs, newPosition.positionMs)
                         // Holding the seek button emits a discontinuity per step, and reading the
                         // span set on each one is real work on a cache holding thousands of spans.
@@ -1945,7 +1983,8 @@ internal fun PlayerRuntimeController.initializePlayer(
                     }
 
                     override fun onPlaybackStateChanged(playbackState: Int) {
-                        if (isReleasingPlayer) return
+                        if (isReleasingPlayer || isStaleDiscCallback()) return
+                        if (playbackState == Player.STATE_ENDED && returnToDiscFeature(discSource?.extraTicket)) return
                         logScrobbleDiagnostic(
                             "exo_playback_state",
                             "playbackState=$playbackState playWhenReady=$playWhenReady isPlaying=$isPlaying " +
@@ -2055,7 +2094,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                             // READY. The duration backstop is deferred to the progress tick
                             // (see rejectPlaceholderStream). Returning skips autoplay for a
                             // rejected placeholder; the policy's runtime guard is the fail-safe.
-                            val placeholderVerdict = probePlaceholderStream(this@apply)
+                            val placeholderVerdict = if (discSource == null) probePlaceholderStream(this@apply) else null
                             if (placeholderVerdict is PlaceholderStreamPolicy.Verdict.Reject &&
                                 PlaceholderStreamPolicy.stopsAtReady(
                                     placeholderVerdict,
@@ -2207,6 +2246,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                     }
 
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        if (isStaleDiscCallback()) return
                         // Gate the audio-clock jitter sensor on actual playback -
                         // paused/rebuffering time must not count as clock jitter.
                         playbackSpeedAwareAudioSink?.setPlaybackActive(isPlaying)
@@ -2252,11 +2292,12 @@ internal fun PlayerRuntimeController.initializePlayer(
                     }
 
                     override fun onTracksChanged(tracks: Tracks) {
+                        if (isStaleDiscCallback()) return
                         updateAvailableTracks(tracks)
                     }
 
                     override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
-                        if (isReleasingPlayer) return
+                        if (isReleasingPlayer || isStaleDiscCallback()) return
                         val saved = pendingResumeProgress ?: return
                         val player = this@apply
                         if (PlayerStartPosition.percentResumeDue(saved.position, saved.progressPercent,
@@ -2269,6 +2310,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                     }
 
                     override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
+                        if (isStaleDiscCallback()) return
                         if (videoSize.width > 0 && videoSize.height > 0) {
                             currentVideoWidth = videoSize.width
                             currentVideoHeight = videoSize.height
@@ -2277,10 +2319,12 @@ internal fun PlayerRuntimeController.initializePlayer(
                     }
 
                     override fun onRenderedFirstFrame() {
-                        if (isReleasingPlayer || _exoPlayer !== this@apply) return
+                        if (isReleasingPlayer || _exoPlayer !== this@apply || isStaleDiscCallback()) return
                         tunneledFirstFrameAssumed = false
-                        sourceSwitchStartPositionMs = null
-                        finishSourceFailover()
+                        if (discSource?.extraTicket == null) {
+                            sourceSwitchStartPositionMs = null
+                            finishSourceFailover()
+                        }
                         val isFirstFrame = !hasRenderedFirstFrame  // capture BEFORE flipping
                         hasRenderedFirstFrame = true
                         if (com.nuvio.tv.core.formatcheck.FormatCheckSession.active) {
@@ -2345,6 +2389,19 @@ internal fun PlayerRuntimeController.initializePlayer(
                         if (isReleasingPlayer || _exoPlayer !== this@apply ||
                             sourceFailoverJob?.isActive == true || debridResolveJob?.isActive == true
                         ) return
+                        if (isStaleDiscCallback()) return
+                        if (returnToDiscFeature(discSource?.extraTicket, failed = true)) return
+                        if (discSource != null && generateSequence(error as Throwable) { it.cause }.take(12)
+                                .filterIsInstance<BlurayPlaylistResolver.DiscException>()
+                                .any { it.reason == BlurayPlaylistResolver.Reason.RANGE }
+                        ) {
+                            cancelStartupWatchdog()
+                            cancelFirstFrameWatchdog()
+                            _uiState.update {
+                                it.copy(error = context.getString(R.string.player_disc_range_required), showLoadingOverlay = false)
+                            }
+                            return
+                        }
                         cancelFirstFrameWatchdog()
                         cancelTunnelAvSyncWatchdog()
                         val detailedError = error.toDisplayMessage(context)
@@ -2698,7 +2755,8 @@ internal fun PlayerRuntimeController.initializePlayer(
                         // Fatal error: stop any next-episode auto-play that may have been
                         // armed by a short placeholder ENDED or residual post-play state.
                         cancelNextEpisodeAutoPlayOnFatalError()
-                        val canSwitchToMpvOnFatal = currentInternalPlayerEngine != InternalPlayerEngine.MVP_PLAYER &&
+                        val canSwitchToMpvOnFatal = discSource == null &&
+                            currentInternalPlayerEngine != InternalPlayerEngine.MVP_PLAYER &&
                             (error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED ||
                              error.errorCode == PlaybackException.ERROR_CODE_DECODING_FAILED ||
                              error.errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED ||
@@ -3165,6 +3223,11 @@ internal fun PlayerRuntimeController.initializePlayer(
                 fetchAddonSubtitles()
             }
         } catch (e: Exception) {
+            if (BlurayPlaylistResolver.locate(url) != null) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (!playbackRecoveryGate.isCurrent(initializationGeneration, url, headers)) return@launch
+                if (returnToDiscFeature(discPlaybackSession?.extraSession?.ticket, failed = true)) return@launch
+            }
             if (
                 attemptStartupExhaustedSourceFailover(
                     detailedError = e.message ?: context.getString(com.nuvio.tv.R.string.player_error_initialize_failed)

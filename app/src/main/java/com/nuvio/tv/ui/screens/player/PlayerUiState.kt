@@ -162,6 +162,10 @@ data class PlayerUiState(
     // Episodes/streams side panel (for series)
     val showEpisodesPanel: Boolean = false,
     val showChaptersPanel: Boolean = false,
+    val discTitles: List<DiscTitleOption> = emptyList(),
+    val discFeatureId: String? = null,
+    val discExtraId: String? = null,
+    val showDiscTitlePicker: Boolean = false,
     val chapters: List<PlayerChapter> = emptyList(),
     val isLoadingEpisodes: Boolean = false,
     val episodesError: String? = null,
@@ -418,6 +422,9 @@ sealed class PlayerEvent {
     data object OnShowEpisodesPanel : PlayerEvent()
     data object OnDismissEpisodesPanel : PlayerEvent()
     data object OnShowChaptersPanel : PlayerEvent()
+    data class OnSelectDiscTitle(val id: String) : PlayerEvent()
+    data object OnDismissDiscTitles : PlayerEvent()
+    data object OnReturnFromDiscExtra : PlayerEvent()
     data object OnDismissChaptersPanel : PlayerEvent()
     data class OnSelectChapter(val startMs: Long) : PlayerEvent()
     data object OnNextChapter : PlayerEvent()

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="player_disc_titles">Blu-ray titles</string>
+    <string name="player_disc_select_feature">Choose the playlist to play as the feature.</string>
+    <string name="player_disc_select_extra">Choose a disc title.</string>
+    <string name="player_disc_title_option">Playlist %1$s · %2$s</string>
+    <string name="player_disc_return">Return to feature</string>
+    <string name="player_disc_selection_required">Choose a Blu-ray playlist to start playback.</string>
+    <string name="player_disc_open_error">Unable to open this Blu-ray playlist.</string>
+    <string name="player_disc_clip_info_error">The Blu-ray clip timing information is missing or unsupported.</string>
+    <string name="player_disc_range_required">This Blu-ray playlist needs a server that supports byte ranges.</string>
+    <string name="player_disc_extra_failed">The extra could not play. Returning to the feature.</string>
+    <string name="player_disc_extra_party">Leave the watch party to play a Blu-ray extra.</string>
+    <string name="player_disc_exoplayer">Blu-ray playlists use ExoPlayer.</string>
+    <string name="player_disc_subtitle_unsupported">This external subtitle cannot be attached to a Blu-ray playlist.</string>
+    <string name="player_disc_lpcm_unsupported">Blu-ray LPCM is unavailable. Select a supported audio track if one is listed.</string>
+</resources>

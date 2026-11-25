@@ -545,7 +545,7 @@ internal fun PlayerRuntimeController.startProgressUpdates() {
                         durationMs = getEffectiveDuration(pos),
                         expectedRuntimeMs = expectedRuntimeMinutes?.let { it * 60_000L }
                     )
-                    if (placeholderDurationVerdict is PlaceholderStreamPolicy.Verdict.Reject &&
+                    if (discPlaybackSession?.feature == null && placeholderDurationVerdict is PlaceholderStreamPolicy.Verdict.Reject &&
                         placeholderDurationVerdict.reason == PlaceholderStreamPolicy.Reason.ImplausibleDuration
                     ) {
                         rejectPlaceholderStream(placeholderDurationVerdict)
@@ -693,6 +693,7 @@ internal fun PlayerRuntimeController.checkExoPlaybackOverrun(
     if (!endDetectionArmed || !hasRenderedFirstFrame) return
     // Audio still running past duration means the duration is wrong, not the player.
     if (!exoAudioRendererEnded(player)) return
+    if (returnToDiscFeature(discPlaybackSession?.extraSession?.ticket)) return
 
     exoEndOverrunHandled = true
     Log.i(
@@ -1096,6 +1097,7 @@ private fun String.reportSafeHost(): String {
 }
 
 internal fun PlayerRuntimeController.saveWatchProgressIfNeeded() {
+    if (isPlayingDiscExtra) return
     if (!hasRenderedFirstFrame) return
     // A live stream's position is no point to come back to: resuming there seeks past what the
     // stream holds and nothing plays
@@ -1114,6 +1116,7 @@ internal fun PlayerRuntimeController.saveWatchProgressIfNeeded() {
 }
 
 internal fun PlayerRuntimeController.saveWatchProgress() {
+    if (isPlayingDiscExtra) return
     if (!hasRenderedFirstFrame) return
     if (_playbackTimeline.value.isLive) return
     val currentPosition = currentPlaybackPositionMs() ?: return
@@ -1163,6 +1166,7 @@ internal fun PlayerRuntimeController.isErrorCardPlayback(): Boolean = isErrorCar
  * watched or trigger auto-play next.
  */
 internal fun PlayerRuntimeController.handleNaturalPlaybackEnded() {
+    if (returnToDiscFeature(discPlaybackSession?.extraSession?.ticket)) return
     val position = currentPlaybackPositionMs() ?: 0L
     val duration = getEffectiveDuration(position)
     val hasFatalError = !_uiState.value.error.isNullOrBlank()
@@ -1230,6 +1234,7 @@ internal fun PlayerRuntimeController.currentWatchProgress(
 )
 
 internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, duration: Long, syncRemote: Boolean = true) {
+    if (isPlayingDiscExtra) return
     if (contentType.equals("cloud", ignoreCase = true)) {
         saveCloudLibraryProgress(position, duration, completed = false)
         return
@@ -1363,6 +1368,7 @@ internal fun PlayerRuntimeController.buildScrobbleItem(): TrackingMediaReference
 }
 
 internal fun PlayerRuntimeController.emitScrobbleStart() {
+    if (isPlayingDiscExtra) return
     logScrobbleDiagnostic("start_evaluated")
     if (isPlaceholderPlayback()) {
         logScrobbleDiagnostic("start_skipped", "reason=short_placeholder")
@@ -1397,7 +1403,7 @@ internal fun PlayerRuntimeController.emitScrobbleStart() {
             logScrobbleDiagnostic("start_cancelled", "reason=no_scrobble_item requestGeneration=$requestGeneration")
             return@launch
         }
-        if (requestGeneration != scrobbleStartRequestGeneration || !hasRequestedScrobbleStartForCurrentItem) {
+        if (isPlayingDiscExtra || requestGeneration != scrobbleStartRequestGeneration || !hasRequestedScrobbleStartForCurrentItem) {
             logScrobbleDiagnostic("start_cancelled", "reason=stale_before_dispatch requestGeneration=$requestGeneration")
             return@launch
         }
@@ -1424,6 +1430,7 @@ internal fun PlayerRuntimeController.emitScrobbleStart() {
 }
 
 internal fun PlayerRuntimeController.emitScrobbleStop(progressPercent: Float? = null) {
+    if (isPlayingDiscExtra) return
     logScrobbleDiagnostic("stop_evaluated", "providedProgress=${progressPercent ?: "none"}")
     if (isPlaceholderPlayback()) {
         logScrobbleDiagnostic("stop_skipped", "reason=short_placeholder")
@@ -1465,6 +1472,7 @@ internal fun PlayerRuntimeController.emitScrobbleStop(progressPercent: Float? = 
 }
 
 internal fun PlayerRuntimeController.emitScrobblePause(progressPercent: Float? = null) {
+    if (isPlayingDiscExtra) return
     logScrobbleDiagnostic("pause_evaluated", "providedProgress=${progressPercent ?: "none"}")
     if (isPlaceholderPlayback()) {
         logScrobbleDiagnostic("pause_skipped", "reason=short_placeholder")
@@ -1503,12 +1511,14 @@ internal fun PlayerRuntimeController.emitScrobblePause(progressPercent: Float? =
 }
 
 internal fun PlayerRuntimeController.emitCompletionScrobbleStop(progressPercent: Float) {
+    if (isPlayingDiscExtra) return
     if (progressPercent < 80f || hasSentCompletionScrobbleForCurrentItem) return
     hasSentCompletionScrobbleForCurrentItem = true
     emitScrobbleStop(progressPercent = progressPercent)
 }
 
 internal fun PlayerRuntimeController.emitStopScrobbleForCurrentProgress() {
+    if (isPlayingDiscExtra) return
     val progressPercent = currentPlaybackProgressPercent()
     if (shouldSendStopWhenLeftPaused(
             hasPausedScrobbleForCurrentItem,
@@ -1553,6 +1563,7 @@ internal fun PlayerRuntimeController.emitPauseScrobbleForCurrentProgress() {
 }
 
 internal fun PlayerRuntimeController.emitSeekScrobbleRestart(progressPercent: Float) {
+    if (isPlayingDiscExtra) return
     if (progressPercent < 1f || progressPercent >= 80f) return
     if (isPlaceholderPlayback()) return
     val item = currentScrobbleItem ?: return
@@ -1592,6 +1603,7 @@ internal fun PlayerRuntimeController.logScrobbleDiagnostic(
 }
 
 internal fun PlayerRuntimeController.scheduleProgressSyncAfterSeek() {
+    if (isPlayingDiscExtra) return
     seekProgressSyncJob?.cancel()
     seekProgressSyncJob = scope.launch {
         delay(seekProgressSyncDebounceMs)
@@ -2235,7 +2247,7 @@ fun PlayerRuntimeController.onEvent(
                     showSubtitleDelayOverlay = false
                 )
             }
-            contentId?.takeIf { it.isNotBlank() }?.let { id ->
+            contentId?.takeIf { it.isNotBlank() && !isPlayingDiscExtra }?.let { id ->
                 scope.launch { trackPreferenceDataStore.savePlaybackSpeed(id, event.speed) }
             }
         }
@@ -2371,7 +2383,19 @@ fun PlayerRuntimeController.onEvent(
         PlayerEvent.OnDismissEpisodesPanel -> {
             dismissEpisodesPanel()
         }
-        PlayerEvent.OnShowChaptersPanel -> showChaptersPanel()
+        PlayerEvent.OnShowChaptersPanel -> {
+            if (_uiState.value.discTitles.size > 1) _uiState.update { it.copy(showDiscTitlePicker = true) }
+            else showChaptersPanel()
+        }
+        is PlayerEvent.OnSelectDiscTitle -> selectDiscTitle(event.id)
+        PlayerEvent.OnDismissDiscTitles -> _uiState.update {
+            it.copy(
+                showDiscTitlePicker = false,
+                showLoadingOverlay = if (discPlaybackSession?.feature == null) false else it.showLoadingOverlay,
+                error = if (discPlaybackSession?.feature == null) context.getString(R.string.player_disc_selection_required) else it.error
+            )
+        }
+        PlayerEvent.OnReturnFromDiscExtra -> returnToDiscFeature(discPlaybackSession?.extraSession?.ticket)
         PlayerEvent.OnDismissChaptersPanel -> dismissChaptersPanel()
         is PlayerEvent.OnSelectChapter -> selectChapter(event.startMs)
         PlayerEvent.OnNextChapter -> jumpChapter(forward = true)

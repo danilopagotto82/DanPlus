@@ -926,6 +926,8 @@ class PlayerRuntimeController(
     internal var pendingAudioPcmFallbackRebuild: Boolean = false
     // Same-configuration rebuilds after a bitstream (passthrough) AudioTrack refusal, per stream.
     internal val playbackRecoveryGate = PlaybackRecoveryGate()
+    internal var discPlaybackSession: DiscPlaybackSession? = null
+    internal var discPreparationJob: kotlinx.coroutines.Job? = null
     internal val sinkErrorLimiter = com.nuvio.tv.core.report.SinkErrorLimiter()
     internal var playbackRecoveryJob: Job? = null
     internal var networkDropWatchJob: Job? = null

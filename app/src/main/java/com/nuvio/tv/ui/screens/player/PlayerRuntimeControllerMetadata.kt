@@ -624,6 +624,7 @@ internal fun PlayerRuntimeController.maybeStartNextEpisodeThumbnails(
 private const val BINGE_LOOKAHEAD_TRIGGER_MS = 6L * 60L * 1000L
 
 internal fun PlayerRuntimeController.evaluatePostPlayOverlayVisibility(positionMs: Long, durationMs: Long) {
+    if (isPlayingDiscExtra) return
     if (_playbackTimeline.value.isLive) return
     maybePrefetchNextEpisodeForBinge(positionMs, durationMs)
     if (!hasRenderedFirstFrame) return

@@ -67,6 +67,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.padding
@@ -328,6 +329,10 @@ fun PlayerScreen(
         if (com.nuvio.tv.domain.model.ScoutFeature.available) hiltViewModel() else null
     val exitPlayer: () -> Unit = exitPlayer@{
         if (exitDispatched) return@exitPlayer
+        if (uiState.discExtraId != null) {
+            viewModel.onEvent(PlayerEvent.OnReturnFromDiscExtra)
+            return@exitPlayer
+        }
         exitDispatched = true
         val timeline = viewModel.playbackTimeline.value
         viewModel.stopAndRelease()
@@ -357,6 +362,10 @@ fun PlayerScreen(
     }
     val exitPlayerFromError: () -> Unit = exitPlayerFromError@{
         if (exitDispatched) return@exitPlayerFromError
+        if (uiState.discExtraId != null) {
+            viewModel.onEvent(PlayerEvent.OnReturnFromDiscExtra)
+            return@exitPlayerFromError
+        }
         exitDispatched = true
         viewModel.stopAndRelease()
         onPlaybackErrorBack()
@@ -496,6 +505,8 @@ fun PlayerScreen(
             viewModel.onEvent(PlayerEvent.OnDismissStillWatchingPrompt)
         } else if (uiState.showControls) {
             viewModel.hideControls()
+        } else if (uiState.discExtraId != null) {
+            viewModel.onEvent(PlayerEvent.OnReturnFromDiscExtra)
         } else {
             exitPlayer()
         }
@@ -503,6 +514,16 @@ fun PlayerScreen(
 
     BackHandler {
         handleBackPress()
+    }
+
+    if (uiState.showDiscTitlePicker) {
+        DiscTitlePicker(
+            titles = uiState.discTitles,
+            featureId = uiState.discFeatureId,
+            extraId = uiState.discExtraId,
+            onSelect = { viewModel.onEvent(PlayerEvent.OnSelectDiscTitle(it)) },
+            onDismiss = { viewModel.onEvent(PlayerEvent.OnDismissDiscTitles) }
+        )
     }
 
     LaunchedEffect(
@@ -4124,10 +4145,12 @@ private fun PlayerControlsOverlay(
                         onFocused = onResetHideTimer
                     )
                     }
-                    if (uiState.chapters.isNotEmpty()) {
+                    if (uiState.chapters.isNotEmpty() || uiState.discTitles.size > 1) {
                     PillControlButton(
                         icon = Icons.Default.Bookmarks,
-                        label = stringResource(R.string.player_chapters),
+                        label = stringResource(
+                            if (uiState.discTitles.size > 1) R.string.player_disc_titles else R.string.player_chapters
+                        ),
                         onClick = onShowChaptersPanel,
                         upFocusRequester = progressBarFocusRequester,
                         onDownKey = onHideControls,
@@ -4181,6 +4204,46 @@ private fun EngineSwitchConfirmDialog(
                 onClick = onDismiss,
                 isPrimary = false
             )
+        }
+    }
+}
+
+@Composable
+private fun DiscTitlePicker(
+    titles: List<DiscTitleOption>,
+    featureId: String?,
+    extraId: String?,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val firstFocus = remember { FocusRequester() }
+    val options = if (extraId == null) titles else titles.filter { it.id == featureId }
+    LaunchedEffect(options.firstOrNull()?.id) {
+        if (options.isNotEmpty()) runCatching { firstFocus.requestFocus() }
+    }
+    NuvioDialog(
+        onDismiss = onDismiss,
+        title = stringResource(R.string.player_disc_titles),
+        subtitle = stringResource(
+            if (featureId == null) R.string.player_disc_select_feature else R.string.player_disc_select_extra
+        )
+    ) {
+        LazyColumn(
+            modifier = Modifier.heightIn(max = 290.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            items(options.size, key = { options[it].id }) { index ->
+                val title = options[index]
+                val duration = title.durationMs / 1_000
+                val clock = String.format(java.util.Locale.ROOT, "%d:%02d", duration / 60, duration % 60)
+                DialogButton(
+                    text = if (extraId != null) stringResource(R.string.player_disc_return)
+                    else stringResource(R.string.player_disc_title_option, title.id, clock),
+                    onClick = { onSelect(title.id) },
+                    isPrimary = title.id == featureId,
+                    modifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier
+                )
+            }
         }
     }
 }

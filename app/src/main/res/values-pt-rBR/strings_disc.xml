@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="player_disc_titles">Títulos do Blu-ray</string>
+    <string name="player_disc_select_feature">Escolha a playlist que será reproduzida como filme principal.</string>
+    <string name="player_disc_select_extra">Escolha um título do disco.</string>
+    <string name="player_disc_title_option">Playlist %1$s · %2$s</string>
+    <string name="player_disc_return">Voltar ao filme principal</string>
+    <string name="player_disc_selection_required">Escolha uma playlist do Blu-ray para iniciar.</string>
+    <string name="player_disc_open_error">Não foi possível abrir esta playlist do Blu-ray.</string>
+    <string name="player_disc_clip_info_error">As informações de tempo do clipe estão ausentes ou são incompatíveis.</string>
+    <string name="player_disc_range_required">Esta playlist do Blu-ray precisa de um servidor que aceite intervalos de bytes.</string>
+    <string name="player_disc_extra_failed">O extra não pôde ser reproduzido. Voltando ao filme principal.</string>
+    <string name="player_disc_extra_party">Saia da sessão em grupo para reproduzir um extra do Blu-ray.</string>
+    <string name="player_disc_exoplayer">Playlists de Blu-ray usam o ExoPlayer.</string>
+    <string name="player_disc_subtitle_unsupported">Esta legenda externa não pode ser anexada à playlist do Blu-ray.</string>
+    <string name="player_disc_lpcm_unsupported">O áudio LPCM do Blu-ray está indisponível. Se houver, selecione uma faixa de áudio compatível.</string>
+</resources>

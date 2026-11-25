@@ -2201,6 +2201,7 @@ internal fun PlayerRuntimeController.cancelNextEpisodePreload() {
 }
 
 internal fun PlayerRuntimeController.playNextEpisode(userInitiated: Boolean = false) {
+    if (isPlayingDiscExtra) return
     if (_uiState.value.nextEpisode?.mixName != null) {
         playMixNext(pressed = userInitiated)
         return
