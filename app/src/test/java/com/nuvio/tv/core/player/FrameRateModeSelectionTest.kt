@@ -2,7 +2,9 @@ package com.nuvio.tv.core.player
 
 import com.nuvio.tv.core.player.FrameRateUtils.DisplayModeSpec
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FrameRateModeSelectionTest {
@@ -158,6 +160,50 @@ class FrameRateModeSelectionTest {
         assertEquals(50f, pickRate(listOf(50f, 60f), 25f))
         assertEquals(50f, pickRate(listOf(50f, 60f, 100f, 120f), 25f))
         assertEquals(60f, pickRate(listOf(50f, 60f, 100f, 120f), 30f))
+    }
+
+    @Test
+    fun `a precise double beats an approximate nominal cinema rate in either direction`() {
+        assertEquals(47.952f, pickRate(listOf(24f, 47.952f), film))
+        assertEquals(48f, pickRate(listOf(23.976f, 48f), 24f))
+    }
+
+    @Test
+    fun `30 and 60 Hz stay distinct from their fractional siblings`() {
+        assertEquals(29.97f, pickRate(listOf(30f, 29.97f), ntsc30))
+        assertEquals(30f, pickRate(listOf(29.97f, 30f), 30f))
+        assertEquals(59.94f, pickRate(listOf(60f, 59.94f), ntsc60))
+        assertEquals(60f, pickRate(listOf(59.94f, 60f), 60f))
+    }
+
+    @Test
+    fun `a more precise integer multiple wins over approximate lower multiples`() {
+        assertEquals(119.88f, pickRate(listOf(24f, 48f, 96f, 119.88f, 59.94f), film))
+        assertEquals(120f, pickRate(listOf(95.904f, 120f), 24f))
+    }
+
+    @Test
+    fun `when no precise integer cadence exists supported fallbacks remain available`() {
+        assertEquals(24f, pickRate(listOf(24f, 50f), film))
+        assertEquals(60f, pickRate(listOf(50f, 60f), 24f))
+        assertNull(pickRate(listOf(60f), film))
+    }
+
+    @Test
+    fun `cadence selection preserves resolution matching and original mode restoration`() {
+        val modes = listOf(
+            mode(1, 3840, 2160, 60f),
+            mode(2, 3840, 2160, 23.976f),
+            mode(3, 1920, 1080, 24f),
+            mode(4, 1920, 1080, 47.952f)
+        )
+        val original = modes.first().modeId
+        val selected = requireNotNull(pick(modes, film, 1920, 1080, resolutionMatching = true))
+        assertEquals(4, selected)
+        assertEquals(2, pick(modes, film, 1920, 1080, resolutionMatching = false))
+        assertTrue(FrameRateUtils.restoreNeedsWrite(original, requestedModeId = selected, targetModeId = original))
+        assertTrue(FrameRateUtils.restoreNeedsWrite(selected, requestedModeId = selected, targetModeId = original))
+        assertFalse(FrameRateUtils.restoreNeedsWrite(original, requestedModeId = original, targetModeId = original))
     }
 
     @Test

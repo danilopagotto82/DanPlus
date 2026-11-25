@@ -80,6 +80,13 @@ class FrameRateSeamlessTest {
     }
 
     @Test
+    fun `advertised seamless rates allow rounding and still distinguish integer modes`() {
+        val roundedFractional = modes[0].copy(alternativeRefreshRates = listOf(47.95f))
+        assertEquals(47.952f, pick(roundedFractional, film), 0.002f)
+        assertEquals(24f, pick(roundedFractional, 24f), 0.002f)
+    }
+
+    @Test
     fun `matching 29 point 97 Hz beats an integer double when 59 point 94 is absent`() {
         val active = modes[0]
         val fractional = mode(15, 3840, 2160, 30000f / 1001f)

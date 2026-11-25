@@ -68,10 +68,13 @@ class FrameRateKodiRulesTest {
     }
 
     @Test
-    fun `a sibling rate counts as reached only after the mode id changed`() {
+    fun `a rounded rate may confirm a new mode id but a different cadence may not`() {
         assertFalse(FrameRateUtils.switchReported(1, 59.94f, 2, 60f, fromModeId = 1))
         assertTrue(FrameRateUtils.switchReported(2, 60f, 2, 60f, fromModeId = 1))
         assertTrue(FrameRateUtils.switchReported(5, 60.0001f, 2, 60f, fromModeId = 1))
+        assertFalse(FrameRateUtils.switchReported(5, 59.94f, 2, 60f, fromModeId = 1))
+        assertFalse(FrameRateUtils.switchReported(5, 24f, 7, 23.976f, fromModeId = 1))
+        assertTrue(FrameRateUtils.switchReported(5, 47.95f, 7, 47.952f, fromModeId = 1))
         assertFalse(FrameRateUtils.switchReported(8, 23.976f, 7, 24f, fromModeId = 8))
         assertFalse(FrameRateUtils.switchReported(1, 59.94f, 7, 24f, fromModeId = 1))
     }

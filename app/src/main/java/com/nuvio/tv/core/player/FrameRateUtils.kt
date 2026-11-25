@@ -325,10 +325,11 @@ object FrameRateUtils {
         if (mode.modeId == activeMode.modeId) return true
         if (mode.width != activeMode.width || mode.height != activeMode.height) return false
         // Display mode capabilities distinguish 24 from 23.976 and 60 from 59.94.
-        return activeMode.alternativeRefreshRates.any {
-            abs(mode.refreshRate - it) <= CADENCE_ROUNDING_TOLERANCE_HZ
-        }
+        return activeMode.alternativeRefreshRates.any { sameAdvertisedRate(mode.refreshRate, it) }
     }
+
+    private fun sameAdvertisedRate(refreshRate: Float, target: Float): Boolean =
+        abs(refreshRate - target) <= CADENCE_ROUNDING_TOLERANCE_HZ
 
     private fun matchesTargetRefresh(refreshRate: Float, target: Float): Boolean {
         val tolerance = max(REFRESH_MATCH_MIN_TOLERANCE_HZ, target * 0.003f)
@@ -434,6 +435,10 @@ object FrameRateUtils {
 
     internal data class ModeChoice(val mode: DisplayModeSpec, val quality: ModeMatchQuality)
 
+    private data class IntegerCadence(val mode: DisplayModeSpec, val multiplier: Float) {
+        val effectiveFrameRate: Float get() = mode.refreshRate / multiplier
+    }
+
     /** True for cadences worth giving up a resolution match to obtain. */
     private fun ModeMatchQuality.isExactOrDouble() =
         this == ModeMatchQuality.EXACT || this == ModeMatchQuality.DOUBLE
@@ -469,21 +474,30 @@ object FrameRateUtils {
         // 25 and 29.97/30 fps play at 50 and 59.94/60 Hz when the display has them: the same clean cadence,
         // with menus, subtitles and the TV's motion handling at their usual rate. Interlaced sources show up
         // here as 25/29.97 and need the field rate anyway.
-        val exact = pickBestForTarget(modes, frameRate)
-        val double = pickBestForTarget(modes, frameRate * 2f)
-        if (double != null && (exact == null || prefersDoubleRate(frameRate) &&
-                withinCadenceRounding(double.refreshRate / 2f, exact.refreshRate, frameRate))
-        ) return ModeChoice(double, ModeMatchQuality.DOUBLE)
-        if (exact != null) return ModeChoice(exact, ModeMatchQuality.EXACT)
         val pulldown = pickBestForTarget(modes, frameRate * 2.5f)
         val pulldownError = pulldown?.let { refreshError(it.refreshRate, frameRate * 2.5f) } ?: Float.MAX_VALUE
-        // A clean multiple only wins when it matches the frame rate at least as closely as pulldown.
-        CLEAN_REFRESH_MULTIPLES.firstNotNullOfOrNull { multiple ->
+        val preferredMultipliers = if (prefersDoubleRate(frameRate)) listOf(2f, 1f) else listOf(1f, 2f)
+        val integerCadences = (preferredMultipliers + CLEAN_REFRESH_MULTIPLES).mapNotNull { multiple ->
             val target = frameRate * multiple
-            pickBestForTarget(modes, target)
-                ?.takeIf { refreshError(it.refreshRate, target) <= pulldownError + REFRESH_ERROR_SLACK }
-        }?.let {
-            return ModeChoice(it, ModeMatchQuality.MULTIPLE)
+            val mode = pickBestForTarget(modes, target) ?: return@mapNotNull null
+            // Higher multiples still have to match at least as well as pulldown.
+            if (multiple > 2f && refreshError(mode.refreshRate, target) > pulldownError + REFRESH_ERROR_SLACK) {
+                return@mapNotNull null
+            }
+            IntegerCadence(mode, multiple)
+        }
+        val closest = integerCadences.minByOrNull { abs(it.effectiveFrameRate - frameRate) }
+        if (closest != null) {
+            // Compare cadence before using nominal, double, or lowest-multiple preference as a tie-break.
+            val preferred = integerCadences.first {
+                withinCadenceRounding(it.effectiveFrameRate, closest.effectiveFrameRate, frameRate)
+            }
+            val quality = when (preferred.multiplier) {
+                1f -> ModeMatchQuality.EXACT
+                2f -> ModeMatchQuality.DOUBLE
+                else -> ModeMatchQuality.MULTIPLE
+            }
+            return ModeChoice(preferred.mode, quality)
         }
         pulldown?.let {
             return ModeChoice(it, ModeMatchQuality.PULLDOWN)
@@ -850,8 +864,8 @@ object FrameRateUtils {
         private set
 
     /**
-     * Android has reached the requested mode. A mode within tolerance counts only once the mode id has left the
-     * one active before the request: 59.94 and 60, or 23.976 and 24, are within tolerance of each other.
+     * Android has reached the requested mode. An alternate mode ID counts only after leaving the previous ID
+     * and only at the same advertised rate, allowing rounding without confusing integer and fractional modes.
      */
     internal fun switchReported(
         reportedModeId: Int,
@@ -860,7 +874,7 @@ object FrameRateUtils {
         expectedHz: Float,
         fromModeId: Int?
     ): Boolean = reportedModeId == expectedModeId ||
-        (reportedModeId != fromModeId && matchesTargetRefresh(reportedHz, expectedHz))
+        (reportedModeId != fromModeId && sameAdvertisedRate(reportedHz, expectedHz))
 
     /**
      * The original mode must be written back when the display is elsewhere, and also when it still shows the
