@@ -4,6 +4,7 @@ import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.data.local.*
 import com.nuvio.tv.data.repository.MDBListRepository
 import com.nuvio.tv.data.repository.TraktRelatedService
+import com.nuvio.tv.data.trailer.TrailerPlaybackSource
 import com.nuvio.tv.data.trailer.TrailerService
 import com.nuvio.tv.domain.model.*
 import com.nuvio.tv.domain.repository.MetaRepository
@@ -105,6 +106,14 @@ class PostPlayRecommendationSchedulingTest {
             trailerPlayerPool=trailerPool,
             scope=scope
         )
+        fun endPlayback() {
+            player.value = player.value.copy(playbackEnded = true, isPlaying = false)
+        }
+
+        fun resumePlayback() {
+            player.value = player.value.copy(playbackEnded = false, isPlaying = true)
+        }
+
         fun suspendRatings() {
             coEvery { ratings.getRatingsForMeta(any(),any(),any()) } coAnswers {
                 val id=secondArg<String>();ratingCalls+=id
@@ -126,9 +135,18 @@ class PostPlayRecommendationSchedulingTest {
     }
     @Test fun `actual controller requests details only for the selected candidate`() = runTest {
         val f=Fixture(backgroundScope);runCurrent()
-        assertEquals(listOf("a"),f.ratingCalls)
-        assertEquals(listOf("a"),f.trailerCalls)
-        coVerify(exactly=0) { f.runtime.releasePlayer() }
+        assertEquals(listOf("a"), f.ratingCalls)
+        assertTrue(f.trailerCalls.isEmpty())
+        f.controller.showNextRecommendation()
+        runCurrent()
+        assertEquals(listOf("a", "b"), f.ratingCalls)
+        assertTrue(f.trailerCalls.isEmpty())
+
+        f.endPlayback()
+        runCurrent()
+
+        assertEquals(listOf("b"), f.trailerCalls)
+        coVerify(exactly = 0) { f.runtime.releasePlayer() }
     }
     @Test fun `accepted next navigation cancels details for the previous candidate`() = runTest {
         val f=Fixture(backgroundScope);f.suspendRatings();runCurrent()
@@ -273,10 +291,14 @@ class PostPlayRecommendationSchedulingTest {
     }
     @Test fun `manual trailer cannot start an obsolete candidate during navigation`() = runTest {
         val f=Fixture(backgroundScope)
-        coEvery { f.trailers.getTrailerPlaybackSource(any(),any(),any(),any(),any()) } returns com.nuvio.tv.data.trailer.TrailerPlaybackSource("fixture://trailer")
+        coEvery { f.trailers.getTrailerPlaybackSource(any(),any(),any(),any(),any()) } returns TrailerPlaybackSource("fixture://trailer")
         every { f.meta.getCachedMeta("movie","b") } returns null
         coEvery { f.meta.getMetaFromAllAddons("movie","b",any()) } returns flow { awaitCancellation() }
-        runCurrent();assertTrue(f.controller.uiState.value.recommendation?.hasTrailer==true)
+        runCurrent()
+        coVerify(exactly = 0) { f.trailers.getTrailerPlaybackSource(any(), any(), any(), any(), any()) }
+        f.endPlayback()
+        runCurrent()
+        assertTrue(f.controller.uiState.value.recommendation?.hasTrailer == true)
         f.controller.showNextRecommendation();runCurrent()
         assertTrue(f.controller.uiState.value.isChangingRecommendation)
         f.controller.playTrailer();runCurrent()
@@ -285,8 +307,18 @@ class PostPlayRecommendationSchedulingTest {
     }
     @Test fun `manual current trailer retains its existing playback transition`() = runTest {
         val f=Fixture(backgroundScope)
-        coEvery { f.trailers.getTrailerPlaybackSource(any(),any(),any(),any(),any()) } returns com.nuvio.tv.data.trailer.TrailerPlaybackSource("fixture://trailer")
-        runCurrent();f.controller.playTrailer();runCurrent()
+        coEvery { f.trailers.getTrailerPlaybackSource(any(),any(),any(),any(),any()) } returns TrailerPlaybackSource("fixture://trailer")
+        runCurrent()
+        f.controller.playTrailer()
+        runCurrent()
+        coVerify(exactly = 0) { f.trailers.getTrailerPlaybackSource(any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) { f.runtime.releasePlayer() }
+
+        f.endPlayback()
+        runCurrent()
+        assertTrue(f.controller.uiState.value.recommendation?.hasTrailer == true)
+        f.controller.playTrailer()
+        runCurrent()
         coVerify(exactly=1) { f.runtime.releasePlayer() }
         verify(exactly=1) { f.trailerPool.reclaim() }
         assertTrue(f.controller.uiState.value.isTrailerPlaying)
@@ -295,7 +327,7 @@ class PostPlayRecommendationSchedulingTest {
         val f=Fixture(backgroundScope)
         f.player.value=f.player.value.copy(playbackEnded=true)
         f.trailerSettings.value=f.trailerSettings.value.copy(enabled=true)
-        coEvery { f.trailers.getTrailerPlaybackSource(any(),any(),any(),any(),any()) } returns com.nuvio.tv.data.trailer.TrailerPlaybackSource("fixture://trailer")
+        coEvery { f.trailers.getTrailerPlaybackSource(any(),any(),any(),any(),any()) } returns TrailerPlaybackSource("fixture://trailer")
         runCurrent();assertEquals(5,f.controller.uiState.value.countdownSeconds)
         advanceTimeBy(4_000);runCurrent()
         coVerify(exactly=0) { f.runtime.releasePlayer() }
@@ -307,7 +339,7 @@ class PostPlayRecommendationSchedulingTest {
         val f=Fixture(backgroundScope)
         f.player.value=f.player.value.copy(playbackEnded=true)
         f.trailerSettings.value=f.trailerSettings.value.copy(enabled=true)
-        coEvery { f.trailers.getTrailerPlaybackSource(any(),any(),any(),any(),any()) } returns com.nuvio.tv.data.trailer.TrailerPlaybackSource("fixture://trailer")
+        coEvery { f.trailers.getTrailerPlaybackSource(any(),any(),any(),any(),any()) } returns TrailerPlaybackSource("fixture://trailer")
         runCurrent();advanceTimeBy(2_000);runCurrent()
         f.player.value=f.player.value.copy(currentStreamUrl="fixture://new");runCurrent()
         assertEquals(5,f.controller.uiState.value.countdownSeconds)
@@ -316,6 +348,139 @@ class PostPlayRecommendationSchedulingTest {
         advanceTimeBy(2_000);runCurrent()
         coVerify(exactly=1) { f.runtime.releasePlayer() }
     }
+    @Test fun trailerLookupIsCancelledWhenMainPlaybackResumes() = runTest {
+        val f = Fixture(backgroundScope)
+        var calls = 0
+        var cancelled = false
+        coEvery { f.trailers.getTrailerPlaybackSource("a", any(), any(), any(), any()) } coAnswers {
+            if (++calls == 1) {
+                try {
+                    awaitCancellation()
+                } finally {
+                    cancelled = true
+                }
+            }
+            TrailerPlaybackSource("fixture://new-trailer")
+        }
+        runCurrent()
+        assertEquals(0, calls)
+
+        f.endPlayback()
+        runCurrent()
+        assertEquals(1, calls)
+        assertTrue(f.controller.uiState.value.isLoadingTrailer)
+
+        f.resumePlayback()
+        runCurrent()
+        assertTrue(cancelled)
+        assertFalse(f.controller.uiState.value.isLoadingTrailer)
+        assertFalse(f.controller.uiState.value.recommendation?.hasTrailer == true)
+        coVerify(exactly = 0) { f.runtime.releasePlayer() }
+
+        f.endPlayback()
+        runCurrent()
+        assertEquals(2, calls)
+        assertTrue(f.controller.uiState.value.recommendation?.hasTrailer == true)
+    }
+
+    @Test fun mainPlaybackResumeCancelsCountdownAndRejectsManualStartBeforeObserverRuns() = runTest {
+        val f = Fixture(backgroundScope)
+        f.trailerSettings.value = f.trailerSettings.value.copy(enabled = true)
+        coEvery { f.trailers.getTrailerPlaybackSource(any(), any(), any(), any(), any()) } returns
+            TrailerPlaybackSource("fixture://trailer")
+        f.endPlayback()
+        runCurrent()
+        assertEquals(5, f.controller.uiState.value.countdownSeconds)
+        advanceTimeBy(2_000)
+        runCurrent()
+
+        f.resumePlayback()
+        f.controller.playTrailer()
+        runCurrent()
+        advanceTimeBy(3_000)
+        runCurrent()
+        coVerify(exactly = 0) { f.runtime.releasePlayer() }
+
+        f.endPlayback()
+        runCurrent()
+        assertEquals(5, f.controller.uiState.value.countdownSeconds)
+        advanceTimeBy(4_999)
+        runCurrent()
+        coVerify(exactly = 0) { f.runtime.releasePlayer() }
+        advanceTimeBy(1)
+        runCurrent()
+        coVerify(exactly = 1) { f.runtime.releasePlayer() }
+    }
+
+    @Test fun lateTrailerCannotOverwriteTheNewlySelectedRecommendation() = runTest {
+        val f = Fixture(backgroundScope)
+        val finishOld = CompletableDeferred<Unit>()
+        coEvery { f.trailers.getTrailerPlaybackSource("a", any(), any(), any(), any()) } coAnswers {
+            withContext(NonCancellable) { finishOld.await() }
+            TrailerPlaybackSource("fixture://old-a")
+        }
+        coEvery { f.trailers.getTrailerPlaybackSource("b", any(), any(), any(), any()) } returns
+            TrailerPlaybackSource("fixture://new-b")
+
+        try {
+            f.endPlayback()
+            runCurrent()
+            assertTrue(f.controller.uiState.value.isLoadingTrailer)
+            f.controller.showNextRecommendation()
+            runCurrent()
+            assertEquals("b", f.controller.uiState.value.recommendation?.id)
+            assertEquals("fixture://new-b", f.controller.uiState.value.recommendation?.trailerVideoUrl)
+
+            finishOld.complete(Unit)
+            runCurrent()
+
+            assertEquals("b", f.controller.uiState.value.recommendation?.id)
+            assertEquals("fixture://new-b", f.controller.uiState.value.recommendation?.trailerVideoUrl)
+            assertFalse(f.controller.uiState.value.isLoadingTrailer)
+            coVerify(exactly = 1) { f.trailers.getTrailerPlaybackSource("a", any(), any(), any(), any()) }
+            coVerify(exactly = 1) { f.trailers.getTrailerPlaybackSource("b", any(), any(), any(), any()) }
+            coVerify(exactly = 0) { f.runtime.releasePlayer() }
+        } finally {
+            finishOld.complete(Unit)
+        }
+    }
+
+    @Test fun oldProfileTrailerCannotPublishAfterReturningToTheSameProfile() = runTest {
+        val f = Fixture(backgroundScope)
+        val finishOld = CompletableDeferred<Unit>()
+        var calls = 0
+        coEvery { f.trailers.getTrailerPlaybackSource("a", any(), any(), any(), any()) } coAnswers {
+            if (++calls == 1) {
+                withContext(NonCancellable) { finishOld.await() }
+                TrailerPlaybackSource("fixture://old-account")
+            } else {
+                TrailerPlaybackSource("fixture://current-account")
+            }
+        }
+
+        try {
+            f.endPlayback()
+            runCurrent()
+            assertEquals(1, calls)
+            f.activeProfileFlow.value = 2
+            runCurrent()
+            assertNull(f.controller.uiState.value.recommendation)
+            assertEquals(1, calls)
+
+            f.activeProfileFlow.value = 1
+            runCurrent()
+            assertEquals(2, calls)
+            assertEquals("fixture://current-account", f.controller.uiState.value.recommendation?.trailerVideoUrl)
+
+            finishOld.complete(Unit)
+            runCurrent()
+            assertEquals("fixture://current-account", f.controller.uiState.value.recommendation?.trailerVideoUrl)
+            coVerify(exactly = 0) { f.runtime.releasePlayer() }
+        } finally {
+            finishOld.complete(Unit)
+        }
+    }
+
     @Test fun `stopped metadata resolution admits no subsequent ID or enrichment lookup`() = runTest {
         val f=Fixture(backgroundScope);runCurrent()
         every { f.meta.getCachedMeta("movie","b") } answers {

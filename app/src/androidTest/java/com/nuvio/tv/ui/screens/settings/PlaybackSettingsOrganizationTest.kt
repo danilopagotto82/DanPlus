@@ -2,7 +2,9 @@ package com.nuvio.tv.ui.screens.settings
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.requiredHeight
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasAnyAncestor
@@ -113,6 +115,18 @@ class PlaybackSettingsOrganizationTest {
     }
 
     @Test
+    fun assStyleEditorLivesUnderSubtitles() {
+        setSections()
+
+        expand(PlaybackSection.SUBTITLES)
+
+        composeRule.onAllNodes(
+            hasTestTag(ASS_STYLE_EDITOR_TAG) and
+                hasAnyAncestor(hasTestTag(PlaybackSettingsTestTags.section(PlaybackSection.SUBTITLES)))
+        ).assertCountEquals(1)
+    }
+
+    @Test
     fun bufferSectionIsHiddenForLibmpvOnly() {
         setSections(PlayerSettings(internalPlayerEngine = InternalPlayerEngine.MVP_PLAYER))
 
@@ -136,7 +150,8 @@ class PlaybackSettingsOrganizationTest {
                         onUpdate = {},
                         onOpenDialog = {},
                         onMemorySettingChanged = {},
-                        onClearTorrentCache = {}
+                        onClearTorrentCache = {},
+                        assStyleEditor = { Box(Modifier.size(1.dp).testTag(ASS_STYLE_EDITOR_TAG)) }
                     )
                 }
             }
@@ -162,5 +177,9 @@ class PlaybackSettingsOrganizationTest {
             hasText(context.getString(titleRes)) and
                 hasAnyAncestor(hasTestTag(PlaybackSettingsTestTags.section(section)))
         ).assertCountEquals(expected)
+    }
+
+    private companion object {
+        const val ASS_STYLE_EDITOR_TAG = "test_ass_style_editor"
     }
 }

@@ -192,6 +192,15 @@ class PostPlayWatchedHistorySchedulingTest {
         }
         assertTrue(message,fact())
     }
+    private fun TestScope.endPlaybackAndAwaitTrailer(f: Fixture) {
+        awaitFact("recommendation ready during main playback") { f.controller.uiState.value.recommendation != null }
+        coVerify(exactly = 0) { f.trailers.getTrailerPlaybackSource(any(), any(), any(), any(), any()) }
+        f.player.value = f.player.value.copy(playbackEnded = true, isPlaying = false)
+        runCurrent()
+        assertTrue("selected trailer must be ready after playback ends", f.controller.uiState.value.recommendation?.hasTrailer == true)
+        coVerify(exactly = 1) { f.trailers.getTrailerPlaybackSource(any(), any(), any(), any(), any()) }
+    }
+
     private fun TestScope.pumpObservedWrites() { repeat(8) { runCurrent();Thread.sleep(5);advanceTimeBy(600);runCurrent() } }
 
     @Test fun `actual history projection excludes a watched movie before first selection`() = runTest { history { h ->
@@ -293,8 +302,7 @@ class PostPlayWatchedHistorySchedulingTest {
         val f=h.fixture(backgroundScope)
         f.trailerSettings.value=f.trailerSettings.value.copy(enabled=true)
         coEvery { f.trailers.getTrailerPlaybackSource(any(),any(),any(),any(),any()) } returns com.nuvio.tv.data.trailer.TrailerPlaybackSource("fixture://trailer")
-        awaitFact("initial trailer ready") { f.controller.uiState.value.recommendation?.hasTrailer==true }
-        f.player.value=f.player.value.copy(playbackEnded=true);runCurrent()
+        endPlaybackAndAwaitTrailer(f)
         assertEquals(5,f.controller.uiState.value.countdownSeconds)
         val end=testScheduler.currentTime+5000
         advanceTimeBy(2000);runCurrent();h.watched.advanceLastSuccessfulPushMs(100,1)
@@ -382,8 +390,7 @@ class PostPlayWatchedHistorySchedulingTest {
         val f=h.fixture(backgroundScope)
         f.trailerSettings.value=f.trailerSettings.value.copy(enabled=true)
         coEvery { f.trailers.getTrailerPlaybackSource(any(),any(),any(),any(),any()) } returns com.nuvio.tv.data.trailer.TrailerPlaybackSource("fixture://trailer")
-        awaitFact("initial trailer ready") { f.controller.uiState.value.recommendation?.hasTrailer==true }
-        f.player.value=f.player.value.copy(playbackEnded=true);runCurrent()
+        endPlaybackAndAwaitTrailer(f)
         assertEquals(5,f.controller.uiState.value.countdownSeconds)
         advanceTimeBy(2000);runCurrent()
         f.timeline.value=f.timeline.value.copy(currentPosition=7_160_000);runCurrent()
@@ -414,8 +421,7 @@ class PostPlayWatchedHistorySchedulingTest {
         val f=h.fixture(backgroundScope)
         f.trailerSettings.value=f.trailerSettings.value.copy(enabled=true)
         coEvery { f.trailers.getTrailerPlaybackSource(any(),any(),any(),any(),any()) } returns com.nuvio.tv.data.trailer.TrailerPlaybackSource("fixture://trailer")
-        awaitFact("initial trailer ready") { f.controller.uiState.value.recommendation?.hasTrailer==true }
-        f.player.value=f.player.value.copy(playbackEnded=true);runCurrent()
+        endPlaybackAndAwaitTrailer(f)
         assertEquals(5,f.controller.uiState.value.countdownSeconds)
         advanceTimeBy(1000);runCurrent();h.mark("current");pumpObservedWrites()
         assertEquals("current movie is already excluded",1,f.relatedCalls)
@@ -426,8 +432,7 @@ class PostPlayWatchedHistorySchedulingTest {
         coEvery { f.meta.getCachedMeta("movie","current") } returns Fixture.metadata("canonical")
         f.trailerSettings.value=f.trailerSettings.value.copy(enabled=true)
         coEvery { f.trailers.getTrailerPlaybackSource(any(),any(),any(),any(),any()) } returns com.nuvio.tv.data.trailer.TrailerPlaybackSource("fixture://trailer")
-        awaitFact("initial trailer ready") { f.controller.uiState.value.recommendation?.hasTrailer==true }
-        f.player.value=f.player.value.copy(playbackEnded=true);runCurrent()
+        endPlaybackAndAwaitTrailer(f)
         assertEquals(5,f.controller.uiState.value.countdownSeconds)
         advanceTimeBy(1000);runCurrent();h.mark("canonical");pumpObservedWrites()
         assertEquals("current metadata alias is already excluded",1,f.relatedCalls)
@@ -437,7 +442,7 @@ class PostPlayWatchedHistorySchedulingTest {
         val f=h.fixture(backgroundScope)
         f.trailerSettings.value=f.trailerSettings.value.copy(enabled=true)
         coEvery { f.trailers.getTrailerPlaybackSource(any(),any(),any(),any(),any()) } returns com.nuvio.tv.data.trailer.TrailerPlaybackSource("fixture://trailer")
-        awaitFact("initial trailer ready") { f.controller.uiState.value.recommendation?.hasTrailer==true }
+        endPlaybackAndAwaitTrailer(f)
         f.controller.playTrailer();runCurrent();assertTrue(f.controller.uiState.value.isTrailerPlaying)
         h.mark("current");pumpObservedWrites()
         assertEquals(1,f.relatedCalls);assertTrue(f.controller.uiState.value.isTrailerPlaying)
@@ -448,8 +453,7 @@ class PostPlayWatchedHistorySchedulingTest {
         val f=h.fixture(backgroundScope)
         f.trailerSettings.value=f.trailerSettings.value.copy(enabled=true)
         coEvery { f.trailers.getTrailerPlaybackSource(any(),any(),any(),any(),any()) } returns com.nuvio.tv.data.trailer.TrailerPlaybackSource("fixture://trailer")
-        awaitFact("initial trailer ready") { f.controller.uiState.value.recommendation?.hasTrailer==true }
-        f.player.value=f.player.value.copy(playbackEnded=true);runCurrent()
+        endPlaybackAndAwaitTrailer(f)
         assertEquals(5,f.controller.uiState.value.countdownSeconds)
         advanceTimeBy(1000);runCurrent();h.mark("outside");pumpObservedWrites()
         assertEquals("undiscovered title cannot change these candidates",1,f.relatedCalls)

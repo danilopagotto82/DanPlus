@@ -422,10 +422,14 @@ internal class PostPlayRecommendationController(
     }
 
     private fun evaluate(snapshot: PlaybackSnapshot) {
-        if (!snapshot.playbackEnded && recommendationTrailerJob != null) {
+        if (!snapshot.playbackEnded &&
+            (recommendationTrailerJob != null || postEndCountdownJob != null || _uiState.value.isLoadingTrailer)
+        ) {
             recommendationTrailerJob?.cancel()
             recommendationTrailerJob = null
-            _uiState.update { it.copy(isLoadingTrailer = false) }
+            postEndCountdownJob?.cancel()
+            postEndCountdownJob = null
+            _uiState.update { it.copy(isLoadingTrailer = false, countdownSeconds = null) }
         }
         // Preferences/history may only be used by the profile owning this playback session.
         if (snapshot.identity.activeProfileId != playbackController.profileId ||
@@ -541,13 +545,8 @@ internal class PostPlayRecommendationController(
         }
 
         if (snapshot.playbackEnded) {
-            // Timeline updates must leave the admitted five-second job in control.
-            if (postEndCountdownJob?.isActive == true) return
-            if (state.countdownSeconds != null) {
-                startTrailer()
-            } else {
-                startPostEndCountdown()
-            }
+            // Only a countdown admitted after playback ends may start the trailer.
+            startPostEndCountdown()
             return
         }
 
@@ -724,8 +723,11 @@ internal class PostPlayRecommendationController(
         job.start()
     }
 
+    private fun mainPlaybackEnded(): Boolean =
+        lastSnapshot?.playbackEnded == true && playbackController.uiState.value.playbackEnded
+
     private fun loadSelectedTrailerAfterPlayback() {
-        if (!postPlayTrailerPlaybackEnabled || lastSnapshot?.playbackEnded != true ||
+        if (!postPlayTrailerPlaybackEnabled || !mainPlaybackEnded() ||
             recommendationTrailerJob?.isActive == true
         ) return
         val token = currentToken() ?: return
@@ -739,7 +741,7 @@ internal class PostPlayRecommendationController(
         val job = scope.launch(start = CoroutineStart.LAZY) {
             try {
                 ensureSelected(token, index, revision)
-                if (lastSnapshot?.playbackEnded != true) return@launch
+                if (!mainPlaybackEnded()) return@launch
                 _uiState.update { it.copy(isLoadingTrailer = true, countdownSeconds = null) }
                 val source = try {
                     withTimeoutOrNull(15_000L) {
@@ -755,7 +757,7 @@ internal class PostPlayRecommendationController(
                     null
                 }
                 ensureSelected(token, index, revision)
-                if (lastSnapshot?.playbackEnded != true) return@launch
+                if (!mainPlaybackEnded()) return@launch
                 checkedRecommendationTrailers.add(index)
                 updateCachedRecommendation(index, token, revision) {
                     it.copy(trailerVideoUrl = source?.videoUrl, trailerAudioUrl = source?.audioUrl)
@@ -1003,6 +1005,7 @@ internal class PostPlayRecommendationController(
     }
 
     private fun startPostEndCountdown() {
+        if (!mainPlaybackEnded()) return
         val state = _uiState.value
         if (!postPlayTrailerPlaybackEnabled ||
             postEndCountdownJob?.isActive == true ||
@@ -1033,7 +1036,7 @@ internal class PostPlayRecommendationController(
     }
 
     private fun startTrailer() {
-        if (lastSnapshot?.playbackEnded != true) return
+        if (!mainPlaybackEnded()) return
         val token = currentToken() ?: return
         if (!isCurrent(token)) return
         val state = _uiState.value
