@@ -56,6 +56,7 @@ class FloppyTrackingScrobbler @Inject constructor(
         if (!store.state.value.isAuthenticated) return
         val body = floppyScrobbleBody(action, event) ?: return
         val scope = store.scope()
+        check(event.profileId == null || event.profileId == scope.profileId) { "Scrobble profile changed" }
         api.scrobble(scope, body)
         if (action == TrackingScrobbleAction.STOP && event.progressPercent >= FLOPPY_COMPLETED_PERCENT) {
             event.media.filmTmdbId()?.let { ledger.record(scope.profileId, it, System.currentTimeMillis()) }

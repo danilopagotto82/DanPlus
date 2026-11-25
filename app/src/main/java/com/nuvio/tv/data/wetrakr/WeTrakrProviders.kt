@@ -81,9 +81,12 @@ class WeTrakrTrackingScrobbler @Inject constructor(
     override suspend fun scrobble(action: TrackingScrobbleAction, event: TrackingScrobbleEvent) {
         if (!auth.state.value.isAuthenticated) return
         try {
+            val owner = sync.currentScope()
+            check(event.profileId == null || event.profileId == owner.profileId) { "Scrobble profile changed" }
             sync.ensureLoaded()
-            service.scrobble(sync.currentScope(), action, event)
+            service.scrobble(owner, action, event)
         } catch (error: WeTrakrAccountChangedException) {
+            if (event.profileId != null) throw error
             Log.d(TRACKING_SCROBBLE_DIAGNOSTIC_TAG, "wetrakr adapter skipped action=${action.wireValue} reason=account_changed")
         } catch (error: Throwable) {
             Log.w(TRACKING_SCROBBLE_DIAGNOSTIC_TAG, "wetrakr adapter failed action=${action.wireValue} error=${error.javaClass.simpleName} ${event.scrobbleDiagnosticSummary()}")

@@ -16,6 +16,7 @@ import com.nuvio.tv.domain.model.WatchProgress
 import com.nuvio.tv.domain.model.normalizeLanguageCode
 import com.nuvio.tv.domain.model.countryToLanguageCode
 import com.nuvio.tv.ui.util.parseEpisodeReleaseDate
+import com.nuvio.tv.core.util.sortedByEpisodeRelease
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -1777,25 +1778,8 @@ internal fun sortContinueWatchingItems(
                 }
             }
 
-            val sortedUnreleased = unreleased.sortedWith { a, b ->
-                val dateA = parseEpisodeReleaseDate(
-                    when (a) {
-                        is ContinueWatchingItem.InProgress -> null
-                        is ContinueWatchingItem.NextUp -> a.info.released
-                    }
-                )
-                val dateB = parseEpisodeReleaseDate(
-                    when (b) {
-                        is ContinueWatchingItem.InProgress -> null
-                        is ContinueWatchingItem.NextUp -> b.info.released
-                    }
-                )
-                when {
-                    dateA == null && dateB == null -> 0
-                    dateA == null -> 1 // unknown dates go to the end
-                    dateB == null -> -1
-                    else -> dateA.compareTo(dateB) // ascending: soonest first
-                }
+            val sortedUnreleased = unreleased.sortedByEpisodeRelease { item ->
+                (item as? ContinueWatchingItem.NextUp)?.info?.released
             }
 
             sortedReleased + sortedUnreleased
@@ -1850,20 +1834,8 @@ internal fun splitUpcomingItems(
     val (upcoming, main) = unique.partition { item ->
         item is ContinueWatchingItem.NextUp && !item.info.hasAired
     }
-    // Sort upcoming by release date ascending (soonest first)
-    val sortedUpcoming = upcoming.sortedWith { a, b ->
-        val dateA = parseEpisodeReleaseDate(
-            (a as? ContinueWatchingItem.NextUp)?.info?.released
-        )
-        val dateB = parseEpisodeReleaseDate(
-            (b as? ContinueWatchingItem.NextUp)?.info?.released
-        )
-        when {
-            dateA == null && dateB == null -> 0
-            dateA == null -> 1
-            dateB == null -> -1
-            else -> dateA.compareTo(dateB)
-        }
+    val sortedUpcoming = upcoming.sortedByEpisodeRelease { item ->
+        (item as? ContinueWatchingItem.NextUp)?.info?.released
     }
     return main to sortedUpcoming
 }

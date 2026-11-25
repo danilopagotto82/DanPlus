@@ -62,6 +62,23 @@ internal fun parseEpisodeReleaseInstant(
         ?: parseEmbeddedReleaseDate(value)?.atStartOfDay(ZoneOffset.UTC)?.toInstant()
 }
 
+internal fun <T> Iterable<T>.sortedByEpisodeRelease(
+    zone: ZoneId = ZoneId.systemDefault(),
+    release: (T) -> String?
+): List<T> = map { item ->
+    val value = release(item)?.trim().orEmpty()
+    val timestamp = if (ISO_DATE_START.containsMatchIn(value) && value.length > PLAIN_DATE_LENGTH) {
+        parseExplicitReleaseInstant(value)
+            ?: runCatching { LocalDateTime.parse(value).atZone(zone).toInstant() }.getOrNull()
+    } else null
+    Triple(item, parseEpisodeReleaseLocalDate(value, zone), timestamp)
+}.sortedWith(
+    compareBy<Triple<T, LocalDate?, Instant?>> { it.second == null }
+        .thenBy { it.second }
+        .thenBy { it.third == null }
+        .thenBy { it.third }
+).map { it.first }
+
 /**
  * Uses the add-on release timestamp unless the user explicitly opts into TMDB's date-only
  * broadcaster calendar dates.

@@ -15,6 +15,8 @@ class SimklAuthRepository(
     private val storage: SimklAuthStorage,
     private val nowEpochMs: () -> Long = System::currentTimeMillis
 ) {
+    internal fun currentScope(): SimklAuthScope = storage.currentScope()
+
     @Inject
     constructor(
         apiClient: SimklApiClient,

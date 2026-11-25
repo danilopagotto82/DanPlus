@@ -14,6 +14,23 @@ class EpisodeReleaseDateParserTest {
     private val eastern = ZoneId.of("America/Detroit")
 
     @Test
+    fun `upcoming episodes sort by local day then actual time with unknown times last that day`() {
+        val values = listOf(
+            "later" to "2026-07-17",
+            "unknown" to null,
+            "day only" to "2026-07-15",
+            "night" to "2026-07-16T02:00:00Z",
+            "local afternoon" to "2026-07-15T14:00:00",
+            "morning" to "2026-07-15T10:00:00-04:00",
+            "invalid" to "coming soon"
+        )
+        assertEquals(
+            listOf("morning", "local afternoon", "night", "day only", "later", "unknown", "invalid"),
+            values.sortedByEpisodeRelease(eastern) { it.second }.map { it.first }
+        )
+    }
+
+    @Test
     fun `utc timestamp uses the viewers local episode date`() {
         assertEquals(
             LocalDate.of(2026, 7, 15),

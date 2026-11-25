@@ -2951,6 +2951,7 @@ class MetaDetailsViewModel @Inject constructor(
     private fun markSeasonWatched(season: Int) {
         val meta = _uiState.value.meta ?: return
         suppressSeasonAutoSwitch = true
+        val ownerProfileId = profileManager.activeProfileId.value
         viewModelScope.launch {
             val episodes = if (meta.apiType.equals("other", ignoreCase = true)) {
                 _uiState.value.episodesForSeason.filter { it.season == season && it.episode != null }
@@ -2969,33 +2970,14 @@ class MetaDetailsViewModel @Inject constructor(
                 return@launch
             }
 
-            val optimisticKeys = unwatched.map { it.season!! to it.episode!! }.toSet()
-            _optimisticUnmarks -= optimisticKeys
-            _optimisticMarks += optimisticKeys
-
-            val pendingKeys = unwatched.map { episodePendingKey(it) }.toSet()
-            _uiState.update {
-                it.copy(episodeWatchedPendingKeys = it.episodeWatchedPendingKeys + pendingKeys)
-            }
-
-            runCatching {
-                val progressList = unwatched.map { buildCompletedEpisodeProgress(meta, it) }
-                watchProgressRepository.markAsCompletedBatch(progressList)
-            }.onFailure { error ->
-                Log.w(TAG, "Failed to batch mark season $season as watched: ${error.message}")
-            }
-
-            _uiState.update {
-                it.copy(episodeWatchedPendingKeys = it.episodeWatchedPendingKeys - pendingKeys)
-            }
-            reevaluateSeriesWatchedBadge()
-            showMessage(localizedContext.getString(R.string.detail_marked_episodes_watched, unwatched.size))
+            commitEpisodeWatchedBatch(meta, unwatched, ownerProfileId, watched = true, messageId = R.string.detail_marked_episodes_watched)
         }
     }
 
     private fun markSeasonUnwatched(season: Int) {
         val meta = _uiState.value.meta ?: return
         suppressSeasonAutoSwitch = true
+        val ownerProfileId = profileManager.activeProfileId.value
         viewModelScope.launch {
             val episodes = if (meta.apiType.equals("other", ignoreCase = true)) {
                 _uiState.value.episodesForSeason.filter { it.season == season && it.episode != null }
@@ -3013,31 +2995,7 @@ class MetaDetailsViewModel @Inject constructor(
                 return@launch
             }
 
-            val optimisticKeys = watched.map { it.season!! to it.episode!! }.toSet()
-            _optimisticMarks -= optimisticKeys
-            _optimisticUnmarks += optimisticKeys
-
-            val pendingKeys = watched.map { episodePendingKey(it) }.toSet()
-            _uiState.update {
-                it.copy(episodeWatchedPendingKeys = it.episodeWatchedPendingKeys + pendingKeys)
-            }
-
-            runCatching {
-                val episodeTriples = watched.map { Triple(it.season!!, it.episode!!, it.id) }
-                watchProgressRepository.removeFromHistoryBatch(
-                    contentId = _effectiveContentId.value,
-                    videoId = resolveFallbackVideoId(),
-                    episodes = episodeTriples
-                )
-            }.onFailure { error ->
-                Log.w(TAG, "Failed to batch unmark season $season: ${error.message}")
-            }
-
-            _uiState.update {
-                it.copy(episodeWatchedPendingKeys = it.episodeWatchedPendingKeys - pendingKeys)
-            }
-            reevaluateSeriesWatchedBadge()
-            showMessage(localizedContext.getString(R.string.detail_marked_episodes_unwatched, watched.size))
+            commitEpisodeWatchedBatch(meta, watched, ownerProfileId, watched = false, messageId = R.string.detail_marked_episodes_unwatched)
         }
     }
 
@@ -3046,6 +3004,7 @@ class MetaDetailsViewModel @Inject constructor(
         val targetSeason = video.season ?: return
         val targetEpisode = video.episode ?: return
 
+        val ownerProfileId = profileManager.activeProfileId.value
         viewModelScope.launch {
             val previous = if (meta.apiType.equals("other", ignoreCase = true)) {
                 _uiState.value.episodesForSeason.filter { v ->
@@ -3068,33 +3027,14 @@ class MetaDetailsViewModel @Inject constructor(
                 return@launch
             }
 
-            val optimisticKeys = unwatched.map { it.season!! to it.episode!! }.toSet()
-            _optimisticUnmarks -= optimisticKeys
-            _optimisticMarks += optimisticKeys
-
-            val pendingKeys = unwatched.map { episodePendingKey(it) }.toSet()
-            _uiState.update {
-                it.copy(episodeWatchedPendingKeys = it.episodeWatchedPendingKeys + pendingKeys)
-            }
-
-            runCatching {
-                val progressList = unwatched.map { buildCompletedEpisodeProgress(meta, it) }
-                watchProgressRepository.markAsCompletedBatch(progressList)
-            }.onFailure { error ->
-                Log.w(TAG, "Failed to batch mark previous episodes as watched: ${error.message}")
-            }
-
-            _uiState.update {
-                it.copy(episodeWatchedPendingKeys = it.episodeWatchedPendingKeys - pendingKeys)
-            }
-            reevaluateSeriesWatchedBadge()
-            showMessage(localizedContext.getString(R.string.detail_marked_previous_watched, unwatched.size))
+            commitEpisodeWatchedBatch(meta, unwatched, ownerProfileId, watched = true, messageId = R.string.detail_marked_previous_watched)
         }
     }
 
     private fun markPreviousSeasonsWatched(targetSeason: Int) {
         val meta = _uiState.value.meta ?: return
         suppressSeasonAutoSwitch = true
+        val ownerProfileId = profileManager.activeProfileId.value
         viewModelScope.launch {
             val episodes = if (meta.apiType.equals("other", ignoreCase = true)) {
                 _uiState.value.episodesForSeason.filter { it.season != null && it.season < targetSeason && it.season > 0 && it.episode != null }
@@ -3113,27 +3053,54 @@ class MetaDetailsViewModel @Inject constructor(
                 return@launch
             }
 
-            val optimisticKeys = unwatched.map { it.season!! to it.episode!! }.toSet()
-            _optimisticUnmarks -= optimisticKeys
-            _optimisticMarks += optimisticKeys
+            commitEpisodeWatchedBatch(meta, unwatched, ownerProfileId, watched = true, messageId = R.string.detail_marked_episodes_watched)
+        }
+    }
 
-            val pendingKeys = unwatched.map { episodePendingKey(it) }.toSet()
-            _uiState.update {
-                it.copy(episodeWatchedPendingKeys = it.episodeWatchedPendingKeys + pendingKeys)
+    private suspend fun commitEpisodeWatchedBatch(
+        meta: Meta,
+        episodes: List<Video>,
+        ownerProfileId: Int,
+        watched: Boolean,
+        messageId: Int
+    ) {
+        val contentId = _effectiveContentId.value
+        fun isCurrent() = profileManager.activeProfileId.value == ownerProfileId &&
+            _effectiveContentId.value == contentId && _uiState.value.meta?.id == meta.id
+
+        if (!isCurrent()) return
+        val unique = episodes.distinctBy { it.season to it.episode }
+        val pending = unique.map(::episodePendingKey).toSet()
+        if (pending.any { it in _uiState.value.episodeWatchedPendingKeys }) return
+        val keys = unique.map { it.season!! to it.episode!! }.toSet()
+        _uiState.update { it.copy(episodeWatchedPendingKeys = it.episodeWatchedPendingKeys + pending) }
+        try {
+            if (watched) {
+                watchProgressRepository.markAsCompletedBatch(unique.map { buildCompletedEpisodeProgress(meta, it) })
+            } else {
+                watchProgressRepository.removeFromHistoryBatch(
+                    contentId = contentId,
+                    videoId = resolveFallbackVideoId(),
+                    episodes = unique.map { Triple(it.season!!, it.episode!!, it.id) }
+                )
             }
-
-            runCatching {
-                val progressList = unwatched.map { buildCompletedEpisodeProgress(meta, it) }
-                watchProgressRepository.markAsCompletedBatch(progressList)
-            }.onFailure { error ->
-                Log.w(TAG, "Failed to batch mark previous seasons as watched: ${error.message}")
-            }
-
-            _uiState.update {
-                it.copy(episodeWatchedPendingKeys = it.episodeWatchedPendingKeys - pendingKeys)
+            if (!isCurrent()) return
+            if (watched) {
+                _optimisticUnmarks -= keys
+                _optimisticMarks += keys
+            } else {
+                _optimisticMarks -= keys
+                _optimisticUnmarks += keys
             }
             reevaluateSeriesWatchedBadge()
-            showMessage(localizedContext.getString(R.string.detail_marked_episodes_watched, unwatched.size))
+            showMessage(localizedContext.getString(messageId, unique.size))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "Batch watched update failed: ${error.javaClass.simpleName}")
+            if (isCurrent()) showMessage(localizedContext.getString(R.string.detail_error_update_episode_watched_failed))
+        } finally {
+            if (isCurrent()) _uiState.update { it.copy(episodeWatchedPendingKeys = it.episodeWatchedPendingKeys - pending) }
         }
     }
 

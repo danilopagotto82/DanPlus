@@ -6,6 +6,7 @@ import com.nuvio.tv.core.poster.CustomPosterScreen
 import com.nuvio.tv.core.poster.patternForScreen
 import com.nuvio.tv.core.poster.withCustomPosterArt
 import com.nuvio.tv.core.recommendations.TvRecommendationManager
+import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.data.local.ContinueWatchingEnrichmentCache
 import com.nuvio.tv.data.local.LayoutPreferenceDataStore
 import com.nuvio.tv.data.local.TraktSettingsDataStore
@@ -50,7 +51,8 @@ class AndroidTvChannelSyncService @Inject constructor(
     private val layoutPreferenceDataStore: LayoutPreferenceDataStore,
     private val traktSettingsDataStore: TraktSettingsDataStore,
     private val tvRecommendationManager: TvRecommendationManager,
-    private val metaRepository: MetaRepository
+    private val metaRepository: MetaRepository,
+    private val profileManager: ProfileManager
 ) {
     private val scope = CoroutineScope(
         SupervisorJob() + Dispatchers.IO +
@@ -107,18 +109,19 @@ class AndroidTvChannelSyncService @Inject constructor(
                     .dropWhile { it == 0 },
                 traktSettingsDataStore.continueWatchingDaysCap,
                 traktSettingsDataStore.dismissedNextUpKeys,
-                layoutPreferenceDataStore.useEpisodeThumbnailsInCw
-            ) { _, daysCap, dismissed, useEpisodeThumbnails ->
-                ChannelSettingsSnapshot(daysCap, dismissed, useEpisodeThumbnails)
+                layoutPreferenceDataStore.useEpisodeThumbnailsInCw,
+                profileManager.activeProfileId
+            ) { _, daysCap, dismissed, useEpisodeThumbnails, profileId ->
+                profileId to ChannelSettingsSnapshot(daysCap, dismissed, useEpisodeThumbnails)
             }
                 .debounce(DEBOUNCE_MS)
-                .collect { settings ->
+                .collect { (profileId, settings) ->
                     // Skip while the app is foregrounded: the launcher channel isn't visible
                     // then, and reconciling on every ~10s in-playback cache bump thrashes the
                     // provider (and stops launchers like Projectivy from repainting). The
                     // background transition (onForegroundChanged) + periodic job cover it.
                     if (appInForeground) return@collect
-                    reconcileFromCache(settings)
+                    reconcileFromCache(settings, expectedProfileId = profileId)
                 }
         }
     }
@@ -127,7 +130,11 @@ class AndroidTvChannelSyncService @Inject constructor(
      * Reads the CW enrichment cache and reconciles the launcher channel.
      * Called both from the live observer and from [TvChannelRefreshJobService].
      */
-    suspend fun reconcileFromCache(settings: ChannelSettingsSnapshot? = null, withWatchNext: Boolean = true) {
+    suspend fun reconcileFromCache(
+        settings: ChannelSettingsSnapshot? = null,
+        withWatchNext: Boolean = true,
+        expectedProfileId: Int = profileManager.activeProfileId.value
+    ) {
         if (!manager.isSupported()) return
         reconcileMutex.withLock {
             syncWaitsForPlayback = true
@@ -136,11 +143,12 @@ class AndroidTvChannelSyncService @Inject constructor(
                 return@withLock
             }
             syncWaitsForPlayback = false
-            reconcileLocked(settings, withWatchNext)
+            if (profileManager.activeProfileId.value != expectedProfileId) return@withLock
+            reconcileLocked(settings, withWatchNext, expectedProfileId)
         }
     }
 
-    private suspend fun reconcileLocked(settings: ChannelSettingsSnapshot?, withWatchNext: Boolean) {
+    private suspend fun reconcileLocked(settings: ChannelSettingsSnapshot?, withWatchNext: Boolean, profileId: Int) {
         val resolvedSettings = settings ?: runCatching {
             val daysCap = traktSettingsDataStore.continueWatchingDaysCap.first()
             val dismissed = traktSettingsDataStore.dismissedNextUpKeys.first()
@@ -151,10 +159,8 @@ class AndroidTvChannelSyncService @Inject constructor(
             return
         }
 
-        val inProgressItems = runCatching { cwEnrichmentCache.getInProgressSnapshot() }
-            .getOrDefault(emptyList())
-        val nextUpItems = runCatching { cwEnrichmentCache.getNextUpSnapshot() }
-            .getOrDefault(emptyList())
+        val inProgressItems = cwEnrichmentCache.getInProgressSnapshot(profileId)
+        val nextUpItems = cwEnrichmentCache.getNextUpSnapshot(profileId)
 
         val posterPattern = patternForScreen(
             layoutPreferenceDataStore.customPosterUrlPattern.first(),
@@ -164,6 +170,7 @@ class AndroidTvChannelSyncService @Inject constructor(
         val channelItems = buildChannelItems(inProgressItems, nextUpItems, resolvedSettings)
             .withCustomPosterArt(posterPattern)
         val descriptions = channelDescriptions(channelItems, inProgressItems, nextUpItems, metaRepository::getCachedMeta)
+        if (profileManager.activeProfileId.value != profileId) return
 
         Log.d(
             TAG,
@@ -172,7 +179,7 @@ class AndroidTvChannelSyncService @Inject constructor(
         )
         manager.reconcile(channelItems, descriptions)
 
-        if (!withWatchNext) return
+        if (!withWatchNext || profileManager.activeProfileId.value != profileId) return
         runCatching {
             tvRecommendationManager.updateWatchNext(channelItems, descriptions)
         }

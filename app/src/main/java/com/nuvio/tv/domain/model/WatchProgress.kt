@@ -59,7 +59,7 @@ data class WatchProgress(
      */
     val progressPercentage: Float
         get() {
-            progressPercent?.let { explicitPercent ->
+            progressPercent?.takeIf { it.isFinite() }?.let { explicitPercent ->
                 return (explicitPercent / 100f).coerceIn(0f, 1f)
             }
             return if (duration > 0) (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
@@ -94,7 +94,7 @@ data class WatchProgress(
         if (position > 0) {
             return position.coerceIn(0L, actualDuration)
         }
-        progressPercent?.let { explicitPercent ->
+        progressPercent?.takeIf { it.isFinite() }?.let { explicitPercent ->
             val fraction = (explicitPercent / 100f).coerceIn(0f, 1f)
             return (actualDuration * fraction).toLong()
         }

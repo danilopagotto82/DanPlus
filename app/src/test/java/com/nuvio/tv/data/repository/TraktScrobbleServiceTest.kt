@@ -33,6 +33,19 @@ class TraktScrobbleServiceTest {
     )
 
     @Test
+    fun `stop at the completion boundary is distinct from a nearby progress stop`() {
+        assertFalse(service().shouldSkipDecision(
+            last = stamp(action = "stop", progress = 79.5f),
+            issued = null,
+            nowMs = 1_000_100L,
+            profileId = 1,
+            action = "stop",
+            itemKey = BRAVEHEART,
+            progress = 80f
+        ))
+    }
+
+    @Test
     fun `stop is not skipped while a start for the same item is still in flight`() {
         val skip = service().shouldSkipDecision(
             last = stamp(action = "stop", timestampMs = 1_000_000L),

@@ -90,17 +90,28 @@ class TraktScrobbleService @Inject constructor(
         sendScrobble(action = "pause", item = item, progressPercent = progressPercent)
     }
 
+    internal suspend fun sendTrackedScrobble(
+        action: String,
+        item: TraktScrobbleItem,
+        progressPercent: Float,
+        profileId: Int?
+    ) {
+        check(sendScrobble(action, item, progressPercent, profileId)) { "Trakt scrobble was not acknowledged" }
+    }
+
     private suspend fun sendScrobble(
         action: String,
         item: TraktScrobbleItem,
-        progressPercent: Float
-    ) {
-        val activeProfileId = profileManager.activeProfileId.value
-        if (!traktAuthService.getCurrentAuthState().isAuthenticated) return
-        if (!traktAuthService.hasRequiredCredentials()) return
+        progressPercent: Float,
+        expectedProfileId: Int? = null
+    ): Boolean {
+        val activeProfileId = expectedProfileId ?: profileManager.activeProfileId.value
+        if (profileManager.activeProfileId.value != activeProfileId) return false
+        if (!traktAuthService.getCurrentAuthState().isAuthenticated) return false
+        if (!traktAuthService.hasRequiredCredentials()) return false
 
         val clampedProgress = progressPercent.coerceIn(0f, 100f)
-        if (shouldSkip(activeProfileId, action, item.itemKey, clampedProgress)) return
+        if (shouldSkip(activeProfileId, action, item.itemKey, clampedProgress)) return true
 
         val requestBody = buildRequestBody(item, clampedProgress)
 
@@ -118,8 +129,12 @@ class TraktScrobbleService @Inject constructor(
         val attempts = if (action == "stop") maxRetries + 1 else 1
 
         for (attempt in 1..attempts) {
+            if (profileManager.activeProfileId.value != activeProfileId) return false
             val response = try {
                 traktAuthService.executeAuthorizedWriteRequest { authHeader ->
+                    if (expectedProfileId != null) {
+                        check(profileManager.activeProfileId.value == activeProfileId) { "Scrobble profile changed" }
+                    }
                     when (action) {
                         "start" -> traktApi.scrobbleStart(authHeader, requestBody)
                         else -> traktApi.scrobbleStop(authHeader, requestBody)
@@ -142,7 +157,7 @@ class TraktScrobbleService @Inject constructor(
                     continue
                 }
                 Log.w(TAG, "Scrobble $action failed after $attempts attempts", lastException)
-                return
+                return false
             }
 
             if (response.isSuccessful || response.code() == 409) {
@@ -153,10 +168,10 @@ class TraktScrobbleService @Inject constructor(
                     progress = clampedProgress,
                     timestampMs = System.currentTimeMillis()
                 )
-                if (action == "stop") {
+                if (action == "stop" && profileManager.activeProfileId.value == activeProfileId) {
                     traktProgressService.refreshNow()
                 }
-                return
+                return true
             }
 
             // Server error (5xx) — retry for stop actions
@@ -173,8 +188,9 @@ class TraktScrobbleService @Inject constructor(
 
             // Non-retryable error (4xx other than 409)
             Log.w(TAG, "Scrobble $action failed with code ${response.code()}")
-            return
+            return false
         }
+        return false
     }
 
     internal fun buildRequestBody(
@@ -258,6 +274,7 @@ class TraktScrobbleService @Inject constructor(
             return false
         }
 
-        return isSameWindow && isSameProfile && isSameAction && isSameItem && isNearProgress
+        val sameCompletionSide = action != "stop" || (last.progress >= 80f) == (progress >= 80f)
+        return isSameWindow && isSameProfile && isSameAction && isSameItem && isNearProgress && sameCompletionSide
     }
 }

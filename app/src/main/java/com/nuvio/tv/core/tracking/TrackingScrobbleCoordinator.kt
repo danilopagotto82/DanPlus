@@ -1,6 +1,7 @@
 package com.nuvio.tv.core.tracking
 
 import android.util.Log
+import com.nuvio.tv.core.profile.ProfileManager
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.async
@@ -16,12 +17,17 @@ data class TrackingScrobbleFailure(
 
 @Singleton
 class TrackingScrobbleCoordinator @Inject constructor(
-    private val providerRegistry: TrackingProviderRegistry
+    private val providerRegistry: TrackingProviderRegistry,
+    private val profileManager: ProfileManager
 ) {
+    private fun TrackingScrobbleEvent.isCurrentOwner(): Boolean =
+        profileId == null || profileId == profileManager.activeProfileId.value
+
     suspend fun scrobble(
         action: TrackingScrobbleAction,
         event: TrackingScrobbleEvent
     ): List<TrackingScrobbleFailure> {
+        if (!event.isCurrentOwner()) return emptyList()
         val scrobblers = providerRegistry.connectedScrobblers()
         Log.d(
             TRACKING_SCROBBLE_DIAGNOSTIC_TAG,
@@ -47,12 +53,26 @@ class TrackingScrobbleCoordinator @Inject constructor(
     suspend fun scrobbleSeekRestart(
         stop: TrackingScrobbleEvent,
         restart: () -> TrackingScrobbleEvent?
-    ): List<TrackingScrobbleFailure> = dispatchTrackingSeekRestart(providerRegistry.connectedScrobblers(), stop, restart)
+    ): List<TrackingScrobbleFailure> = if (!stop.isCurrentOwner()) emptyList()
+    else dispatchTrackingSeekRestart(providerRegistry.connectedScrobblers(), stop) { restart()?.takeIf { it.isCurrentOwner() } }
         .also { failures -> failures.log(TrackingScrobbleAction.STOP, true) }
 
     suspend fun scrobbleStopWhenLeftPaused(event: TrackingScrobbleEvent): List<TrackingScrobbleFailure> =
-        dispatchTrackingStopWhenLeftPaused(providerRegistry.connectedScrobblers(), event)
+        if (!event.isCurrentOwner()) emptyList() else dispatchTrackingStopWhenLeftPaused(providerRegistry.connectedScrobblers(), event)
             .also { failures -> failures.log(TrackingScrobbleAction.STOP, false) }
+
+    internal suspend fun complete(event: TrackingScrobbleEvent): TrackingCompletionResult {
+        if (!event.isCurrentOwner()) return TrackingCompletionResult(emptySet(), complete = false)
+        val connected = providerRegistry.connectedScrobblers()
+        val targets = connected.filter { it.providerId !in event.skippedProviders }
+        val failures = dispatch(targets, TrackingScrobbleAction.STOP, event)
+        val failed = failures.mapTo(mutableSetOf()) { it.providerId }
+        return TrackingCompletionResult(
+            targets.mapTo(mutableSetOf()) { it.providerId } - failed,
+            complete = connected.isNotEmpty() && failures.isEmpty() && event.isCurrentOwner(),
+            failed = failed
+        )
+    }
 
     private suspend fun dispatch(
         scrobblers: Collection<TrackingScrobbler>,

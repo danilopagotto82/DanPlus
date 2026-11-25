@@ -334,6 +334,14 @@ class PostPlayRecommendationStateTest {
         )
     }
 
+    @Test
+    fun `post play keeps the first entry for a title across catalog aliases`() {
+        val awardMovie = preview(id = "tmdb:7", imdbId = "tt1010101")
+        val duplicate = preview(id = "tt1010101")
+        val another = preview(id = "tmdb:8", imdbId = "tt1010102")
+        assertEquals(listOf(awardMovie, another), listOf(awardMovie, duplicate, another).distinctPostPlayTitles())
+    }
+
     private fun preview(
         background: String = "https://image/candidate-backdrop.jpg",
         logo: String? = null,

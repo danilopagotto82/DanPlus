@@ -789,7 +789,7 @@ internal class PostPlayRecommendationController(
         ensureCurrent(token)
         val owner = token.identity
         val preferences = owner.inputs.preferences
-        val currentIds = setOfNotNull(meta.id.normalizedId(), owner.contentId?.normalizedId())
+        val currentIds = setOfNotNull(meta.id.normalizedId(), meta.imdbId?.normalizedId(), owner.contentId?.normalizedId())
         currentContentIds = currentIds
         val tmdbContentType = resolvePostPlayContentType(
             apiType = owner.contentType,
@@ -852,7 +852,7 @@ internal class PostPlayRecommendationController(
         ensureCurrent(token)
         val hideUnreleased = preferences.hideUnreleased
         watchedCandidateKeys = candidates.asSequence()
-            .filterNot { it.id.normalizedId() in currentIds }
+            .filterNot { it.id.normalizedId() in currentIds || it.imdbId?.normalizedId()?.let(currentIds::contains) == true }
             .filterNot { hideUnreleased && it.isUnreleased(LocalDate.now()) }
             .mapNotNull { candidate ->
                 resolvePostPlayContentType(candidate.apiType, candidate.type)?.let { type ->
@@ -875,8 +875,8 @@ internal class PostPlayRecommendationController(
                 )
             }
             .filterNot { hideUnreleased && it.isUnreleased(LocalDate.now()) }
-            .distinctBy { it.apiType.normalizedId() to it.id.normalizedId() }
             .toList()
+            .distinctPostPlayTitles()
         val first = filtered.firstOrNull { !it.backdropUrl.isNullOrBlank() }
             ?: filtered.firstOrNull()
             ?: return emptyList()
@@ -1028,3 +1028,19 @@ internal class PostPlayRecommendationController(
 private const val MAX_POST_PLAY_RECOMMENDATIONS = 4
 
 private fun String.normalizedId(): String = trim().lowercase()
+
+internal fun List<MetaPreview>.distinctPostPlayTitles(): List<MetaPreview> {
+    val seen = mutableSetOf<String>()
+    return filter { candidate ->
+        val rawType = candidate.apiType.normalizedId()
+        val type = if (rawType == "tv") "series" else rawType
+        val id = candidate.id.normalizedId()
+        val imdb = (candidate.imdbId?.normalizedId() ?: id).takeIf { it.matches(POST_PLAY_IMDB_ID) }
+        val keys = listOfNotNull("$type:$id", imdb)
+        val duplicate = keys.any(seen::contains)
+        seen.addAll(keys)
+        !duplicate
+    }
+}
+
+private val POST_PLAY_IMDB_ID = Regex("tt[0-9]+")

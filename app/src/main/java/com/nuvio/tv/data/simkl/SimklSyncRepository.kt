@@ -141,12 +141,13 @@ class SimklSyncRepository @Inject constructor(
         }
     }
 
-    internal suspend fun commitScrobble(result: SimklScrobbleResult) = withContext(Dispatchers.IO) {
+    internal suspend fun commitScrobble(result: SimklScrobbleResult, owner: SimklAuthScope? = null) = withContext(Dispatchers.IO) {
         ensureLoaded()
         val profileId = profileManager.activeProfileId.value
         val generation = profileGeneration
         snapshotMutex.withLock {
             if (!isCurrent(profileId, generation)) return@withLock
+            if (owner != null && (owner.profileId != profileId || !authStorage.isCurrent(owner))) return@withLock
             val current = _state.value
             val index = _projection.value.entryIndex.takeIf { it.matchesEntries(current.snapshot.entries) }
             val (snapshot, updatedIndex) = current.snapshot.applyScrobbleResultWithIndex(

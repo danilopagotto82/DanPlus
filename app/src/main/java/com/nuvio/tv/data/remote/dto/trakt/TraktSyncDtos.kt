@@ -211,7 +211,8 @@ data class TraktRatingItemDto(
     @Json(name = "rating") val rating: Int? = null,
     @Json(name = "type") val type: String? = null,
     @Json(name = "movie") val movie: TraktMovieDto? = null,
-    @Json(name = "show") val show: TraktShowDto? = null
+    @Json(name = "show") val show: TraktShowDto? = null,
+    @Json(name = "episode") val episode: TraktEpisodeDto? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -224,5 +225,13 @@ data class TraktRatingEntryDto(
 @JsonClass(generateAdapter = true)
 data class TraktRatingsRequestDto(
     @Json(name = "movies") val movies: List<TraktRatingEntryDto>? = null,
-    @Json(name = "shows") val shows: List<TraktRatingEntryDto>? = null
+    @Json(name = "shows") val shows: List<TraktRatingEntryDto>? = null,
+    @Json(name = "episodes") val episodes: List<TraktRatingEntryDto>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class TraktRatingsMutationResponseDto(
+    @Json(name = "added") val added: Map<String, Int> = emptyMap(),
+    @Json(name = "deleted") val deleted: Map<String, Int> = emptyMap(),
+    @Json(name = "not_found") val notFound: Map<String, List<Any>?> = emptyMap()
 )

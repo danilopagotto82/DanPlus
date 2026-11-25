@@ -1110,7 +1110,7 @@ class WatchProgressRepositoryImpl @Inject constructor(
         val now = System.currentTimeMillis()
         val rawEntries = watchProgressPreferences.getAllRawEntries(profileId)
 
-        val completedList = progressList.map { progress ->
+        val completedList = progressList.associateBy(::progressKey).values.map { progress ->
             val duration = progress.duration.takeIf { it > 1L }
                 ?: rawEntries[progressKey(progress)]?.duration?.takeIf { it > 1L }
                 ?: 1L

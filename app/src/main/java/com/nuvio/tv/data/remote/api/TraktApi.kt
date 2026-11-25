@@ -146,7 +146,9 @@ interface TraktApi {
     @GET("sync/ratings/{type}")
     suspend fun getRatings(
         @Header("Authorization") authorization: String,
-        @Path("type") type: String
+        @Path("type") type: String,
+        @Query("page") page: Int? = null,
+        @Query("limit") limit: Int? = null
     ): Response<List<TraktRatingItemDto>>
 
     @POST("sync/ratings")
@@ -160,6 +162,18 @@ interface TraktApi {
         @Header("Authorization") authorization: String,
         @Body body: TraktRatingsRequestDto
     ): Response<Unit>
+
+    @POST("sync/ratings")
+    suspend fun putPersonalRating(
+        @Header("Authorization") authorization: String,
+        @Body body: TraktRatingsRequestDto
+    ): Response<TraktRatingsMutationResponseDto>
+
+    @POST("sync/ratings/remove")
+    suspend fun deletePersonalRating(
+        @Header("Authorization") authorization: String,
+        @Body body: TraktRatingsRequestDto
+    ): Response<TraktRatingsMutationResponseDto>
 
     @POST("sync/history")
     suspend fun addHistory(

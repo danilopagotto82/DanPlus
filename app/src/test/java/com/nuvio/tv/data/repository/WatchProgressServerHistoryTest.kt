@@ -96,6 +96,16 @@ class WatchProgressServerHistoryTest {
     }
 
     @Test
+    fun aBatchWithDuplicateEpisodesBroadcastsEachEpisodeOnlyOnce() = runTest {
+        coEvery { serverWatched.trackerIds(show) } returns TrackingExternalIds(imdb = "tt0944947")
+        val first = episodeProgress(season = 0, episode = 1)
+        val second = episodeProgress(season = 2, episode = 3)
+        repository.markAsCompletedBatch(listOf(first, first.copy(lastWatched = 200L), second))
+        repository.awaitTrackerHistoryWrites()
+        assertEquals(listOf(0 to 1, 2 to 3), added.map { it.media.episode?.season to it.media.episode?.number })
+    }
+
+    @Test
     fun aServerEpisodeMarkedWatchedReachesTrackersUnderItsExternalIds() = runTest {
         coEvery { serverWatched.trackerIds(show) } returns TrackingExternalIds(imdb = "tt0944947", tmdb = 1399L, tvdb = "121361")
 

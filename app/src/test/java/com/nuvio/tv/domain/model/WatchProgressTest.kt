@@ -6,6 +6,16 @@ import org.junit.Test
 class WatchProgressTest {
 
     @Test
+    fun `invalid remote percentages cannot override real positions or complete an unwatched item`() {
+        val actual = watchProgress(position = 30_000, duration = 120_000, progressPercent = Float.NaN)
+        assertEquals(0.25f, actual.progressPercentage, 0.0001f)
+        assertEquals(30_000L, actual.resolveResumePosition(150_000))
+        val invalid = watchProgress(position = 0, duration = 120_000, progressPercent = Float.POSITIVE_INFINITY)
+        assertEquals(0f, invalid.progressPercentage, 0f)
+        assertEquals(0L, invalid.resolveResumePosition(120_000))
+    }
+
+    @Test
     fun `resolveResumePosition returns position when duration and position are both valid`() {
         val wp = watchProgress(
             position = 60000,

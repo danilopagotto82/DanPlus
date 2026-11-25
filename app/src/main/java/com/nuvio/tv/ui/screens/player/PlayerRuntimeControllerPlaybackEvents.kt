@@ -1249,10 +1249,13 @@ internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, d
     val progress = currentWatchProgress(parentContentId, parentContentType, position, duration, System.currentTimeMillis())
         .copy(progressPercent = fallbackPercent)
     val inMix = episodeShufflePlayback.inMix(profileId, contentId, currentVideoId)
+    val savedVideoId = currentVideoId
     val plan = watchProgressSavePlan(progress.isCompleted(), hasMarkedCurrentEpisodeCompleted)
     if (plan == WatchProgressSavePlan.MARK_COMPLETED) hasMarkedCurrentEpisodeCompleted = true
 
     scope.launch(NonCancellable + watchProgressSaveDispatcher) {
+        fun currentPublicationOwner() = activeProfileId.value == profileId &&
+            _uiState.value.discExtraId == null && _uiState.value.currentVideoId == savedVideoId
         try {
             val effectiveContentId = watchProgressRepository.normalizeParentContentId(
                 parentContentId = progress.contentId,
@@ -1271,7 +1274,9 @@ internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, d
                         broadcastTrackingHistory = false
                     )
                 }
-                runCatching { tvRecommendationManager.onProgressRemoved(normalizedProgress.contentId) }
+                if (currentPublicationOwner()) {
+                    runCatching { tvRecommendationManager.onProgressRemoved(normalizedProgress.contentId) }
+                }
             } else if (plan == WatchProgressSavePlan.SAVE_IN_PROGRESS) {
                 // Only save in-progress when the episode has not already been
                 // marked as completed during this playback session.  After
@@ -1284,7 +1289,9 @@ internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, d
                     profileId = profileId,
                     syncRemote = syncRemote
                 )
-                runCatching { tvRecommendationManager.updateSingleWatchNextProgram(normalizedProgress) }
+                if (currentPublicationOwner()) {
+                    runCatching { tvRecommendationManager.updateSingleWatchNextProgram(normalizedProgress) }
+                }
             }
         } catch (error: IOException) {
             Log.w(PlayerRuntimeController.TAG, "Watch progress could not be saved", error)
@@ -1340,7 +1347,7 @@ internal fun PlayerRuntimeController.refreshScrobbleItem() {
     hasRequestedScrobbleStartForCurrentItem = false
     hasPausedScrobbleForCurrentItem = false
     scrobbleStartRequestGeneration++
-    hasSentCompletionScrobbleForCurrentItem = false
+    trackingCompletion.reset()
     serverScrobbledProviders = emptySet()
     logScrobbleDiagnostic("item_refreshed")
 }
@@ -1414,7 +1421,7 @@ internal fun PlayerRuntimeController.emitScrobbleStart() {
         logScrobbleDiagnostic("start_dispatching", "requestGeneration=$requestGeneration progress=$progressPercent")
         val failures = trackingScrobbleCoordinator.scrobble(
             action = TrackingScrobbleAction.START,
-            event = TrackingScrobbleEvent(item, progressPercent.toDouble(), serverScrobbledProviders, currentScrobbleDurationSeconds())
+            event = TrackingScrobbleEvent(item, progressPercent.toDouble(), serverScrobbledProviders, currentScrobbleDurationSeconds(), profileId)
         )
         logScrobbleDiagnostic(
             "start_dispatched",
@@ -1460,7 +1467,7 @@ internal fun PlayerRuntimeController.emitScrobbleStop(progressPercent: Float? = 
         }
         val failures = trackingScrobbleCoordinator.scrobble(
             action = TrackingScrobbleAction.STOP,
-            event = TrackingScrobbleEvent(item, percent.toDouble(), skipped, durationSeconds)
+            event = TrackingScrobbleEvent(item, percent.toDouble(), skipped, durationSeconds, profileId)
         )
         logScrobbleDiagnostic("stop_dispatched", "progress=$percent failures=${failures.map { it.providerId.storageId }}")
     }
@@ -1499,7 +1506,7 @@ internal fun PlayerRuntimeController.emitScrobblePause(progressPercent: Float? =
         logScrobbleDiagnostic("pause_dispatching", "progress=$percent")
         val failures = trackingScrobbleCoordinator.scrobble(
             action = TrackingScrobbleAction.PAUSE,
-            event = TrackingScrobbleEvent(item, percent.toDouble(), skipped, durationSeconds)
+            event = TrackingScrobbleEvent(item, percent.toDouble(), skipped, durationSeconds, profileId)
         )
         logScrobbleDiagnostic("pause_dispatched", "progress=$percent failures=${failures.map { it.providerId.storageId }}")
     }
@@ -1511,10 +1518,33 @@ internal fun PlayerRuntimeController.emitScrobblePause(progressPercent: Float? =
 }
 
 internal fun PlayerRuntimeController.emitCompletionScrobbleStop(progressPercent: Float) {
-    if (isPlayingDiscExtra) return
-    if (progressPercent < 80f || hasSentCompletionScrobbleForCurrentItem) return
-    hasSentCompletionScrobbleForCurrentItem = true
-    emitScrobbleStop(progressPercent = progressPercent)
+    if (isPlayingDiscExtra || activeProfileId.value != profileId || progressPercent < 80f || isPlaceholderPlayback()) return
+    val item = currentScrobbleItem ?: return
+    val attempt = trackingCompletion.begin() ?: return
+    val streamUrl = currentStreamUrl
+    val known = serverScrobbledProviders
+    val duration = currentScrobbleDurationSeconds()
+    scrobbleStartRequestGeneration++
+    hasRequestedScrobbleStartForCurrentItem = false
+    hasSentScrobbleStartForCurrentItem = false
+    hasPausedScrobbleForCurrentItem = false
+    scope.launch(kotlinx.coroutines.NonCancellable) {
+        var result = com.nuvio.tv.core.tracking.TrackingCompletionResult(emptySet(), complete = false)
+        try {
+            if (activeProfileId.value != profileId || isPlayingDiscExtra) return@launch
+            val skipped = known.ifEmpty {
+                serverPlayback.scrobbledServices(streamUrl).mapNotNull(TrackingProviderId::fromStorage).toSet()
+            }
+            if (isPlayingDiscExtra || currentScrobbleItem != item || !trackingCompletion.isCurrent(attempt)) return@launch
+            result = trackingScrobbleCoordinator.complete(
+                TrackingScrobbleEvent(item, progressPercent.toDouble(), skipped + attempt.accepted, duration, profileId)
+            )
+        } catch (error: java.io.IOException) {
+            logScrobbleDiagnostic("completion_lookup_failed", "type=${error.javaClass.simpleName}")
+        } finally {
+            trackingCompletion.finish(attempt, result)
+        }
+    }
 }
 
 internal fun PlayerRuntimeController.emitStopScrobbleForCurrentProgress() {
@@ -1551,7 +1581,7 @@ private fun PlayerRuntimeController.emitStopWhenLeftPaused(progressPercent: Floa
         return
     }
     logScrobbleDiagnostic("left_paused_queued", "progress=$progressPercent")
-    val event = TrackingScrobbleEvent(item, progressPercent.toDouble(), serverScrobbledProviders, currentScrobbleDurationSeconds())
+    val event = TrackingScrobbleEvent(item, progressPercent.toDouble(), serverScrobbledProviders, currentScrobbleDurationSeconds(), profileId)
     scope.launch(kotlinx.coroutines.NonCancellable) {
         val failures = trackingScrobbleCoordinator.scrobbleStopWhenLeftPaused(event)
         logScrobbleDiagnostic("left_paused_dispatched", "failures=${failures.map { it.providerId.storageId }}")
@@ -1573,12 +1603,12 @@ internal fun PlayerRuntimeController.emitSeekScrobbleRestart(progressPercent: Fl
     val generation = scrobbleStartRequestGeneration
     scope.launch {
         trackingScrobbleCoordinator.scrobbleSeekRestart(
-            stop = TrackingScrobbleEvent(item, progressPercent.toDouble(), skipped, durationSeconds)
+            stop = TrackingScrobbleEvent(item, progressPercent.toDouble(), skipped, durationSeconds, profileId)
         ) {
             val sameItem = generation == scrobbleStartRequestGeneration && currentScrobbleItem == item &&
                 hasRequestedScrobbleStartForCurrentItem
             if (!sameItem || !isPlaybackCurrentlyPlaying()) return@scrobbleSeekRestart null
-            TrackingScrobbleEvent(item, currentPlaybackProgressPercent().toDouble(), skipped, durationSeconds)
+            TrackingScrobbleEvent(item, currentPlaybackProgressPercent().toDouble(), skipped, durationSeconds, profileId)
         }
     }
 }

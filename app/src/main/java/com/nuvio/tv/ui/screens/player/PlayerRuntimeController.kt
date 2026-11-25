@@ -1022,7 +1022,7 @@ class PlayerRuntimeController(
     // preparePlaybackBeforeStart, joined in initializePlayer before
     // either engine reads the resume position.
     internal var savedProgressDeferred: kotlinx.coroutines.Deferred<Unit>? = null
-    internal var hasSentCompletionScrobbleForCurrentItem: Boolean = false
+    internal val trackingCompletion = com.nuvio.tv.core.tracking.TrackingCompletionGate()
 
     /** Tracking services the media server already sends this play to, worked out when the play starts. */
     @Volatile

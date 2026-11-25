@@ -31,6 +31,8 @@ class SimklTrackingScrobbler @Inject constructor(
         action: TrackingScrobbleAction,
         event: TrackingScrobbleEvent
     ) {
+        val owner = authRepository.currentScope()
+        check(event.profileId == null || event.profileId == owner.profileId) { "Scrobble profile changed" }
         val authenticated = authRepository.state.value.isAuthenticated
         Log.d(
             TRACKING_SCROBBLE_DIAGNOSTIC_TAG,
@@ -57,10 +59,11 @@ class SimklTrackingScrobbler @Inject constructor(
         )
         val result = mutationService.scrobble(
             action = action,
-            event = enrichedEvent
+            event = enrichedEvent,
+            owner = owner
         )
         if (action != TrackingScrobbleAction.START) {
-            syncRepository.commitScrobble(result)
+            syncRepository.commitScrobble(result, owner)
         }
         Log.d(
             TRACKING_SCROBBLE_DIAGNOSTIC_TAG,
