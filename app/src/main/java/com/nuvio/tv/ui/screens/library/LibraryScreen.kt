@@ -385,7 +385,7 @@ fun LibraryScreen(
                         uiState.sourceMode == LibrarySourceMode.SIMKL -> "SIMKL"
                         uiState.sourceMode == LibrarySourceMode.MDBLIST -> "MDBLIST"
                         uiState.sourceMode == LibrarySourceMode.WETRAKR -> "WETRAKR"
-                        uiState.isNuvioAccount -> "NUVIO"
+                        uiState.isNuvioAccount -> stringResource(R.string.library_source_nuvio)
                         else -> stringResource(R.string.library_source_local)
                     },
                     style = MaterialTheme.typography.labelLarge,

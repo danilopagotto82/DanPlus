@@ -146,7 +146,7 @@ fun NuvioTheme(
         LocalGlassTokens provides glassTokens,
         LocalDeviceUiPreferences provides (presentation?.device ?: DeviceUiPreferences()),
         LocalResolvedAppearance provides presentation,
-        LocalUiScaleDecision provides (presentation?.uiScale ?: UiScaleDecision(uiScalePercent, "Original Nuvio")),
+        LocalUiScaleDecision provides (presentation?.uiScale ?: UiScaleDecision(uiScalePercent, "Original")),
         LocalNuvioColors provides colorScheme,
         LocalNuvioExtendedColors provides extendedColors,
         LocalNuvioTextStyles provides textStyles,

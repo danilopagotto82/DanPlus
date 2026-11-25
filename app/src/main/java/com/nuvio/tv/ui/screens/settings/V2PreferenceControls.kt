@@ -52,6 +52,7 @@ internal fun V2PreferenceControls(initialFocusRequester: FocusRequester? = null)
     val device = LocalDeviceUiPreferences.current
     val appearance = LocalV2Appearance.current
     SettingsGroupCard(title = stringResource(R.string.v2_experience_title)) {
+        val sidebarLabel = stringResource(R.string.v2_navigation_sidebar)
         val selectedNavigation = if (appearance?.navigationStyle == NavigationStyle.TOP_NAVIGATION) {
             NavigationStyle.TOP_NAVIGATION
         } else {
@@ -61,15 +62,14 @@ internal fun V2PreferenceControls(initialFocusRequester: FocusRequester? = null)
             title = stringResource(R.string.v2_navigation_title),
             selected = selectedNavigation,
             options = listOf(
-                NavigationStyle.FLOATING_SIDEBAR to "Nuvio Original",
-                NavigationStyle.TOP_NAVIGATION to "DanPlus"
+                NavigationStyle.FLOATING_SIDEBAR to sidebarLabel,
+                NavigationStyle.TOP_NAVIGATION to stringResource(R.string.app_name)
             ),
             initialFocusRequester = initialFocusRequester,
             styledLabel = { style ->
                 buildAnnotatedString {
                     if (style == NavigationStyle.FLOATING_SIDEBAR) {
-                        withStyle(SpanStyle(color = Color(0xFF69B9FF), fontWeight = FontWeight.Bold)) { append("Nuvio") }
-                        append(" Original")
+                        withStyle(SpanStyle(color = Color(0xFF69B9FF), fontWeight = FontWeight.Bold)) { append(sidebarLabel) }
                     } else {
                         withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Dan") }
                         withStyle(SpanStyle(color = Color(0xFF69B9FF))) { append("Plus") }

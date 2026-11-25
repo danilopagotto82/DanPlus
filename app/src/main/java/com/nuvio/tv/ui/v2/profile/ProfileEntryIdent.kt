@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
@@ -270,7 +271,7 @@ fun ProfileEntryIdent(
                 Modifier.fillMaxSize().graphicsLayer { alpha = opacity }.background(IdentBackdrop),
                 contentAlignment = Alignment.Center
             ) {
-                Image(painterResource(R.drawable.danplus_intro_logo), "DAN PLUS", Modifier.fillMaxWidth(.65f))
+                Image(painterResource(R.drawable.danplus_intro_logo), stringResource(R.string.app_name), Modifier.fillMaxWidth(.65f))
             }
         } else {
             if (!started) Box(Modifier.fillMaxSize().startPictureOr(startPicture, IdentBackdrop))
@@ -289,7 +290,7 @@ fun ProfileEntryIdent(
                             }
                         },
                         onFailed = { failed = true }
-                    ).also { it.contentDescription = "DAN PLUS"; surface = it }
+                    ).also { it.contentDescription = context.getString(R.string.app_name); surface = it }
                 },
                 onRelease = { if (surface === it) surface = null }
             )

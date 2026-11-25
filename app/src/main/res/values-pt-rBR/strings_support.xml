@@ -4,7 +4,7 @@
     <!-- Nuvio-test additions -->
     <string name="support_nuvio_button">Apoie a equipe do Nuvio</string>
     <string name="support_nuvio_title">Apoie a equipe do Nuvio</string>
-    <string name="support_nuvio_subtitle">O Nuvio Arc é baseado no app oficial do Nuvio. A assinatura vai para a equipe do Nuvio, ajuda a pagar servidores e desenvolvimento, e mantém o app principal gratuito para todos.</string>
+    <string name="support_nuvio_subtitle">O DanPlus é baseado no app oficial do Nuvio. A assinatura vai para a equipe do Nuvio, ajuda a pagar servidores e desenvolvimento, e mantém o app principal gratuito para todos.</string>
     <string name="support_nuvio_perk_themes">Temas em degradê</string>
     <string name="support_nuvio_perk_themes_desc">Mais temas em degradê, ou crie o seu.</string>
     <string name="support_nuvio_perk_backgrounds">Fundos de perfil</string>
@@ -30,11 +30,11 @@
     <string name="support_nuvio_close">Fechar</string>
     <string name="support_nuvio_checking">Verificando sua assinatura…</string>
     <string name="support_nuvio_thanks_title">Obrigado por apoiar a equipe do Nuvio</string>
-    <string name="support_nuvio_thanks_subtitle">Seus benefícios acompanham sua conta Nuvio, então funcionam aqui no Nuvio Arc e no app oficial.</string>
+    <string name="support_nuvio_thanks_subtitle">Seus benefícios acompanham sua conta Nuvio, então funcionam aqui no DanPlus e no app oficial.</string>
     <string name="support_nuvio_gentle_eyebrow">Apoiador Nuvio</string>
-    <string name="support_nuvio_gentle_title">Tudo no Nuvio Arc funciona sem assinatura</string>
+    <string name="support_nuvio_gentle_title">Tudo no DanPlus funciona sem assinatura</string>
     <string name="support_nuvio_gentle_body">Esta conta não tem a assinatura Nuvio Supporter. Se um dia quiser ajudar a equipe do Nuvio, a assinatura traz alguns extras:</string>
-    <string name="support_nuvio_gentle_unavailable">Não foi possível verificar sua assinatura agora. Tudo no Nuvio Arc funciona sem ela. Se quiser ajudar a equipe do Nuvio, a assinatura traz alguns extras:</string>
+    <string name="support_nuvio_gentle_unavailable">Não foi possível verificar sua assinatura agora. Tudo no DanPlus funciona sem ela. Se quiser ajudar a equipe do Nuvio, a assinatura traz alguns extras:</string>
     <string name="support_nuvio_gentle_scan">Veja as opções no seu celular</string>
     <string name="support_nuvio_paid_check_again">Acabou de pagar? Verificar de novo</string>
     <string name="support_nuvio_no_thanks">Não, obrigado</string>

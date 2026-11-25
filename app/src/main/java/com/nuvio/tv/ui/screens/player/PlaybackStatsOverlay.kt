@@ -6,6 +6,7 @@ import com.nuvio.tv.ui.v2.components.GlassRole
 import com.nuvio.tv.ui.v2.components.nuvioGlass
 
 import android.os.SystemClock
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -58,13 +59,13 @@ data class PlaybackStatsSample(
 )
 
 /** Section a stats row belongs to; declaration order is display order in the HUD. */
-enum class StatsGroup(val header: String) {
-    PLAYBACK("Playback"),
-    SOURCE("Source"),
-    VIDEO("Video"),
-    AUDIO("Audio"),
-    NETWORK("Network"),
-    SYSTEM("System")
+enum class StatsGroup(val header: String, @StringRes val titleRes: Int) {
+    PLAYBACK("Playback", R.string.playback_stats_group_playback),
+    SOURCE("Source", R.string.playback_stats_group_source),
+    VIDEO("Video", R.string.playback_stats_group_video),
+    AUDIO("Audio", R.string.playback_stats_group_audio),
+    NETWORK("Network", R.string.playback_stats_group_network),
+    SYSTEM("System", R.string.playback_stats_group_system)
 }
 
 /** A titled group of stats rows, rendered under an eyebrow header + hairline rule. */
@@ -73,19 +74,74 @@ data class StatsSection(
     val rows: List<StatsRow>
 )
 
-private val STATS_GROUP_BY_LABEL: Map<String, StatsGroup> = buildMap {
-    put("Position", StatsGroup.PLAYBACK)
-    listOf("Add-on", "Provider", "Server", "Source host", "File", "Size", "File bitrate")
-        .forEach { put(it, StatsGroup.SOURCE) }
-    listOf("Video", "HDR", "V bitrate", "DV", "DV HDR", "DV CM", "DV levels", "DV L1", "DV L5", "Format",
-        "Decoder", "Dropped", "Frame lead", "Display", "Measured")
-        .forEach { put(it, StatsGroup.VIDEO) }
-    listOf("Audio", "A bitrate", "Underruns", "Route", "A jitter", "A filler", "A clock")
-        .forEach { put(it, StatsGroup.AUDIO) }
-    listOf("Buffer", "Back buffer", "Speed", "Connections", "Requests", "Ping", "Request", "Rate limit", "Hedge", "Load errors", "Loaded", "Rebuffers", "Pos. freeze", "Server latency", "Mux estimate")
-        .forEach { put(it, StatsGroup.NETWORK) }
-    listOf("App CPU", "Memory", CHIP_TEMP_LABEL, DEVICE_TEMP_LABEL, "CPU clock")
-        .forEach { put(it, StatsGroup.SYSTEM) }
+private data class StatsPresentation(val group: StatsGroup, @StringRes val labelRes: Int)
+
+private val STATS_PRESENTATION: Map<String, StatsPresentation> = buildMap {
+    fun group(group: StatsGroup, vararg labels: Pair<String, Int>) {
+        labels.forEach { (key, labelRes) -> put(key, StatsPresentation(group, labelRes)) }
+    }
+    group(StatsGroup.PLAYBACK,
+        "Position" to R.string.playback_stats_position
+    )
+    group(StatsGroup.SOURCE,
+        "Add-on" to R.string.playback_stats_addon,
+        "Provider" to R.string.playback_stats_provider,
+        "Server" to R.string.playback_stats_server,
+        "Source host" to R.string.playback_stats_source_host,
+        "File" to R.string.playback_stats_file,
+        "Size" to R.string.playback_stats_size,
+        "File bitrate" to R.string.playback_stats_file_bitrate
+    )
+    group(StatsGroup.VIDEO,
+        "Video" to R.string.playback_stats_video_format,
+        "HDR" to R.string.playback_stats_hdr,
+        "V bitrate" to R.string.playback_stats_video_bitrate,
+        "DV" to R.string.playback_stats_dv,
+        "DV HDR" to R.string.playback_stats_dv_hdr,
+        "DV CM" to R.string.playback_stats_dv_cm,
+        "DV levels" to R.string.playback_stats_dv_levels,
+        "DV L1" to R.string.playback_stats_dv_l1,
+        "DV L5" to R.string.playback_stats_dv_l5,
+        "Format" to R.string.playback_stats_format,
+        "Decoder" to R.string.playback_stats_decoder,
+        "Dropped" to R.string.playback_stats_dropped,
+        "Frame lead" to R.string.playback_stats_frame_lead,
+        "Display" to R.string.playback_stats_display,
+        "Measured" to R.string.playback_stats_measured
+    )
+    group(StatsGroup.AUDIO,
+        "Audio" to R.string.playback_stats_audio_format,
+        "A bitrate" to R.string.playback_stats_audio_bitrate,
+        "Underruns" to R.string.playback_stats_underruns,
+        "Route" to R.string.playback_stats_route,
+        "A jitter" to R.string.playback_stats_audio_jitter,
+        "A filler" to R.string.playback_stats_audio_filler,
+        "A clock" to R.string.playback_stats_audio_clock
+    )
+    group(StatsGroup.NETWORK,
+        "Buffer" to R.string.playback_stats_buffer,
+        "Back buffer" to R.string.playback_stats_back_buffer,
+        "Speed" to R.string.playback_stats_speed,
+        "Connections" to R.string.playback_stats_connections,
+        "Requests" to R.string.playback_stats_requests,
+        "Ping" to R.string.playback_stats_ping,
+        "Request" to R.string.playback_stats_request,
+        "Rate limit" to R.string.playback_stats_rate_limit,
+        "Hedge" to R.string.playback_stats_hedge,
+        "Load errors" to R.string.playback_stats_load_errors,
+        "Loaded" to R.string.playback_stats_loaded,
+        "Rebuffers" to R.string.playback_stats_rebuffers,
+        "Pos. freeze" to R.string.playback_stats_position_freeze,
+        "Server latency" to R.string.playback_stats_server_latency,
+        "Mux estimate" to R.string.playback_stats_mux_estimate
+    )
+    group(StatsGroup.SYSTEM,
+        "App CPU" to R.string.playback_stats_app_cpu,
+        "Memory" to R.string.playback_stats_memory,
+        CHIP_TEMP_LABEL to R.string.playback_stats_chip_temp,
+        DEVICE_TEMP_LABEL to R.string.playback_stats_device_temp,
+        "CPU clock" to R.string.playback_stats_cpu_clock
+    )
 }
 
 /**
@@ -97,7 +153,7 @@ private val STATS_GROUP_BY_LABEL: Map<String, StatsGroup> = buildMap {
 internal fun buildStatsSections(rows: List<StatsRow>): List<StatsSection> {
     val presented = rows.filterNot { it.label in setOf("A bitrate", "Network reads", "Cache/local reads") }
         .map { if (it.label == "Mux bitrate") it.copy(label = "File bitrate") else it }
-    val byGroup = presented.groupBy { STATS_GROUP_BY_LABEL[it.label] ?: StatsGroup.SYSTEM }
+    val byGroup = presented.groupBy { STATS_PRESENTATION[it.label]?.group ?: StatsGroup.SYSTEM }
     return StatsGroup.values().mapNotNull { g -> byGroup[g]?.let { StatsSection(g, it) } }
 }
 
@@ -228,7 +284,7 @@ fun PlaybackStatsOverlay(
         ) {
             visibleStatsSections(sample?.sections.orEmpty(), compact).forEach { section ->
                 Text(
-                    text = section.group.header.uppercase(),
+                    text = stringResource(section.group.titleRes).uppercase(),
                     color = if (isV2) NuvioTheme.colors.TextSecondary else Color.White.copy(alpha = 0.5f),
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Medium,
@@ -259,7 +315,7 @@ fun PlaybackStatsOverlay(
                                 )
                         )
                         Text(
-                            text = row.label,
+                            text = STATS_PRESENTATION[row.label]?.let { stringResource(it.labelRes) } ?: row.label,
                             color = Color.White.copy(alpha = 0.6f),
                             fontSize = 10.sp,
                             maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis,

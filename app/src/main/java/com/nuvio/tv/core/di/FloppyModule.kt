@@ -70,7 +70,12 @@ object FloppyModule {
         FloppyAuthRepository(
             http,
             store,
-            context.getString(R.string.floppy_client_name, context.getString(R.string.app_name), Build.MODEL.orEmpty().ifBlank { "Android TV" })
+            // Keep the client name sent to the existing Floppy authorization endpoint stable.
+            context.getString(
+                R.string.floppy_client_name,
+                if (BuildConfig.BUILD_TYPE == "debug") "Nuvio Arc Debug" else "DAN+",
+                Build.MODEL.orEmpty().ifBlank { "Android TV" }
+            )
         )
 
     @Provides

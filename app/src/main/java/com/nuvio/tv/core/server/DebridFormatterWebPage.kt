@@ -17,7 +17,7 @@ object DebridFormatterWebPage {
             } else base
         }
         fun s(id: Int, fallback: String): String = context?.getString(id) ?: fallback
-        val appName = context?.getString(R.string.app_name) ?: "NuvioTV"
+        val appName = context?.getString(R.string.app_name) ?: "DanPlus"
         return """
 <!DOCTYPE html>
 <html lang="en">

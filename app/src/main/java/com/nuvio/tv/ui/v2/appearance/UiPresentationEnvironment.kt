@@ -26,7 +26,7 @@ import com.nuvio.tv.ui.v2.quality.VisualQualityDecision
 import com.nuvio.tv.ui.v2.quality.VisualQualityTier
 
 val LocalV2Appearance = staticCompositionLocalOf<V2AppearancePreferences?> { null }
-val LocalUiScaleDecision = staticCompositionLocalOf { UiScaleDecision(100, "Original Nuvio") }
+val LocalUiScaleDecision = staticCompositionLocalOf { UiScaleDecision(100, "Original") }
 val LocalDeviceUiPreferences = staticCompositionLocalOf { DeviceUiPreferences() }
 val LocalResolvedAppearance = staticCompositionLocalOf<ResolvedAppearance?> { null }
 
@@ -67,7 +67,7 @@ fun rememberStableUiScale(
     val resolver = remember { UiScaleResolver() }
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
     fun resolve() = if (preferences.interfaceExperience == InterfaceExperience.ORIGINAL_NUVIO) {
-        UiScaleDecision(originalScale, "Original Nuvio")
+        UiScaleDecision(originalScale, "Original")
     } else resolver.resolve(canvas, preferences)
     var decision by remember { mutableStateOf(resolve()) }
     // Output mode/refresh rate and visual quality deliberately are not geometry inputs.

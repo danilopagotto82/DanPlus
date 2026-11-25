@@ -46,9 +46,9 @@
     <string name="servers_no_libraries">Não há bibliotecas de filmes ou séries disponíveis para este usuário.</string>
     <string name="servers_refresh_libraries">Atualizar bibliotecas</string>
     <string name="servers_display_name">Nome de exibição</string>
-    <string name="servers_display_name_description">O nome que o Nuvio Arc mostra para este servidor no Início, em Ajustes e nas fontes.</string>
+    <string name="servers_display_name_description">Nome que o DanPlus mostra para este servidor na tela inicial, nas configurações e na lista de fontes.</string>
     <string name="servers_display_name_server_name">Nome original do servidor: %1$s</string>
-    <string name="servers_display_name_dialog_description">Escolha o nome que o Nuvio Arc mostra para este servidor. Deixe vazio para usar o nome original do servidor.</string>
+    <string name="servers_display_name_dialog_description">Escolha o nome que o DanPlus mostra para este servidor. Deixe vazio para usar o nome original do servidor.</string>
     <string name="servers_display_name_reset">Redefinir para o nome do servidor</string>
     <string name="servers_enabled">Ativado</string>
     <string name="servers_enabled_description">Exibe este servidor no Início, na busca e nos resultados de streams.</string>
@@ -89,7 +89,7 @@
     <string name="servers_error_forbidden">Este usuário não tem acesso.</string>
     <string name="servers_error_failed">Não foi possível conectar ao servidor.</string>
     <string name="servers_error_website">Este endereço abre um site, não um servidor de mídia. Digite o endereço do próprio servidor.</string>
-    <string name="servers_error_silo_website">O Nuvio Arc não encontrou o endereço Jellyfin deste servidor Silo. No Silo, abra Settings &gt; Connect Apps &gt; Jellyfin-compatible app e digite o endereço mostrado em Server.</string>
+    <string name="servers_error_silo_website">O DanPlus não encontrou o endereço Jellyfin deste servidor Silo. No Silo, abra Settings &gt; Connect Apps &gt; Jellyfin-compatible app e digite o endereço mostrado em Server.</string>
     <string name="servers_error_silo_jellyfin_off">Os apps Jellyfin estão desativados neste servidor Silo. Peça ao dono do servidor para ativá-los.</string>
     <string name="servers_error_profile_needed">Adicione # e o nome do seu perfil Silo ao final do nome de usuário, como nome#Perfil ou nome#1234#Perfil.</string>
     <string name="servers_error_profile_not_found">O Silo lê a parte após o último # como nome de perfil e não tem nenhum perfil com esse nome. Se o seu nome de usuário tiver um #, adicione # e o nome do perfil ao final, como nome#1234#Perfil.</string>
@@ -105,11 +105,11 @@
     <string name="servers_failure_not_found">Este item não está mais disponível no servidor.</string>
     <string name="servers_failure_certificate">O certificado deste servidor não é reconhecido.</string>
     <string name="servers_certificate_title">O certificado deste servidor não é reconhecido</string>
-    <string name="servers_certificate_intro">O Nuvio Arc não conseguiu confirmar a identidade de %1$s.</string>
+    <string name="servers_certificate_intro">O DanPlus não conseguiu confirmar a identidade de %1$s.</string>
     <string name="servers_certificate_untrusted">O certificado é autoassinado ou foi emitido por uma autoridade privada.</string>
     <string name="servers_certificate_name_mismatch">O certificado foi emitido para outro nome.</string>
     <string name="servers_certificate_expired">O certificado está fora do período de validade.</string>
-    <string name="servers_certificate_advice">Se este é o seu próprio servidor e você já esperava isto, pode confiar neste certificado. O Nuvio Arc passará a aceitar somente este certificado exato para este servidor e avisará se ele mudar. Se você não estiver na sua rede doméstica, confira antes a impressão digital com o dono do servidor.</string>
+    <string name="servers_certificate_advice">Se este é o seu próprio servidor e você já esperava isto, pode confiar neste certificado. O DanPlus passará a aceitar somente este certificado exato para este servidor e avisará se ele mudar. Se você não estiver na sua rede doméstica, confira antes a impressão digital com o dono do servidor.</string>
     <string name="servers_certificate_details">Emitido para: %1$s\nEmitido por: %2$s\nVálido: %3$s a %4$s\nImpressão digital (SHA-256): %5$s</string>
     <string name="servers_certificate_trust">Confiar neste certificado</string>
     <string name="servers_certificate_unavailable">A conexão segura falhou e não foi possível ler o certificado do servidor.</string>
@@ -140,7 +140,7 @@
     <string name="silo_method_native_recommended">Login do Silo (recomendado)</string>
     <string name="silo_method_native_description">Entre com um código no celular ou com sua senha do Silo. Funciona com todas as formas de login do seu servidor (senha, OpenID Connect, LDAP, Tailscale). Traz seus perfis do Silo e as linhas do Início do Silo.</string>
     <string name="silo_method_jellyfin">Compatível com Jellyfin</string>
-    <string name="silo_method_jellyfin_description">Usa o endereço do Silo para apps Jellyfin, com usuário e senha (nome#Perfil para um perfil). A forma como o Nuvio Arc se conectava ao Silo até agora.</string>
+    <string name="silo_method_jellyfin_description">Usa o endereço do Silo para apps Jellyfin, com usuário e senha (nome#Perfil para um perfil). A forma como o DanPlus se conectava ao Silo até agora.</string>
     <string name="silo_setup_next">Próximo</string>
     <string name="silo_code_step_open">No celular, escaneie o código ou abra %1$s</string>
     <string name="silo_code_step_sign_in">Entre lá como você faz normalmente</string>
@@ -156,7 +156,7 @@
     <string name="silo_network_or_code">Ou entre com um código: %1$s em %2$s</string>
     <string name="silo_signing_in">Entrando…</string>
     <string name="silo_profiles_title">Quem está assistindo?</string>
-    <string name="silo_profiles_subtitle">%1$s tem mais de um perfil. O Nuvio Arc usa o que você escolher para o progresso, as marcas de assistido e as linhas do Início. Você pode mudar depois na página do servidor.</string>
+    <string name="silo_profiles_subtitle">%1$s tem mais de um perfil. O DanPlus usa o que você escolher para o progresso, as marcas de assistido e as linhas do Início. Você pode mudar depois na página do servidor.</string>
     <string name="silo_profile_pin">PIN</string>
     <string name="silo_profile_child">Infantil</string>
     <string name="silo_pin_title">PIN de %1$s</string>
@@ -168,11 +168,11 @@
     <string name="servers_silo_profile">Perfil</string>
     <string name="servers_silo_profile_description">O progresso, as marcas de assistido e as linhas do Início seguem este perfil.</string>
     <string name="servers_silo_home_rows">Linhas do Início do Silo</string>
-    <string name="servers_silo_home_rows_description">Mostra as linhas do seu Início do Silo (suas listas, Em alta, A Seguir…) no Início do Nuvio Arc.</string>
+    <string name="servers_silo_home_rows_description">Mostra as linhas do seu Início do Silo (suas listas, Em alta, A Seguir…) no Início do DanPlus.</string>
     <string name="servers_silo_switch">Mudar para login do Silo</string>
     <string name="servers_silo_switch_description">Usa o login do Silo e depois substitui esta conexão. O nome e as bibliotecas escolhidas são mantidos.</string>
     <string name="servers_add_plex_description">Entre com um código em plex.tv/link. Seus servidores são encontrados automaticamente.</string>
-    <string name="plex_sign_in_subtitle">Não precisa do endereço do servidor: o Nuvio Arc encontra seus servidores Plex depois que você entrar.</string>
+    <string name="plex_sign_in_subtitle">Não precisa do endereço do servidor: o DanPlus encontra seus servidores Plex depois que você entrar.</string>
     <string name="plex_code_step_open">No celular ou computador, abra %1$s (ou escaneie o código)</string>
     <string name="plex_code_step_sign_in">Entre no Plex, se for pedido</string>
     <string name="plex_code_step_link">Digite o código acima e aperte Link</string>
@@ -195,7 +195,7 @@
     <string name="plex_reach_remote_detail">acessível pela internet</string>
     <string name="plex_reach_relay_detail">só acessível pelo Plex Relay (lento, cerca de 2 Mbit/s)</string>
     <string name="plex_reach_offline_detail">offline no momento</string>
-    <string name="plex_users_subtitle">Sua conta Plex tem usuários do Plex Home. O Nuvio Arc usa o que você escolher para o progresso, as marcas de assistido e Continuar Assistindo no %1$s. Você pode mudar depois na página do servidor.</string>
+    <string name="plex_users_subtitle">Sua conta Plex tem usuários do Plex Home. O DanPlus usa o que você escolher para o progresso, as marcas de assistido e Continuar Assistindo no %1$s. Você pode mudar depois na página do servidor.</string>
     <string name="plex_user_owner">Dono</string>
     <string name="plex_user_managed">Gerenciado</string>
     <string name="plex_other_user">Outro usuário</string>
@@ -203,8 +203,8 @@
     <string name="plex_home_user">Usuário do Plex Home</string>
     <string name="plex_home_user_description">O progresso, as marcas de assistido e Continuar Assistindo seguem este usuário.</string>
     <string name="plex_home_rows">Linhas do Início do Plex</string>
-    <string name="plex_home_rows_description">Mostra as linhas do próprio Plex deste servidor (Adicionados recentemente e mais) no Início do Nuvio Arc.</string>
-    <string name="plex_remote_pass_needed">O Plex não reproduz isto fora de casa. Em apps como o Nuvio Arc, é preciso Plex Pass no servidor ou um Remote Watch Pass para você. Em casa é grátis.</string>
+    <string name="plex_home_rows_description">Mostra as linhas do próprio Plex deste servidor (Adicionados recentemente e mais) no Início do DanPlus.</string>
+    <string name="plex_remote_pass_needed">O Plex não reproduz isto fora de casa. Em apps como o DanPlus, é preciso Plex Pass no servidor ou um Remote Watch Pass para você. Em casa é grátis.</string>
     <string name="server_library_sort_title">De A a Z</string>
     <string name="server_library_sort_released">Lançamentos mais recentes</string>
     <string name="server_library_sort_added">Adicionados recentemente</string>

@@ -70,6 +70,7 @@ import com.nuvio.tv.ui.components.tvdbCreditShown
 import com.nuvio.tv.ui.util.rememberRawSvgPainter
 
 private const val NuvioRepositoryUrl = "https://github.com/ysosrs123/NuvioTV-Fork"
+private const val DanPlusRepositoryUrl = "https://github.com/danilopagotto82/DanPlus"
 private const val TmdbUrl = "https://www.themoviedb.org"
 private const val TraktUrl = "https://trakt.tv"
 private const val TvMazeUrl = "https://www.tvmaze.com"
@@ -379,7 +380,7 @@ private fun rememberUrlSvgPainter(url: String): Painter {
 private fun appLicenseItem() = LicenseAttributionItem(
     title = stringResource(R.string.licenses_attributions_nuvio_title),
     body = stringResource(R.string.licenses_attributions_nuvio_body),
-    url = NuvioRepositoryUrl
+    url = DanPlusRepositoryUrl
 )
 
 @Composable

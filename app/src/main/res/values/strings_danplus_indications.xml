@@ -9,7 +9,7 @@
     <string name="d12_working">Checking your PIN…</string>
     <string name="d12_pin_for_profile">Enter the Nuvio PIN for %1$s.</string>
     <string name="d12_pin">4-digit PIN</string>
-    <string name="d12_linked_profile">Linked DAN+ profile · %1$s</string>
+    <string name="d12_linked_profile">Linked DanPlus profile · %1$s</string>
     <string name="d12_change_link">Change linked profile</string>
     <string name="d12_sync_retry">Could not sync. The app will retry while this screen is open.</string>
     <string name="d12_profile_sync_hint">Sync the current profile with your Nuvio account.</string>

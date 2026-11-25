@@ -44,8 +44,10 @@ internal fun UiDiagnosticsSettingsRow() {
     var restoreFocus by remember { mutableStateOf(false) }
     fun capture() {
         report = deviceUiDiagnosticReport(context, activityView, scale.percent, scale.reason) +
-            "\nVisual quality: ${quality.tier} / ${quality.reason}" +
-            "\nLive glass: ${glass.liveBlur} / radius ${glass.blurRadiusDp} dp / input ${glass.inputScale}"
+            "\n" + context.getString(R.string.v2_ui_diag_quality, quality.tier.name, quality.reason) +
+            "\n" + context.getString(R.string.v2_ui_diag_glass,
+                context.getString(if (glass.liveBlur) R.string.v2_ui_diag_yes else R.string.v2_ui_diag_no),
+                glass.blurRadiusDp.toString(), glass.inputScale.toString())
         Log.i("NuvioUiDiagnostics", report.orEmpty())
     }
     fun dismiss() {

@@ -2,4 +2,22 @@
 <resources>
     <string name="v2_ui_diagnostics_title">Device UI diagnostics</string>
     <string name="v2_ui_diagnostics_subtitle">Window, density, effective canvas and recent UI frame timing</string>
+    <string name="v2_ui_diag_unavailable">Unavailable</string>
+    <string name="v2_ui_diag_yes">Yes</string>
+    <string name="v2_ui_diag_no">No</string>
+    <string name="v2_ui_diag_window">App window: %1$d × %2$d px</string>
+    <string name="v2_ui_diag_density">Density: %1$s / %2$d dpi</string>
+    <string name="v2_ui_diag_screen">Reported screen: %1$d × %2$d dp</string>
+    <string name="v2_ui_diag_base">Base canvas: %1$s × %2$s dp</string>
+    <string name="v2_ui_diag_scale">UI scale: %1$d%% / %2$s</string>
+    <string name="v2_ui_diag_effective">Effective canvas: %1$s × %2$s dp</string>
+    <string name="v2_ui_diag_output">Output mode %1$s: %2$s × %3$s @ %4$s Hz</string>
+    <string name="v2_ui_diag_ram">RAM: %1$s GiB / heap: %2$s MiB / low RAM: %3$s</string>
+    <string name="v2_ui_diag_acceleration">Hardware acceleration: %1$s</string>
+    <string name="v2_ui_diag_frames">Recent frames (up to 30 s / 2048 frames): %1$d</string>
+    <string name="v2_ui_diag_jank">JankStats slow frames: %1$s%%</string>
+    <string name="v2_ui_diag_timing">UI thread P50 / P95 / P99: %1$s / %2$s / %3$s ms</string>
+    <string name="v2_ui_diag_note">Local samples across screens. GPU timing and release benchmarks are measured separately.</string>
+    <string name="v2_ui_diag_quality">Visual quality: %1$s / %2$s</string>
+    <string name="v2_ui_diag_glass">Live blur: %1$s / radius: %2$s dp / input scale: %3$s</string>
 </resources>

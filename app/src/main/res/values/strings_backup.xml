@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="backup_title">Backup and restore</string>
-    <string name="backup_subtitle">Keep a copy of your profiles and Arc settings</string>
+    <string name="backup_subtitle">Keep a copy of your profiles and DanPlus settings</string>
     <string name="backup_group_back_up">Back up</string>
     <string name="backup_now">Back up now</string>
     <string name="backup_now_sub">Saves a file in this box\'s Downloads folder</string>
@@ -21,7 +21,7 @@
     <string name="backup_saved_where">%1$s in Downloads</string>
     <string name="backup_part_profiles">Profiles</string>
     <string name="backup_part_profiles_sub">Names and pictures</string>
-    <string name="backup_part_settings">Arc settings</string>
+    <string name="backup_part_settings">DanPlus settings</string>
     <string name="backup_part_settings_sub">Scout, thumbnails, DNS, remote buttons and more</string>
     <string name="backup_part_history">Library and watch history</string>
     <string name="backup_part_history_sub">Saved titles, Continue watching and watched marks</string>
@@ -39,16 +39,16 @@
     <string name="backup_also_phone">Also save to your phone</string>
     <string name="backup_done">Done</string>
     <string name="backup_phone_save_instruction">Scan with a phone on the same Wi-Fi, or open the address on a computer. Then press Download and keep the file somewhere safe.</string>
-    <string name="backup_phone_restore_instruction">Scan with a phone on the same Wi-Fi, or open the address on a computer. Then choose your backup file. Arc carries on here when it arrives.</string>
+    <string name="backup_phone_restore_instruction">Scan with a phone on the same Wi-Fi, or open the address on a computer. Then choose your backup file. DanPlus carries on here when it arrives.</string>
     <string name="backup_choose_title">Choose a backup</string>
-    <string name="backup_choose_none">Arc cannot see any backups on this box. After a reinstall, send one from your phone instead.</string>
+    <string name="backup_choose_none">DanPlus cannot see any backups on this box. After a reinstall, send one from your phone instead.</string>
     <string name="backup_restore_title">What to restore</string>
     <string name="backup_restore_from">Backup from %1$s. Made on: %2$s</string>
-    <string name="backup_restore_note">Restoring replaces these settings on this box, then Arc restarts. When you are signed in, your Nuvio account then sends its synced settings to your other devices.</string>
+    <string name="backup_restore_note">Restoring replaces these settings on this box, then DanPlus restarts. When you are signed in, your Nuvio account then sends its synced settings to your other devices.</string>
     <string name="backup_restore_signin_note">If you sign in to Nuvio afterwards, your synced settings may replace the restored ones.</string>
     <string name="backup_restore_button">Restore</string>
     <string name="backup_pin_create_heading">Choose a PIN for passwords and keys</string>
-    <string name="backup_pin_create_support">6 to 16 digits. A longer PIN keeps your sign-ins safer if someone copies the file. Arc cannot recover the PIN, but everything else in the backup still restores without it.</string>
+    <string name="backup_pin_create_support">6 to 16 digits. A longer PIN keeps your sign-ins safer if someone copies the file. DanPlus cannot recover the PIN, but everything else in the backup still restores without it.</string>
     <string name="backup_pin_create_back">Press back to back up without passwords</string>
     <string name="backup_pin_confirm_heading">Enter the PIN again</string>
     <string name="backup_pin_confirm_support">The same digits, to make sure.</string>
@@ -59,15 +59,15 @@
     <string name="backup_pin_wrong">That PIN does not match this backup.</string>
     <string name="backup_pin_checking">Checking…</string>
     <string name="backup_error_save">The backup could not be saved. Check that the box has free space.</string>
-    <string name="backup_error_read">That file is not an Arc backup, or it comes from a newer version of Arc.</string>
+    <string name="backup_error_read">This backup file is invalid or comes from a newer version of the app.</string>
     <string name="backup_error_restore">The backup could not be restored.</string>
     <string name="backup_restore_partial">Some items could not be restored. Check your settings and sign-ins before you reset your old box.</string>
-    <string name="backup_restored_reopen">Your backup is restored. Close Arc and open it again to finish.</string>
-    <string name="backup_permission_needed">Arc needs permission to save to Downloads on this box.</string>
-    <string name="backup_signin_hint">Moving from another box, or reinstalling Arc? Bring back your profiles and settings.</string>
+    <string name="backup_restored_reopen">Your backup is restored. Close DanPlus and open it again to finish.</string>
+    <string name="backup_permission_needed">DanPlus needs permission to save to Downloads on this box.</string>
+    <string name="backup_signin_hint">Moving from another box, or reinstalling DanPlus? Bring back your profiles and settings.</string>
     <string name="backup_signin_button">Restore from a backup</string>
     <string name="backup_signin_prompt_body">Your backup is restored. Sign in to Nuvio to bring back what your account keeps, such as supporter status, Home rows, collections and watch progress.</string>
-    <string name="backup_where_sub">Bring back your profiles and Arc settings.</string>
+    <string name="backup_where_sub">Bring back your profiles and DanPlus settings.</string>
     <string name="backup_where_box">On this box</string>
     <string name="backup_where_phone">On a phone or computer</string>
     <string name="backup_where_phone_sub">Send the file from a phone on the same Wi-Fi</string>
@@ -76,9 +76,9 @@
     <string name="backup_web_none">There are no backups on the TV yet. Press Back up now on the TV first.</string>
     <string name="backup_web_download">Download</string>
     <string name="backup_web_restore_heading">Restore a backup</string>
-    <string name="backup_web_restore_body">Choose an Arc backup file. The TV then asks what to restore.</string>
+    <string name="backup_web_restore_body">Choose a compatible backup file. Then select what to restore on the TV.</string>
     <string name="backup_web_choose">Choose backup file</string>
     <string name="backup_web_sent">Sent. Carry on on the TV.</string>
-    <string name="backup_web_not_backup">That file is not an Arc backup.</string>
+    <string name="backup_web_not_backup">This is not a compatible backup file.</string>
     <string name="backup_web_failed">The file could not be sent. Try again.</string>
 </resources>

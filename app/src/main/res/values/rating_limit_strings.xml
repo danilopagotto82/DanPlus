@@ -14,11 +14,11 @@
     <string name="rating_limit_saved">%1$s\'s rating limit: %2$s</string>
     <string name="rating_limit_play_heading">%1$s\'s PIN is needed to play this</string>
     <string name="rating_limit_play_rated">%1$s is rated %2$s. %3$s\'s limit is %4$s.</string>
-    <string name="rating_limit_play_unrated">Arc can\'t find a rating for %1$s. %2$s\'s limit is %3$s.</string>
+    <string name="rating_limit_play_unrated">DanPlus can\'t find a rating for %1$s. %2$s\'s limit is %3$s.</string>
     <string name="rating_limit_play_no_pin">Set a PIN on %1$s\'s profile to play titles above %2$s\'s limit.</string>
     <string name="rating_limit_party_heading">%1$s can\'t join this party</string>
     <string name="rating_limit_party_rated">The party is watching %1$s, rated %2$s. %3$s\'s limit is %4$s.</string>
-    <string name="rating_limit_party_unrated">The party is watching %1$s, which has no rating Arc can check. %2$s\'s limit is %3$s.</string>
+    <string name="rating_limit_party_unrated">The party is watching %1$s, which has no rating DanPlus can check. %2$s\'s limit is %3$s.</string>
     <string name="rating_limit_add_heading">Enter %1$s\'s PIN to add a profile</string>
     <string name="rating_limit_add_support">A profile on this box has a rating limit.</string>
 </resources>

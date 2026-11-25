@@ -2,4 +2,22 @@
 <resources>
     <string name="v2_ui_diagnostics_title">Diagnóstico da interface do dispositivo</string>
     <string name="v2_ui_diagnostics_subtitle">Tamanho da janela, densidade, área útil da tela e tempo dos últimos quadros da interface</string>
+    <string name="v2_ui_diag_unavailable">Indisponível</string>
+    <string name="v2_ui_diag_yes">Sim</string>
+    <string name="v2_ui_diag_no">Não</string>
+    <string name="v2_ui_diag_window">Janela do app: %1$d × %2$d px</string>
+    <string name="v2_ui_diag_density">Densidade: %1$s / %2$d dpi</string>
+    <string name="v2_ui_diag_screen">Tela informada: %1$d × %2$d dp</string>
+    <string name="v2_ui_diag_base">Área base: %1$s × %2$s dp</string>
+    <string name="v2_ui_diag_scale">Escala da interface: %1$d%% / %2$s</string>
+    <string name="v2_ui_diag_effective">Área útil: %1$s × %2$s dp</string>
+    <string name="v2_ui_diag_output">Modo de saída %1$s: %2$s × %3$s a %4$s Hz</string>
+    <string name="v2_ui_diag_ram">RAM: %1$s GiB / memória do app: %2$s MiB / pouca RAM: %3$s</string>
+    <string name="v2_ui_diag_acceleration">Aceleração por hardware: %1$s</string>
+    <string name="v2_ui_diag_frames">Quadros recentes (até 30 s / 2.048 quadros): %1$d</string>
+    <string name="v2_ui_diag_jank">Quadros lentos (JankStats): %1$s%%</string>
+    <string name="v2_ui_diag_timing">Thread da interface P50 / P95 / P99: %1$s / %2$s / %3$s ms</string>
+    <string name="v2_ui_diag_note">Amostras locais de várias telas. O tempo da GPU e os testes de desempenho da versão são medidos separadamente.</string>
+    <string name="v2_ui_diag_quality">Qualidade visual: %1$s / %2$s</string>
+    <string name="v2_ui_diag_glass">Desfoque em tempo real: %1$s / raio: %2$s dp / escala de entrada: %3$s</string>
 </resources>

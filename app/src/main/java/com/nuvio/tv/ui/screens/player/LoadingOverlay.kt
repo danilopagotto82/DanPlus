@@ -101,7 +101,7 @@ fun LoadingOverlay(
             val bottomInset = if (maxHeight >= 380.dp) 48.dp else 22.dp
             Image(
                 painter = painterResource(R.drawable.danplus_startup_logo),
-                contentDescription = "DAN+",
+                contentDescription = stringResource(R.string.app_name),
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .align(Alignment.TopEnd)

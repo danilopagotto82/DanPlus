@@ -374,7 +374,7 @@ internal fun ColumnScope.ReadyToSendStep(
             item(key = "box") {
                 ReportFact(
                     stringResource(R.string.report_item_box),
-                    "${Build.MODEL} · Android ${Build.VERSION.RELEASE} · Arc ${BuildConfig.VERSION_NAME}"
+                    "${Build.MODEL} · Android ${Build.VERSION.RELEASE} · ${stringResource(R.string.app_name)} ${BuildConfig.VERSION_NAME}"
                 )
             }
             if (playbackRowTitle != null) {

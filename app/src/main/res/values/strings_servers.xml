@@ -43,9 +43,9 @@
     <string name="servers_no_libraries">No movie or series libraries are available to this user.</string>
     <string name="servers_refresh_libraries">Refresh libraries</string>
     <string name="servers_display_name">Display name</string>
-    <string name="servers_display_name_description">The name Nuvio Arc shows for this server on Home, in Settings and on sources.</string>
+    <string name="servers_display_name_description">The name DanPlus shows for this server on Home, in Settings and on sources.</string>
     <string name="servers_display_name_server_name">Server\'s own name: %1$s</string>
-    <string name="servers_display_name_dialog_description">Choose the name Nuvio Arc shows for this server. Leave it empty to use the server\'s own name.</string>
+    <string name="servers_display_name_dialog_description">Choose the name DanPlus shows for this server. Leave it empty to use the server\'s own name.</string>
     <string name="servers_display_name_reset">Reset to server name</string>
     <string name="servers_enabled">Enabled</string>
     <string name="servers_enabled_description">Show this server in Home, search, and stream results.</string>
@@ -86,7 +86,7 @@
     <string name="servers_error_forbidden">This user does not have access.</string>
     <string name="servers_error_failed">Could not connect to the server.</string>
     <string name="servers_error_website">This address opens a website, not a media server. Enter the server\'s own address.</string>
-    <string name="servers_error_silo_website">Nuvio Arc couldn\'t find this Silo server\'s Jellyfin address. In Silo, open Settings &gt; Connect Apps &gt; Jellyfin-compatible app and enter the address shown under Server.</string>
+    <string name="servers_error_silo_website">DanPlus couldn\'t find this Silo server\'s Jellyfin address. In Silo, open Settings &gt; Connect Apps &gt; Jellyfin-compatible app and enter the address shown under Server.</string>
     <string name="servers_error_silo_jellyfin_off">Jellyfin apps are turned off on this Silo server. Ask the server owner to turn them on.</string>
     <string name="servers_error_profile_needed">Add # and your Silo profile name to the end of the username, like name#Profile or name#1234#Profile.</string>
     <string name="servers_error_profile_not_found">Silo reads the part after the last # as a profile name and has no profile called that. If your username has a # in it, add # and your profile name at the end, like name#1234#Profile.</string>
@@ -102,11 +102,11 @@
     <string name="servers_failure_not_found">This item is no longer available on the server.</string>
     <string name="servers_failure_certificate">This server\'s certificate is not recognised.</string>
     <string name="servers_certificate_title">This server\'s certificate is not recognised</string>
-    <string name="servers_certificate_intro">Nuvio Arc could not confirm the identity of %1$s.</string>
+    <string name="servers_certificate_intro">DanPlus could not confirm the identity of %1$s.</string>
     <string name="servers_certificate_untrusted">The certificate is self-signed or issued by a private authority.</string>
     <string name="servers_certificate_name_mismatch">The certificate was issued for a different name.</string>
     <string name="servers_certificate_expired">The certificate is outside its valid dates.</string>
-    <string name="servers_certificate_advice">If this is your own server and you expect this, you can trust this certificate. Nuvio Arc will then accept only this exact certificate for this server and will warn you if it ever changes. If you are not on your home network, check the fingerprint with the server\'s owner first.</string>
+    <string name="servers_certificate_advice">If this is your own server and you expect this, you can trust this certificate. DanPlus will then accept only this exact certificate for this server and will warn you if it ever changes. If you are not on your home network, check the fingerprint with the server\'s owner first.</string>
     <string name="servers_certificate_details">Issued to: %1$s\nIssued by: %2$s\nValid: %3$s to %4$s\nFingerprint (SHA-256): %5$s</string>
     <string name="servers_certificate_trust">Trust this certificate</string>
     <string name="servers_certificate_unavailable">The secure connection failed and the server\'s certificate could not be read.</string>
@@ -137,7 +137,7 @@
     <string name="silo_method_native_recommended">Silo sign-in (recommended)</string>
     <string name="silo_method_native_description">Sign in with a code on your phone, or with your Silo password. Works with every way your server signs people in (password, OpenID Connect, LDAP, Tailscale). Brings your Silo profiles and your Silo Home rows.</string>
     <string name="silo_method_jellyfin">Jellyfin-compatible</string>
-    <string name="silo_method_jellyfin_description">Uses Silo\'s address for Jellyfin apps, with a username and password (name#Profile for a profile). The way Nuvio Arc connected to Silo so far.</string>
+    <string name="silo_method_jellyfin_description">Uses Silo\'s address for Jellyfin apps, with a username and password (name#Profile for a profile). The way DanPlus connected to Silo so far.</string>
     <string name="silo_setup_next">Next</string>
     <string name="silo_code_step_open">On your phone, scan the code or open %1$s</string>
     <string name="silo_code_step_sign_in">Sign in there the way you normally do</string>
@@ -153,7 +153,7 @@
     <string name="silo_network_or_code">Or sign in with a code: %1$s at %2$s</string>
     <string name="silo_signing_in">Signing in…</string>
     <string name="silo_profiles_title">Who\'s watching?</string>
-    <string name="silo_profiles_subtitle">%1$s has more than one profile. Nuvio Arc uses the one you pick for progress, watched marks and Home rows. You can change it later on the server\'s page.</string>
+    <string name="silo_profiles_subtitle">%1$s has more than one profile. DanPlus uses the one you pick for progress, watched marks and Home rows. You can change it later on the server\'s page.</string>
     <string name="silo_profile_pin">PIN</string>
     <string name="silo_profile_child">Child</string>
     <string name="silo_pin_title">PIN for %1$s</string>
@@ -165,11 +165,11 @@
     <string name="servers_silo_profile">Profile</string>
     <string name="servers_silo_profile_description">Progress, watched marks and Home rows follow this profile.</string>
     <string name="servers_silo_home_rows">Silo Home rows</string>
-    <string name="servers_silo_home_rows_description">Show the rows from your Silo Home (your lists, Trending, Next up…) on Nuvio Arc\'s Home.</string>
+    <string name="servers_silo_home_rows_description">Show the rows from your Silo Home (your lists, Trending, Next up…) on DanPlus\'s Home.</string>
     <string name="servers_silo_switch">Switch to Silo sign-in</string>
     <string name="servers_silo_switch_description">Signs in with Silo\'s own sign-in, then replaces this connection. Its name and library choices stay.</string>
     <string name="servers_add_plex_description">Sign in with a code at plex.tv/link. Your servers are found for you.</string>
-    <string name="plex_sign_in_subtitle">No server address needed: Nuvio Arc finds your Plex servers after you sign in.</string>
+    <string name="plex_sign_in_subtitle">No server address needed: DanPlus finds your Plex servers after you sign in.</string>
     <string name="plex_code_step_open">On your phone or computer, open %1$s (or scan the code)</string>
     <string name="plex_code_step_sign_in">Sign in to Plex if asked</string>
     <string name="plex_code_step_link">Type the code above and press Link</string>
@@ -192,7 +192,7 @@
     <string name="plex_reach_remote_detail">reached over the internet</string>
     <string name="plex_reach_relay_detail">only reachable through Plex Relay (slow, about 2 Mbit/s)</string>
     <string name="plex_reach_offline_detail">offline right now</string>
-    <string name="plex_users_subtitle">Your Plex account has Plex Home users. Nuvio Arc uses the one you pick for progress, watched marks and Continue Watching on %1$s. You can change it later on the server\'s page.</string>
+    <string name="plex_users_subtitle">Your Plex account has Plex Home users. DanPlus uses the one you pick for progress, watched marks and Continue Watching on %1$s. You can change it later on the server\'s page.</string>
     <string name="plex_user_owner">Owner</string>
     <string name="plex_user_managed">Managed</string>
     <string name="plex_other_user">Other user</string>
@@ -200,8 +200,8 @@
     <string name="plex_home_user">Plex Home user</string>
     <string name="plex_home_user_description">Progress, watched marks and Continue Watching follow this user.</string>
     <string name="plex_home_rows">Plex Home rows</string>
-    <string name="plex_home_rows_description">Show Plex\'s own rows from this server (Recently Added and more) on Nuvio Arc\'s Home.</string>
-    <string name="plex_remote_pass_needed">Plex won\'t play this away from home. In apps like Nuvio Arc that needs Plex Pass on the server, or a Remote Watch Pass for you. At home it plays free.</string>
+    <string name="plex_home_rows_description">Show Plex\'s own rows from this server (Recently Added and more) on DanPlus\'s Home.</string>
+    <string name="plex_remote_pass_needed">Plex won\'t play this away from home. In apps like DanPlus that needs Plex Pass on the server, or a Remote Watch Pass for you. At home it plays free.</string>
     <string name="server_library_sort_title">A to Z</string>
     <string name="server_library_sort_released">Newest release</string>
     <string name="server_library_sort_added">Recently added</string>
