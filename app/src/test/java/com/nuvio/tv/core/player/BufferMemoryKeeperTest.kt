@@ -104,6 +104,28 @@ class BufferMemoryKeeperTest {
     }
 
     @Test
+    fun `detaching disarms pressure callbacks already queued by the old player`() {
+        val pending = mutableListOf<() -> Unit>()
+        val queuedWorker = object : BufferMemoryKeeper.Worker {
+            override fun run(task: () -> Unit) { pending += task }
+            override fun runLater(delayMs: Long, task: () -> Unit) { pending += task }
+        }
+        val control = customControl()
+        val old = BufferMemoryKeeper(control, { free }, { now }, queuedWorker, oneGbBox = true,
+            onLastWarning = { lastWarnings++ })
+        old.onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL)
+        old.setLentBytes(20 * mb)
+        old.onSeek()
+        old.detach()
+        now += 5_000L
+        pending.toList().forEach { it() }
+        assertEquals(0, old.pressureLevel)
+        assertEquals(0, lastWarnings)
+        assertEquals(0L, old.lentBytes)
+        assertEquals(3, pending.size)
+    }
+
+    @Test
     fun `a seek gives back what the new position does not use`() {
         val k = keeper(customControl())
         val old = take(60)

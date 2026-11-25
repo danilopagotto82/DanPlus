@@ -45,6 +45,7 @@ import com.nuvio.tv.domain.repository.StreamRepository
 import com.nuvio.tv.domain.repository.WatchProgressRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.nuvio.tv.core.player.PlayerSessionTracker
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
@@ -1137,7 +1138,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun refreshHomeCatalogsIfStale() {
-        if (addonsCache.isEmpty()) return
+        if (addonsCache.isEmpty() || PlayerSessionTracker.isOpenNow) return
         val now = android.os.SystemClock.elapsedRealtime()
         if (now - lastHomeCatalogRefreshAtMs < HOME_CATALOG_REFRESH_TTL_MS) return
         lastHomeCatalogRefreshAtMs = now

@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -37,6 +38,27 @@ class PlayerSessionTrackerTest {
 
         next.close()
         assertFalse(PlayerSessionTracker.isSessionOpen.first())
+    }
+
+    @Test
+    fun `background catalogue work waits through settling and resumes only on exit`() = runTest {
+        PlayerSessionTracker.timerScope = backgroundScope
+        val session = PlayerSessionTracker.open()
+        var ran = false
+        try {
+            launch {
+                PlayerSessionTracker.isSessionOpen.first { !it }
+                ran = true
+            }
+            session.firstFrame()
+            advance(PlayerSessionTracker.SETTLE_MS)
+            assertTrue(settled)
+            assertFalse(ran)
+        } finally {
+            session.close()
+        }
+        runCurrent()
+        assertTrue(ran)
     }
 
     @Test

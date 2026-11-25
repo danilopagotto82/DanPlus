@@ -19,7 +19,7 @@ import com.nuvio.tv.core.image.ArtworkMemoryCache
 import com.nuvio.tv.core.image.HomePosterPriority
 import com.nuvio.tv.core.image.HomePostersOnDisk
 import com.nuvio.tv.core.image.HomePosterViewport
-import com.nuvio.tv.core.image.homePosterCacheKey
+import com.nuvio.tv.core.image.homePosterPrefetchCacheKey
 import com.nuvio.tv.core.image.homePosterMemoryWarmBudget
 import com.nuvio.tv.core.image.homePosterMemoryWarmColumns
 import com.nuvio.tv.core.image.homePosterMemoryWarmRows
@@ -158,7 +158,7 @@ internal fun ProgressiveHomePosterWarmup(
                                 val width = with(density) { metrics.width.roundToPx() }.coerceAtLeast(1)
                                 val height = with(density) { metrics.height.roundToPx() }.coerceAtLeast(1)
                                 val diskKey = sizedHomeArtworkUrl(url, width)
-                                val memoryKey = homePosterCacheKey(url, width, height)
+                                val memoryKey = homePosterPrefetchCacheKey(url, width, height)
                                 val memoryExtras = item.customPosterCacheExtras(url, landscape)
                                 val toMemory = scan.row in memoryRows && index in scan.memoryColumns &&
                                     memoryBudget >= width.toLong() * height * 4 && !OpenFilesGuard.isHigh()

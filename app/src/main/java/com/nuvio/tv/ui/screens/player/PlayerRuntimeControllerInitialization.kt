@@ -3147,9 +3147,9 @@ internal fun PlayerRuntimeController.initializePlayer(
                             skippedFrameTally.onReset(counters, counters?.renderedOutputBufferCount, skippedSoFar,
                                 SystemClock.elapsedRealtime())
                         }
-                        if (reason == Player.DISCONTINUITY_REASON_SEEK) {
+                        if (reason == Player.DISCONTINUITY_REASON_SEEK && _exoPlayer === this@apply) {
                             lastSeekWallMs = SystemClock.elapsedRealtime()
-                            ParallelRangeDataSource.noteUserSeek()
+                            ParallelRangeDataSource.noteUserSeek(url)
                             bufferMemoryKeeper?.onSeek()
                             onSeekForLateVideoWatch()
                             cancelPausedOutputCheck()
@@ -4532,15 +4532,20 @@ private fun PlayerRuntimeController.recordFirstFrameDiagnostics(
 
     currentBitrateAwareLoadControl?.let { lc ->
         val budgetManaged = playerSettings.bufferBudgetManaged
-        val keepZeroForDv7 = budgetManaged && conversionSucceeded > 0L &&
-                MemoryBudget.isLowRamTier
         // Only the BUDGET can be tightened at runtime. The back buffer was fixed when
         // this player was constructed and media3 will not re-read it, so it is reported
         // as built rather than as intended.
         val conversionMb = (MemoryBudget.conversionBudgetMb(currentManagedBudgetMb) - currentParallelChunkOverheadMb)
             .coerceAtLeast(MemoryBudget.MIN_BUFFER_MB)
-        if (keepZeroForDv7) {
-            lc.setBudgetBytesOverride(conversionMb.toLong() * 1024L * 1024L)
+        val conversionBudgetBytes = BufferSizing.conversionBudgetOverride(
+            currentBytes = lc.uncappedBudgetBytes,
+            proposedBytes = conversionMb.toLong() * 1024L * 1024L,
+            managed = budgetManaged,
+            lowRam = MemoryBudget.isLowRamTier,
+            conversionSucceeded = conversionSucceeded > 0L
+        )
+        if (conversionBudgetBytes != null) {
+            lc.setBudgetBytesOverride(conversionBudgetBytes)
             bufferMemoryKeeper?.onBudgetLowered()
         }
         Log.i(
@@ -4549,12 +4554,7 @@ private fun PlayerRuntimeController.recordFirstFrameDiagnostics(
                     "lowRam=${MemoryBudget.isLowRamTier} " +
                     "effectiveBackBufferMs=$effectiveBackBufferDurationMs " +
                     "managed=$budgetManaged " +
-                    "budgetMb=${when {
-                        keepZeroForDv7 -> conversionMb
-                        budgetManaged -> (currentManagedBudgetMb - currentParallelChunkOverheadMb)
-                            .coerceAtLeast(MemoryBudget.MIN_BUFFER_MB)
-                        else -> MemoryBudget.effectiveBufferMb(playerSettings.bufferSettings.targetBufferSizeMb)
-                    }} " +
+                    "budgetMb=${(conversionBudgetBytes ?: lc.uncappedBudgetBytes) / (1024L * 1024L)} " +
                     "host=${currentStreamUrl.safeHost()}"
         )
     }

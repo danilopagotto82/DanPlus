@@ -87,13 +87,14 @@ class BufferMemoryKeeper(
             else -> LEVEL_NONE
         }
         worker.run {
+            if (detached) return@run
             if (wanted == LEVEL_NONE) {
                 trimIdle("trim:$level")
                 return@run
             }
             if (oneGbLastWarning(level, oneGbBox)) {
                 raise(LEVEL_CRITICAL, "trim:$level oneGb")
-                runCatching(onLastWarning)
+                if (!detached) runCatching(onLastWarning)
                 return@run
             }
             val free = freeMemory()
@@ -112,6 +113,7 @@ class BufferMemoryKeeper(
         if (detached) return
         val floor = bytes.coerceAtLeast(0L)
         worker.run {
+            if (detached) return@run
             if (floor == floorBytes) return@run
             floorBytes = floor
             if (pressureLevel != LEVEL_NONE || lentBytes > 0L) applyTarget()
@@ -122,6 +124,7 @@ class BufferMemoryKeeper(
         if (detached || enabled == budgetManaged) return
         budgetManaged = enabled
         worker.run {
+            if (detached) return@run
             if (!budgetManaged && pressureLevel == LEVEL_LOW) {
                 pressureLevel = LEVEL_NONE
                 applyTarget()
@@ -140,6 +143,7 @@ class BufferMemoryKeeper(
     }
 
     private fun seekTrim() {
+        if (detached) return
         val sinceSeek = clock() - lastSeekAtMs
         if (sinceSeek < SEEK_SETTLE_MS) {
             worker.runLater(SEEK_SETTLE_MS - sinceSeek) { seekTrim() }
@@ -153,6 +157,7 @@ class BufferMemoryKeeper(
     fun onBudgetLowered() {
         if (detached) return
         worker.run {
+            if (detached) return@run
             if (grownBytes > 0L) {
                 grownBytes = 0L
                 control.setGrowthBytes(0L)
@@ -168,6 +173,7 @@ class BufferMemoryKeeper(
         if (detached) return
         val lent = bytes.coerceAtLeast(0L)
         worker.run {
+            if (detached) return@run
             if (lent == lentBytes) return@run
             val returned = lent < lentBytes
             lentBytes = lent
@@ -181,6 +187,7 @@ class BufferMemoryKeeper(
         if (detached) return
         val floor = bytes.coerceAtLeast(0L)
         worker.run {
+            if (detached) return@run
             if (floor == lendFloorBytes) return@run
             lendFloorBytes = floor
             if (lentBytes > 0L && !lendingHeld) applyTarget()
@@ -190,6 +197,7 @@ class BufferMemoryKeeper(
     fun setLendingHeld(held: Boolean) {
         if (detached) return
         worker.run {
+            if (detached) return@run
             if (held == lendingHeld) return@run
             lendingHeld = held
             if (lentBytes <= 0L) return@run

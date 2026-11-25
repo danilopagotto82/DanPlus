@@ -53,7 +53,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import coil3.imageLoader
 import coil3.memory.MemoryCache
 import com.nuvio.tv.core.image.homePosterPriority
-import com.nuvio.tv.core.image.homePosterCacheKey
+import com.nuvio.tv.core.image.homePosterPrefetchCacheKey
 import coil3.request.ImageRequest
 import com.nuvio.tv.domain.model.ContinueWatchingCardStyle
 import com.nuvio.tv.domain.model.FocusedPosterTrailerPlaybackTarget
@@ -324,7 +324,7 @@ internal fun ModernHomeRowsList(
         landscapeCatalogCardHeight
     ) {
         var previousFirstRow = -1
-        val inFlight = java.util.concurrent.ConcurrentHashMap<String, Pair<Int, Job>>()
+        val inFlight = java.util.concurrent.ConcurrentHashMap<MemoryCache.Key, Pair<Int, Job>>()
         val prefetchScope = this
         snapshotFlow {
             val (first, last) = visibleRowRange.value
@@ -395,9 +395,9 @@ internal fun ModernHomeRowsList(
                             val wPx = with(density) { metrics.width.roundToPx() }
                             val hPx = with(density) { metrics.height.roundToPx() }
                             if (wPx <= 0 || hPx <= 0) continue
-                            val cacheKey = homePosterCacheKey(url, wPx, hPx)
-                            if (inFlight.containsKey(cacheKey) || found.any { it.cacheKey == cacheKey }) continue
+                            val cacheKey = homePosterPrefetchCacheKey(url, wPx, hPx)
                             val memoryKey = MemoryCache.Key(cacheKey, extras)
+                            if (inFlight.containsKey(memoryKey) || found.any { it.cacheKey == cacheKey && it.extras == extras }) continue
                             if (verticalPrefetchImageLoader.memoryCache?.get(memoryKey) != null) continue
                             found += VerticalPosterPrefetch(index, url, extras, wPx, hPx, cacheKey)
                         }
@@ -405,7 +405,8 @@ internal fun ModernHomeRowsList(
                     found
                 }
                 for (candidate in candidates) {
-                    if (inFlight.containsKey(candidate.cacheKey)) continue
+                    val memoryKey = MemoryCache.Key(candidate.cacheKey, candidate.extras)
+                    if (inFlight.containsKey(memoryKey)) continue
                     if (inFlight.size >= verticalPosterPrefetchInFlightLimit(verticalRowListState.isScrollInProgress)) {
                         snapshotFlow { verticalRowListState.isScrollInProgress }.first { !it }
                         if (inFlight.size >= verticalPosterPrefetchInFlightLimit(scrolling = false)) break
@@ -425,8 +426,8 @@ internal fun ModernHomeRowsList(
                         )
                     }
                     val entry = candidate.row to job
-                    inFlight[candidate.cacheKey] = entry
-                    job.invokeOnCompletion { inFlight.remove(candidate.cacheKey, entry) }
+                    inFlight[memoryKey] = entry
+                    job.invokeOnCompletion { inFlight.remove(memoryKey, entry) }
                     job.start()
                 }
             }

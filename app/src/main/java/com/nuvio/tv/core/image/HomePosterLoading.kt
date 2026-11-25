@@ -100,6 +100,9 @@ fun ImageRequest.Builder.homePosterPriority(priority: HomePosterPriority?): Imag
 fun homePosterCacheKey(url: String, width: Int, height: Int, version: Int = 0) =
     "${url}_${width}x${height}_v$version"
 
+fun homePosterPrefetchCacheKey(url: String, width: Int, height: Int) =
+    homePosterCacheKey(url, width, height, ImageInvalidationBus.version(url))
+
 private val HomePosterAttemptKey = Extras.Key(0)
 
 /** A retry must not equal the failed request, or the painter keeps the error. Memory and disk keys are unchanged. */

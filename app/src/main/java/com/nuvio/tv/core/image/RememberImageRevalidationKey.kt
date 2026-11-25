@@ -22,14 +22,15 @@ fun rememberImageRevalidationKey(imageUrl: String?): Int {
 
 /** One listener on [ImageInvalidationBus] for every image on screen, instead of one job per image. */
 private class RevalidationWatch(private val url: String) : RememberObserver {
-    val version: MutableIntState = mutableIntStateOf(0)
+    val version: MutableIntState = mutableIntStateOf(ImageInvalidationBus.version(url))
 
     override fun onRemembered() {
+        version.intValue = ImageInvalidationBus.version(url)
         watches.getOrPut(url) { ArrayList(1) }.add(this)
         if (listener == null) {
             listener = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).launch {
                 ImageInvalidationBus.events.collect { invalidated ->
-                    watches[invalidated]?.forEach { it.version.intValue++ }
+                    watches[invalidated]?.forEach { it.version.intValue = ImageInvalidationBus.version(invalidated) }
                 }
             }
         }

@@ -133,6 +133,7 @@ import coil3.memory.MemoryCache
 import com.nuvio.tv.core.image.homePosterPriority
 import com.nuvio.tv.core.image.homePosterAttempt
 import com.nuvio.tv.core.image.homePosterCacheKey
+import com.nuvio.tv.core.image.homePosterPrefetchCacheKey
 import com.nuvio.tv.core.poster.failedWithoutFallback
 import com.nuvio.tv.core.poster.posterFallbackUrl
 import coil3.request.ImageRequest
@@ -1087,7 +1088,7 @@ internal fun ModernRowSection(
                             // Warm the collapsed poster. Expanded backdrops have their own
                             // URL and target when focus settles; they must not size every poster.
                             model = url
-                            cacheKey = homePosterCacheKey(url, widthPx, heightPx)
+                            cacheKey = homePosterPrefetchCacheKey(url, widthPx, heightPx)
                             extras = item.customPosterCacheExtras(url, landscape)
                         }
                         if (imageLoader.memoryCache?.get(MemoryCache.Key(cacheKey, extras)) != null) return

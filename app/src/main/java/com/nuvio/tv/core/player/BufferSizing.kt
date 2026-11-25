@@ -33,11 +33,22 @@ object BufferSizing {
             .getOrElse { System.getProperty("os.arch")?.contains("64") == true }
     }
 
-    internal fun effectiveConnectionCount(requested: Int): Int =
-        if (is64BitPlaybackProcess) requested else requested.coerceAtMost(MAX_32_BIT_CONNECTIONS)
+    internal fun effectiveConnectionCount(requested: Int, is64Bit: Boolean = is64BitPlaybackProcess): Int =
+        if (is64Bit) requested else requested.coerceAtMost(MAX_32_BIT_CONNECTIONS)
 
-    internal fun playbackBufferLimitMb(requested: Int): Int =
-        if (is64BitPlaybackProcess) requested else requested.coerceAtMost(MAX_32_BIT_BUFFER_MB)
+    internal fun playbackBufferLimitMb(requested: Int, is64Bit: Boolean = is64BitPlaybackProcess): Int =
+        if (is64Bit) requested else requested.coerceAtMost(MAX_32_BIT_BUFFER_MB)
+
+    /** A confirmed conversion may only lower an already fitted managed budget. */
+    internal fun conversionBudgetOverride(
+        currentBytes: Long,
+        proposedBytes: Long,
+        managed: Boolean,
+        lowRam: Boolean,
+        conversionSucceeded: Boolean
+    ): Long? = proposedBytes.takeIf {
+        managed && lowRam && conversionSucceeded && it in 1L until currentBytes
+    }
 
     // Kept free above Android's low-memory line, so the box does not start killing apps and swapping.
     const val SYSTEM_MARGIN_MB = 100

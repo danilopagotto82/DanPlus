@@ -94,7 +94,7 @@ internal class PlayerMediaSourceFactory(
         val key = cacheKey?.takeIf { it.isNotBlank() }
             ?: url?.takeIf { it.isNotBlank() }
             ?: return -1L
-        val cache = synchronized(vodCacheLock) { sharedSimpleCache } ?: return -1L
+        val cache = sharedSimpleCache ?: return -1L
         return try {
             cache.getCachedSpans(key).sumOf { it.length }
         } catch (e: Exception) {
@@ -450,43 +450,41 @@ internal class PlayerMediaSourceFactory(
                 onStreamRedirected?.invoke(url, resolvedUrl)
             }
 
-        // 2. VOD disk cache (opt-in).
-        val useVodCache = ENABLE_VOD_CACHE && vodCacheEnabled && !isHls && !isDash && shouldUseVodCache(url)
-        // A playback started inside the delay window would have its own data swept out from under it.
+        // An eligible open uses disk only if the cache is ready. A cold or slow disk
+        // cannot hold the first read; a later reopen may use the initialized cache.
+        val useVodCache = shouldUsePlaybackVodCache(
+            enabled = ENABLE_VOD_CACHE && vodCacheEnabled && !isVodCacheDisabled,
+            formatCheck = com.nuvio.tv.core.formatcheck.FormatCheckSession.active,
+            adaptive = isHls || isDash,
+            url = url
+        )
         pendingEvictionJob?.cancel()
         pendingEvictionJob = null
         currentVodCacheUrl = url
         currentVodCacheResolvedUrl = null
+        currentVodCacheActive = false
         vodCacheEvictor?.resetTrimAnchor()
-        // Size the cache only when used; 0 means off or not enough free space (skip, stream direct).
-        val vodCacheMaxBytes = if (useVodCache && !isVodCacheDisabled) resolveVodCacheMaxBytes() else 0L
-        val vodCacheActive = vodCacheMaxBytes > 0L
-
-        val cachedProgressiveFactory: DataSource.Factory = if (vodCacheActive) {
-            val cache = obtainVodCache(context, vodCacheMaxBytes)
-            if (cache != null) {
-                currentVodCacheActive = true
-                buildVodCacheDataSourceFactory(progressiveUpstreamFactory, cache)
-            } else {
-                currentVodCacheActive = false
-                progressiveUpstreamFactory
+        val progressiveFactory: DataSource.Factory = if (useVodCache) {
+            val applicationContext = context.applicationContext
+            val mode = vodCacheSizeMode
+            val manualSize = vodCacheSizeMb
+            ensureVodCachePrepared(applicationContext, mode, manualSize)
+            DataSource.Factory {
+                VodCacheWhenReadyDataSource(progressiveUpstreamFactory) {
+                    val cache = sharedSimpleCache ?: return@VodCacheWhenReadyDataSource null
+                    val freeBytes = runCatching { applicationContext.cacheDir.usableSpace + cache.cacheSpace }
+                        .getOrElse { return@VodCacheWhenReadyDataSource null }
+                    if (VodCacheSizing.resolveMaxBytes(freeBytes, mode, manualSize) <= 0L) {
+                        return@VodCacheWhenReadyDataSource null
+                    }
+                    if (currentVodCacheUrl == url) currentVodCacheActive = true
+                    BufferedReadDataSource(buildVodCacheDataSourceFactory(progressiveUpstreamFactory, cache).createDataSource())
+                }
             }
         } else {
-            currentVodCacheActive = false
             progressiveUpstreamFactory
         }
-        // The buffer only pays off against the cache's per-call cost, so a direct stream keeps its original chain.
-        val progressiveFactory: DataSource.Factory = if (currentVodCacheActive) {
-            DataSource.Factory { BufferedReadDataSource(cachedProgressiveFactory.createDataSource()) }
-        } else {
-            cachedProgressiveFactory
-        }
-        // BUFFER_NETWORK reports the setting before this runs, so report what the stream actually got.
-        Log.i(
-            LOG_TAG,
-            "VOD_CACHE: enabled=$vodCacheEnabled active=$currentVodCacheActive " +
-                "requestedCap=${vodCacheMaxBytes / (1024L * 1024L)}MB stats=${vodCacheStatsSnapshot()}"
-        )
+        Log.i(LOG_TAG, "VOD_CACHE: eligible=$useVodCache ready=${sharedSimpleCache != null}")
 
         val extractorsFactory = customExtractorsFactory ?: DefaultExtractorsFactory()
         // MediaItem subtitle tracks load through this factory too; route addon subtitles through the
@@ -664,19 +662,6 @@ internal class PlayerMediaSourceFactory(
             })
     }
 
-    private fun shouldUseVodCache(url: String): Boolean {
-        val scheme = Uri.parse(url).scheme?.lowercase()
-        return scheme == "https" || scheme == "http"
-    }
-
-    // Sizing maths shared with the Device Assessment through VodCacheSizing; free space is read once.
-    // What the cache already holds is reclaimable, so leaving it out would shrink the cap on every stream.
-    private fun resolveVodCacheMaxBytes(): Long = VodCacheSizing.resolveMaxBytes(
-        freeSpaceBytes = reclaimableVodCacheSpaceBytes(context),
-        mode = vodCacheSizeMode,
-        manualSizeMb = vodCacheSizeMb
-    )
-
     companion object {
         private const val MIME_VIDEO_QUICK_TIME = "video/quicktime"
         // MP4 session mode: fixed 8 MB chunk, independent of the user's parallel
@@ -796,11 +781,6 @@ internal class PlayerMediaSourceFactory(
             }
         }
 
-        // A crash leaves the previous session's titles behind, so start each app run clean.
-        private fun clearStaleVodCache(cache: SimpleCache) {
-            vodCacheMaintenanceScope.launch { clearAllCachedResources(cache) }
-        }
-
         // Removing only the key the player reports orphans anything written under a resolved url,
         // which then survives until the cap forces an eviction mid playback.
         private suspend fun clearAllCachedResources(cache: SimpleCache) {
@@ -906,6 +886,26 @@ internal class PlayerMediaSourceFactory(
             }
         }
 
+        internal fun shouldUsePlaybackVodCache(enabled: Boolean, formatCheck: Boolean, adaptive: Boolean, url: String): Boolean =
+            enabled && !formatCheck && !adaptive &&
+                (url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true))
+
+        private val vodCacheInitInFlight = AtomicBoolean(false)
+
+        private fun ensureVodCachePrepared(context: Context, mode: VodCacheSizeMode, manualSize: Int) {
+            if (sharedSimpleCache != null || isVodCacheDisabled || !vodCacheInitInFlight.compareAndSet(false, true)) return
+            vodCacheMaintenanceScope.launch {
+                try {
+                    val maxBytes = VodCacheSizing.resolveMaxBytes(reclaimableVodCacheSpaceBytes(context), mode, manualSize)
+                    if (maxBytes > 0L) obtainVodCache(context, maxBytes)
+                } catch (_: SecurityException) {
+                    Log.w(LOG_TAG, "VOD_CACHE: cache storage unavailable, streaming direct")
+                } finally {
+                    vodCacheInitInFlight.set(false)
+                }
+            }
+        }
+
         private fun obtainVodCache(context: Context, maxBytes: Long): SimpleCache? {
             synchronized(vodCacheLock) {
                 if (isVodCacheDisabled) return null
@@ -921,7 +921,12 @@ internal class PlayerMediaSourceFactory(
 
                 val dir = File(context.applicationContext.cacheDir, VOD_CACHE_DIR_NAME)
                 // Clearing the last run in place raced the first title's writes, and a resumed title shares its key.
-                val movedAside = moveStaleVodCacheAside(dir)
+                if (!moveStaleVodCacheAside(dir)) {
+                    isVodCacheDisabled = true
+                    Log.w(LOG_TAG, "VOD_CACHE: stale directory unavailable, streaming direct")
+                    deleteStaleVodCacheFolders(context)
+                    return null
+                }
                 var created = createVodCache(context, dir, maxBytes)
                 if (created == null) {
                     // A crash mid-write can leave an index the cache cannot read, so drop it and rebuild once.
@@ -940,7 +945,6 @@ internal class PlayerMediaSourceFactory(
                     vodCacheBytesTrimmed.set(0L)
                     vodCacheBytesRemoved.set(0L)
                     vodCacheWriteCounters.reset()
-                    if (!movedAside) clearStaleVodCache(created)
                 }
                 deleteStaleVodCacheFolders(context)
                 sharedSimpleCache = created

@@ -13,6 +13,27 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomePosterLoadingTest {
+    @Test fun coldAndRevalidatedPrefetchUseTheCardsMemoryKey() {
+        val url = "https://images.invalid/poster-e04"
+        val previous = ImageInvalidationBus.version(url)
+        assertEquals(homePosterCacheKey(url, 120, 180, previous), homePosterPrefetchCacheKey(url, 120, 180))
+        ImageInvalidationBus.notifyInvalidated(url)
+        val current = ImageInvalidationBus.version(url)
+        assertTrue(current > previous)
+        assertEquals(homePosterCacheKey(url, 120, 180, current), homePosterPrefetchCacheKey(url, 120, 180))
+        assertFalse(homePosterPrefetchCacheKey(url, 240, 180) == homePosterPrefetchCacheKey(url, 120, 180))
+    }
+
+    @Test fun pruningOldRevisionsDoesNotReviveTheOriginalCacheKey() {
+        val versions = ImageRevalidationVersions(limit = 1)
+        versions.advance("first")
+        versions.advance("second")
+        assertTrue(versions.version("first") > 0)
+        val before = versions.version("first")
+        versions.advance("first")
+        assertTrue(versions.version("first") > before)
+    }
+
     @Test fun decodedWindowScalesToViewportAndReversalWithoutGrowingWithCatalogue() {
         val right = homePosterWarmWindow(1000, 100, 111, 99)
         assertEquals((112..135).toList(), right.take(24))

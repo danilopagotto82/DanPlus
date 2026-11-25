@@ -22,6 +22,7 @@ import com.nuvio.tv.domain.model.skipStep
 import com.nuvio.tv.domain.model.stableKey
 import com.nuvio.tv.domain.model.WatchedItem
 import com.nuvio.tv.domain.model.supportsExtra
+import com.nuvio.tv.core.player.PlayerSessionTracker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
@@ -1273,6 +1274,10 @@ internal fun HomeViewModel.startReservedHeadroomSweep(generation: Long) {
                 delay(CATALOG_SWEEP_YIELD_POLL_MS)
                 continue
             }
+            if (PlayerSessionTracker.isOpenNow) {
+                PlayerSessionTracker.isSessionOpen.first { !it }
+                continue
+            }
             val next = pullNextSweepCatalog() ?: break
             catalogSweepInFlight.incrementAndGet()
             pendingCatalogLoads = pendingCatalogLoads + 1
@@ -1392,6 +1397,7 @@ private fun HomeViewModel.scheduleFailedCatalogRetry() {
     if (failedCatalogRetryJob?.isActive == true) return
     failedCatalogRetryJob = viewModelScope.launch {
         delay(FAILED_CATALOG_RETRY_DELAY_MS)
+        PlayerSessionTracker.isSessionOpen.first { !it }
         refreshVisibleCatalogsPipeline(failedOnly = true)
     }
 }

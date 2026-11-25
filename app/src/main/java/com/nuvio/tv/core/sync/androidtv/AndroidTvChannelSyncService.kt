@@ -11,6 +11,7 @@ import com.nuvio.tv.data.local.LayoutPreferenceDataStore
 import com.nuvio.tv.data.local.TraktSettingsDataStore
 import com.nuvio.tv.domain.repository.MetaRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.nuvio.tv.core.player.PlayerSessionTracker
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -86,7 +87,7 @@ class AndroidTvChannelSyncService @Inject constructor(
         scope.launch { TvChannelRefreshJobService.schedulePeriodic(context) }
 
         scope.launch {
-            TvRecommendationManager.isPlaybackActive.collect { active ->
+            PlayerSessionTracker.isSessionOpen.collect { active ->
                 if (!active && syncWaitsForPlayback) {
                     syncWaitsForPlayback = false
                     // The player has just written its own fresher Watch Next row; the channel
@@ -128,13 +129,15 @@ class AndroidTvChannelSyncService @Inject constructor(
      */
     suspend fun reconcileFromCache(settings: ChannelSettingsSnapshot? = null, withWatchNext: Boolean = true) {
         if (!manager.isSupported()) return
-        syncWaitsForPlayback = true
-        if (TvRecommendationManager.isPlaybackActive.value) {
-            Log.d(TAG, "Playback running; channel sync waits for the next pause")
-            return
+        reconcileMutex.withLock {
+            syncWaitsForPlayback = true
+            if (PlayerSessionTracker.isOpenNow) {
+                Log.d(TAG, "Player open; channel sync waits for playback to exit")
+                return@withLock
+            }
+            syncWaitsForPlayback = false
+            reconcileLocked(settings, withWatchNext)
         }
-        syncWaitsForPlayback = false
-        reconcileMutex.withLock { reconcileLocked(settings, withWatchNext) }
     }
 
     private suspend fun reconcileLocked(settings: ChannelSettingsSnapshot?, withWatchNext: Boolean) {

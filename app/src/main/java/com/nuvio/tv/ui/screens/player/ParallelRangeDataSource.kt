@@ -228,19 +228,16 @@ internal class ParallelRangeDataSource(
         /** Idle this long, a CDN has likely closed the pooled connections (keep-alive is often 60 to 75 s). */
         internal const val STALE_IDLE_MS = 60_000L
 
-        @Volatile private var userSeekAtMs = 0L
-        private const val USER_SEEK_OPEN_MS = 3_000L
+        private val userSeek = RangeSeekHint()
 
-        /** The player seeks on the user's word: the next open far from the reader drops the pieces left behind. */
-        internal fun noteUserSeek() {
-            userSeekAtMs = SystemClock.uptimeMillis()
+        /** Keep a user seek until the current stream opens a range outside its old window. */
+        internal fun noteUserSeek(url: String) {
+            userSeek.record(url, SystemClock.uptimeMillis())
         }
 
-        private fun takeUserSeek(): Boolean {
-            val at = userSeekAtMs
-            if (at == 0L || SystemClock.uptimeMillis() - at > USER_SEEK_OPEN_MS) return false
-            userSeekAtMs = 0L
-            return true
+        /** Evicting a result must also interrupt the executor task that owns its blocking open. */
+        internal fun bindChunkTask(result: CompletableFuture<*>, task: java.util.concurrent.Future<*>) {
+            result.whenComplete { _, _ -> if (result.isCancelled) task.cancel(true) }
         }
 
         /**
@@ -1345,7 +1342,7 @@ internal class ParallelRangeDataSource(
         // session teardown on TTL.
         val attachedSession = resources.obtainSession(dataSpec.uri, dataSpec.httpRequestHeaders, chunkSize, sessionChunkCap, maxPoolSize, effectivePrefetchDepth)
         session = attachedSession
-        if (!isolateSession && takeUserSeek()) dropLeftBySeek(attachedSession, dataSpec.position / chunkSize)
+        if (!isolateSession) dropLeftBySeek(attachedSession, dataSpec.position / chunkSize)
         val warmLength = attachedSession.totalLength
         if (warmLength > 0L && dataSpec.position in 0 until warmLength) {
             resolvedUri = attachedSession.requestTarget()
@@ -1848,9 +1845,9 @@ internal class ParallelRangeDataSource(
         }
         Log.w(TAG, "RS_ESCALATE fired chunk=$chunkIndex waitMs=$waitedMs watermark=$watermark")
         val t0 = SystemClock.elapsedRealtime()
-        resources.sharedExecutor.execute {
+        val task = resources.sharedExecutor.submit(Runnable {
             try {
-                if (typed.isDone || typed.isCancelled || activeSession.abandoned.get()) return@execute
+                if (typed.isDone || typed.isCancelled || activeSession.abandoned.get()) return@Runnable
                 val result = downloadChunkOnce(activeSession, chunkIndex, typed, allowStallRestart = false)
                 if (typed.complete(result)) {
                     Log.w(TAG, "RS_ESCALATE won chunk=$chunkIndex ms=${SystemClock.elapsedRealtime() - t0}")
@@ -1865,7 +1862,8 @@ internal class ParallelRangeDataSource(
                 resources.drainIdleBuffers(activeSession.chunkSize)
                 Log.w(TAG, "RS_ESCALATE failed chunk=$chunkIndex: chunk buffer OOM (contained)")
             }
-        }
+        })
+        bindChunkTask(typed, task)
     }
 
     /**
@@ -2021,9 +2019,14 @@ internal class ParallelRangeDataSource(
 
     /** A long seek: the old position's pieces stop downloading and give their memory back now. */
     private fun dropLeftBySeek(activeSession: Resources.ChunkSession, target: Long) {
+        val nowMs = SystemClock.uptimeMillis()
+        if (!userSeek.hasPending(nowMs)) return
         synchronized(activeSession) {
             val victims = leftBySeek(activeSession.futures.keys.toList(), activeSession.lastReadChunkIndex, target,
                 activeSession.prefetchWindow) ?: return
+            if (!userSeek.take(
+                    activeSession.requestUri.toString(), activeSession.resolvedUri?.toString(), nowMs
+                )) return
             if (victims.isEmpty()) return
             val running = victims.count { activeSession.futures[it]?.isDone == false }
             victims.forEach { resources.evictFuture(activeSession, it, maxPoolSize) }
@@ -2045,7 +2048,7 @@ internal class ParallelRangeDataSource(
             val future = CompletableFuture<DownloadedChunk>()
             activeSession.touch(chunkIndex)
             Log.d(TAG, "Scheduling chunk $chunkIndex")
-            resources.sharedExecutor.execute {
+            val task = resources.sharedExecutor.submit(Runnable {
                 try {
                     if (!future.isCancelled && !activeSession.abandoned.get()) {
                         val result = downloadChunk(activeSession, chunkIndex, future)
@@ -2072,7 +2075,8 @@ internal class ParallelRangeDataSource(
                         IOException("Native chunk buffer allocation failed (out of memory)", e)
                     )
                 }
-            }
+            })
+            bindChunkTask(future, task)
             future
         }
     }

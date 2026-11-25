@@ -2,6 +2,7 @@ package com.nuvio.tv.core.player
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -12,6 +13,24 @@ class BufferSizingTest {
 
     private fun free(availMb: Long, thresholdMb: Long, low: Boolean = false) =
         BufferSizing.FreeMemory(availMb * mb, thresholdMb * mb, low)
+
+    @Test
+    fun `the ABI guard caps only the 32 bit process`() {
+        assertEquals(250, BufferSizing.playbackBufferLimitMb(500, is64Bit = false))
+        assertEquals(500, BufferSizing.playbackBufferLimitMb(500, is64Bit = true))
+        assertEquals(100, BufferSizing.playbackBufferLimitMb(100, is64Bit = false))
+        assertEquals(4, BufferSizing.effectiveConnectionCount(8, is64Bit = false))
+        assertEquals(8, BufferSizing.effectiveConnectionCount(8, is64Bit = true))
+    }
+
+    @Test
+    fun `a confirmed DV7 conversion only lowers a managed low RAM budget`() {
+        assertEquals(60 * mb, BufferSizing.conversionBudgetOverride(90 * mb, 60 * mb, true, true, true))
+        assertNull(BufferSizing.conversionBudgetOverride(48 * mb, 60 * mb, true, true, true))
+        assertNull(BufferSizing.conversionBudgetOverride(90 * mb, 60 * mb, true, true, false))
+        assertNull(BufferSizing.conversionBudgetOverride(90 * mb, 60 * mb, true, false, true))
+        assertNull(BufferSizing.conversionBudgetOverride(90 * mb, 60 * mb, false, true, true))
+    }
 
     @Test
     fun `one size per box`() {
