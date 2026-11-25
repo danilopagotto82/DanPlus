@@ -8,6 +8,7 @@ import com.nuvio.tv.data.remote.api.TraktApi
 import com.nuvio.tv.data.remote.dto.trakt.TraktDeviceTokenRequestDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktRefreshTokenRequestDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktRevokeRequestDto
+import com.nuvio.tv.data.remote.dto.trakt.TraktTokenResponseDto
 import com.squareup.moshi.Moshi
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -58,8 +59,12 @@ class TraktAuthServiceTest {
         val authSessionNoticeDataStore = mockk<AuthSessionNoticeDataStore>()
         var authState = authenticatedState()
 
-        coEvery { traktAuthDataStore.getCurrentState() } answers { authState }
-        coEvery { traktAuthDataStore.clearAuth() } answers { authState = TraktAuthState() }
+        every { traktAuthDataStore.activeProfileId } returns 1
+        coEvery { traktAuthDataStore.getCurrentState(1) } answers { authState }
+        coEvery { traktAuthDataStore.clearAuth(1, any()) } answers {
+            authState = TraktAuthState()
+            true
+        }
         coEvery { authSessionNoticeDataStore.markTraktReconnectRequired() } returns Unit
         coEvery { traktApi.refreshToken(any()) } returns Response.error(400, "invalid_grant".toResponseBody())
 
@@ -78,7 +83,7 @@ class TraktAuthServiceTest {
         // A rejected refresh is retried once, two seconds later, before the credentials are cleared.
         coVerify(exactly = 2) { traktApi.refreshToken(any()) }
         coVerify(exactly = 1) { authSessionNoticeDataStore.markTraktReconnectRequired() }
-        coVerify(exactly = 1) { traktAuthDataStore.clearAuth() }
+        coVerify(exactly = 1) { traktAuthDataStore.clearAuth(1, any()) }
     }
 
     @Test
@@ -99,6 +104,27 @@ class TraktAuthServiceTest {
 
         assertEquals(setOf("not signed in"), service.reportedFailureKinds())
         coVerify(exactly = 0) { traktApi.getLastActivities(any()) }
+    }
+
+    @Test
+    fun `a profile switch during token refresh cannot write credentials into the active profile`() = runTest {
+        var profileId = 1
+        val auth = authenticatedState()
+        val store = mockk<TraktAuthDataStore>()
+        every { store.activeProfileId } answers { profileId }
+        coEvery { store.getCurrentState(1) } returns auth
+        val notice = mockk<AuthSessionNoticeDataStore>()
+        val api = mockk<TraktApi>()
+        coEvery { api.refreshToken(any()) } coAnswers {
+            profileId = 2
+            Response.success(TraktTokenResponseDto("rotated", "bearer", 3600, "rotated-refresh", createdAt = 2L))
+        }
+        val service = spyk(TraktAuthService(mockk(relaxed = true), api, store, notice))
+        every { service.hasRequiredCredentials() } returns true
+
+        assertFalse(service.refreshTokenIfNeeded(force = true))
+        coVerify(exactly = 0) { store.saveRefreshedToken(any(), any(), any()) }
+        coVerify(exactly = 0) { notice.markTraktAuthenticated() }
     }
 
     private fun authenticatedState(): TraktAuthState {

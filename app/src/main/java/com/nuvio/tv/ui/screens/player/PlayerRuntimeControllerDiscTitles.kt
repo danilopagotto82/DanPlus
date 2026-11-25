@@ -17,6 +17,7 @@ internal class DiscExtraSession<T : Any> {
     private var snapshot: T? = null
     private var returning = false
     val active: Boolean get() = snapshot != null
+    val revision: Long get() = generation
     val ticket: Long? get() = generation.takeIf { active }
 
     fun begin(feature: T): Long? {

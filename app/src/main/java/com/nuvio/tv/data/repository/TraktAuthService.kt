@@ -124,6 +124,9 @@ class TraktAuthService @Inject constructor(
 
     suspend fun getCurrentAuthState(): TraktAuthState = traktAuthDataStore.getCurrentState()
 
+    internal suspend fun getCurrentAuthState(profileId: Int): TraktAuthState =
+        traktAuthDataStore.getCurrentState(profileId)
+
     suspend fun startDeviceAuth(): Result<TraktDeviceCodeResponseDto> {
         if (!hasRequiredCredentials()) {
             return Result.failure(IllegalStateException(context.getString(R.string.trakt_error_missing_credentials)))
@@ -262,8 +265,10 @@ class TraktAuthService @Inject constructor(
     suspend fun refreshTokenIfNeeded(force: Boolean = false): Boolean {
         if (!hasRequiredCredentials()) return false
 
+        val profileId = traktAuthDataStore.activeProfileId
         return tokenRefreshMutex.withLock {
-            val state = getCurrentAuthState()
+            if (profileId != traktAuthDataStore.activeProfileId) return@withLock false
+            val state = getCurrentAuthState(profileId)
             val refreshToken = state.refreshToken ?: return@withLock false
             if (!force && !isTokenExpiredOrExpiring(state)) {
                 trace("refreshTokenIfNeeded: token still valid, skip refresh")
@@ -272,6 +277,7 @@ class TraktAuthService @Inject constructor(
 
             var lastFatalStatusCode: Int? = null
             for (attempt in 1..2) {
+                if (profileId != traktAuthDataStore.activeProfileId) return@withLock false
                 trace("refreshTokenIfNeeded: refreshing token (force=$force, attempt=$attempt)")
                 val response = try {
                     traktApi.refreshToken(
@@ -288,7 +294,9 @@ class TraktAuthService @Inject constructor(
 
                 val tokenBody = response.body()
                 if (response.isSuccessful && tokenBody != null) {
-                    traktAuthDataStore.saveToken(tokenBody)
+                    if (profileId != traktAuthDataStore.activeProfileId ||
+                        !traktAuthDataStore.saveRefreshedToken(profileId, state, tokenBody)
+                    ) return@withLock false
                     authSessionNoticeDataStore.markTraktAuthenticated()
                     resetCircuit()
                     trace("refreshTokenIfNeeded: success")
@@ -306,7 +314,9 @@ class TraktAuthService @Inject constructor(
                     delay(refreshFatalRetryDelayMs)
                 }
             }
-            lastFatalStatusCode?.let { statusCode -> invalidateCredentials(statusCode) }
+            lastFatalStatusCode?.let { statusCode ->
+                if (traktAuthDataStore.clearAuth(profileId, state)) invalidateCredentials(statusCode)
+            }
             false
         }
     }
@@ -562,7 +572,6 @@ class TraktAuthService @Inject constructor(
 
     private suspend fun invalidateCredentials(statusCode: Int) {
         authSessionNoticeDataStore.markTraktReconnectRequired()
-        traktAuthDataStore.clearAuth()
         tripCircuit("Token refresh returned $statusCode")
     }
 }

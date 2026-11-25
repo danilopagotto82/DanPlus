@@ -10,6 +10,7 @@ class DiscExtraSessionTest {
     @Test
     fun `end error and manual return share one snapshot and suppress feature activity through teardown`() {
         val extras = DiscExtraSession<Long>()
+        val beforeExtra = extras.revision
         val ticket = requireNotNull(extras.begin(252_000L))
         assertTrue(extras.active)
         assertNull(extras.begin(10L))
@@ -18,6 +19,7 @@ class DiscExtraSessionTest {
         assertTrue(extras.active)
         extras.finish(ticket)
         assertFalse(extras.active)
+        assertEquals(beforeExtra + 1, extras.revision)
         assertNull(extras.takeReturn(ticket))
     }
 

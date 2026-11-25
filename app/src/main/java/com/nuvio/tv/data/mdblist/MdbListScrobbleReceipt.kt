@@ -10,11 +10,9 @@ internal data class MdbListScrobbleReceipt(
     val action: TrackingScrobbleAction,
     val progress: Float,
     val timestamp: String,
-    val playbackId: Long?
-) {
+    val playbackId: Long?,
     val isWatched: Boolean
-        get() = action != TrackingScrobbleAction.START && progress >= MdbListProgressProjection.COMPLETION_PERCENT
-}
+)
 
 internal fun decodeMdbListScrobbleReceipt(
     response: MdbListHttpResponse,
@@ -24,7 +22,8 @@ internal fun decodeMdbListScrobbleReceipt(
 ): MdbListScrobbleReceipt {
     val body = mdbListResponseElement(response.body).objectValue()
     val acceptedActions = if (action == TrackingScrobbleAction.START) setOf("start") else setOf("pause", "stop", "scrobble")
-    if (body.text("action") !in acceptedActions) throw MdbListDecodingException()
+    val remoteAction = body.text("action")
+    if (remoteAction !in acceptedActions) throw MdbListDecodingException()
     val progress = body.text("progress")?.toFloatOrNull()?.takeIf { it.isFinite() && it in 0f..100f }
         ?: throw MdbListDecodingException()
     val episode = body.objectValue("episode")
@@ -43,12 +42,17 @@ internal fun decodeMdbListScrobbleReceipt(
     )
     if (resolved.type == MdbListItemType.EPISODE && (resolved.season == null || resolved.season < 0 ||
         resolved.episode == null || resolved.episode < 1)) throw MdbListDecodingException()
-    val timestamp = body.timestamp("watched_at", "paused_at")
+    val watchedAt = body.timestamp("watched_at")
+    val isWatched = action != TrackingScrobbleAction.START && progress >= MdbListProgressProjection.COMPLETION_PERCENT &&
+        (remoteAction == "scrobble" || watchedAt != null)
+    val timestamp = watchedAt ?: body.timestamp("paused_at")
         ?: body.timestamp("started_at").takeIf { action == TrackingScrobbleAction.START }
         ?: response.header("Date")?.let {
         runCatching { ZonedDateTime.parse(it, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toString() }.getOrNull()
     } ?: Instant.ofEpochMilli(nowEpochMs).toString()
-    return MdbListScrobbleReceipt(resolved, action, progress, timestamp, body.number("id")?.takeIf { it > 0 })
+    return MdbListScrobbleReceipt(
+        resolved, action, progress, timestamp, body.number("id")?.takeIf { it > 0 }, isWatched
+    )
 }
 
 internal fun MdbListSyncSnapshot.applyScrobble(

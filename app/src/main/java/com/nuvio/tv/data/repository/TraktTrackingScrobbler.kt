@@ -5,6 +5,8 @@ import com.nuvio.tv.core.tracking.TrackingMediaReference
 import com.nuvio.tv.core.tracking.TrackingProviderId
 import com.nuvio.tv.core.tracking.TrackingScrobbleAction
 import com.nuvio.tv.core.tracking.TrackingScrobbleEvent
+import com.nuvio.tv.core.tracking.TrackingScrobbleAccount
+import com.nuvio.tv.core.tracking.TrackingScrobbleOutcome
 import com.nuvio.tv.core.tracking.TrackingScrobbler
 import com.nuvio.tv.core.tracking.TrackingSeekScrobblePolicy
 import com.nuvio.tv.data.remote.dto.trakt.TraktIdsDto
@@ -18,14 +20,21 @@ class TraktTrackingScrobbler @Inject constructor(
 ) : TrackingScrobbler {
     override val providerId = TrackingProviderId.TRAKT
     override val seekScrobblePolicy = TrackingSeekScrobblePolicy.STOP_AND_RESTART
+    override val completesOnPause = true
+
+    override suspend fun currentScrobbleAccount(): TrackingScrobbleAccount? =
+        service.currentScrobbleAccount()
 
     override suspend fun scrobble(
         action: TrackingScrobbleAction,
         event: TrackingScrobbleEvent
-    ) {
-        val item = event.media.toTraktScrobbleItem() ?: return
+    ): TrackingScrobbleOutcome {
+        val owner = event.expectedAccount ?: currentScrobbleAccount()
+        val item = event.media.toTraktScrobbleItem() ?: return TrackingScrobbleOutcome.IGNORED
+        if (owner == null) return TrackingScrobbleOutcome.UNAVAILABLE
+        if (!event.belongsTo(owner)) return TrackingScrobbleOutcome.OWNER_CHANGED
         val wireAction = if (action == TrackingScrobbleAction.START) "start" else "stop"
-        service.sendTrackedScrobble(wireAction, item, event.progressPercent.toFloat(), event.profileId)
+        return service.sendTrackedScrobble(wireAction, item, event.progressPercent.toFloat(), owner)
     }
 
     private suspend fun TrackingMediaReference.toTraktScrobbleItem(): TraktScrobbleItem? {

@@ -458,7 +458,8 @@ class TrackingProgressOverheadTest {
             action = TrackingScrobbleAction.PAUSE,
             progress = 42f,
             timestamp = "2026-01-02T00:00:00Z",
-            playbackId = 999L
+            playbackId = 999L,
+            isWatched = false
         )
 
         val paused = snapshot.applyScrobble(pauseReceipt, projection.mediaIndex)
@@ -474,7 +475,8 @@ class TrackingProgressOverheadTest {
             action = TrackingScrobbleAction.STOP,
             progress = 90f,
             timestamp = "2026-01-03T00:00:00Z",
-            playbackId = 999L
+            playbackId = 999L,
+            isWatched = true
         )
         val completed = paused.applyScrobble(stopReceipt, projection.mediaIndex)
         val unindexedCompleted = paused.applyScrobble(stopReceipt, mediaIndex = null)

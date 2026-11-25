@@ -101,6 +101,14 @@ class FloppyScrobbleBodyTest {
     }
 
     @Test
+    fun `retry of one completion keeps exactly the same event id`() {
+        val completion = TrackingScrobbleEvent(movie, 95.0, completionId = "play-one")
+        val first = requireNotNull(floppyScrobbleBody(TrackingScrobbleAction.STOP, completion))
+        val retry = requireNotNull(floppyScrobbleBody(TrackingScrobbleAction.STOP, completion.copy(progressPercent = 100.0)))
+        assertEquals(first["client_event_id"], retry["client_event_id"])
+    }
+
+    @Test
     fun `every stop carries its own retry id`() {
         val ids = ArrayDeque(listOf("one", "two"))
         val first = floppyScrobbleBody(TrackingScrobbleAction.STOP, TrackingScrobbleEvent(movie, 90.0)) { ids.removeFirst() }!!

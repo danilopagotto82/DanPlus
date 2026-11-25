@@ -9,6 +9,9 @@ import com.nuvio.tv.data.remote.dto.trakt.TraktMovieDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktScrobbleRequestDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktShowDto
 import com.nuvio.tv.core.profile.ProfileManager
+import com.nuvio.tv.core.tracking.TrackingScrobbleAccount
+import com.nuvio.tv.core.tracking.TrackingScrobbleOutcome
+import com.nuvio.tv.data.local.TraktAuthState
 import kotlinx.coroutines.delay
 import java.io.IOException
 import javax.inject.Inject
@@ -56,8 +59,11 @@ class TraktScrobbleService @Inject constructor(
         val action: String,
         val itemKey: String,
         val progress: Float,
-        val timestampMs: Long
+        val timestampMs: Long,
+        val account: TrackingScrobbleAccount? = null
     )
+
+    private class ScrobbleOwnerChanged : IllegalStateException()
 
     private var lastScrobbleStamp: ScrobbleStamp? = null
 
@@ -94,24 +100,38 @@ class TraktScrobbleService @Inject constructor(
         action: String,
         item: TraktScrobbleItem,
         progressPercent: Float,
-        profileId: Int?
-    ) {
-        check(sendScrobble(action, item, progressPercent, profileId)) { "Trakt scrobble was not acknowledged" }
+        account: TrackingScrobbleAccount
+    ): TrackingScrobbleOutcome = sendScrobble(action, item, progressPercent, account)
+
+    internal suspend fun currentScrobbleAccount(): TrackingScrobbleAccount? {
+        val profileId = profileManager.activeProfileId.value
+        val auth = traktAuthService.getCurrentAuthState(profileId)
+        return auth.scrobbleAccount(profileId).takeIf { profileManager.activeProfileId.value == profileId }
+    }
+
+    private fun TraktAuthState.scrobbleAccount(profileId: Int): TrackingScrobbleAccount? {
+        return if (isAuthenticated) TrackingScrobbleAccount(profileId, authorizationGeneration) else null
     }
 
     private suspend fun sendScrobble(
         action: String,
         item: TraktScrobbleItem,
         progressPercent: Float,
-        expectedProfileId: Int? = null
-    ): Boolean {
-        val activeProfileId = expectedProfileId ?: profileManager.activeProfileId.value
-        if (profileManager.activeProfileId.value != activeProfileId) return false
-        if (!traktAuthService.getCurrentAuthState().isAuthenticated) return false
-        if (!traktAuthService.hasRequiredCredentials()) return false
+        expectedAccount: TrackingScrobbleAccount? = null
+    ): TrackingScrobbleOutcome {
+        val activeProfileId = expectedAccount?.profileId ?: profileManager.activeProfileId.value
+        if (profileManager.activeProfileId.value != activeProfileId) return TrackingScrobbleOutcome.OWNER_CHANGED
+        val account = currentScrobbleAccount() ?: return TrackingScrobbleOutcome.UNAVAILABLE
+        if (account.profileId != activeProfileId || expectedAccount != null && account != expectedAccount) {
+            return TrackingScrobbleOutcome.OWNER_CHANGED
+        }
+        if (!traktAuthService.hasRequiredCredentials()) return TrackingScrobbleOutcome.UNAVAILABLE
 
         val clampedProgress = progressPercent.coerceIn(0f, 100f)
-        if (shouldSkip(activeProfileId, action, item.itemKey, clampedProgress)) return true
+        val completes = action == "stop" && clampedProgress >= 80f
+        if (shouldSkip(account, action, item.itemKey, clampedProgress)) {
+            return TrackingScrobbleOutcome.ALREADY_CONFIRMED
+        }
 
         val requestBody = buildRequestBody(item, clampedProgress)
 
@@ -122,24 +142,33 @@ class TraktScrobbleService @Inject constructor(
             action = action,
             itemKey = item.itemKey,
             progress = clampedProgress,
-            timestampMs = System.currentTimeMillis()
+            timestampMs = System.currentTimeMillis(),
+            account = account
         )
 
         var lastException: Exception? = null
         val attempts = if (action == "stop") maxRetries + 1 else 1
 
         for (attempt in 1..attempts) {
-            if (profileManager.activeProfileId.value != activeProfileId) return false
+            if (profileManager.activeProfileId.value != activeProfileId) {
+                return TrackingScrobbleOutcome.OWNER_CHANGED
+            }
             val response = try {
                 traktAuthService.executeAuthorizedWriteRequest { authHeader ->
-                    if (expectedProfileId != null) {
-                        check(profileManager.activeProfileId.value == activeProfileId) { "Scrobble profile changed" }
+                    val auth = traktAuthService.getCurrentAuthState(activeProfileId)
+                    if (profileManager.activeProfileId.value != activeProfileId ||
+                        auth.scrobbleAccount(activeProfileId) != account ||
+                        authHeader != "Bearer ${auth.accessToken}"
+                    ) {
+                        throw ScrobbleOwnerChanged()
                     }
                     when (action) {
                         "start" -> traktApi.scrobbleStart(authHeader, requestBody)
                         else -> traktApi.scrobbleStop(authHeader, requestBody)
                     }
                 }
+            } catch (_: ScrobbleOwnerChanged) {
+                return TrackingScrobbleOutcome.OWNER_CHANGED
             } catch (e: IOException) {
                 lastException = e
                 if (attempt < attempts) {
@@ -150,6 +179,7 @@ class TraktScrobbleService @Inject constructor(
                 null
             }
 
+            if (currentScrobbleAccount() != account) return TrackingScrobbleOutcome.OWNER_CHANGED
             if (response == null) {
                 if (attempt < attempts) {
                     Log.w(TAG, "Scrobble $action attempt $attempt returned null, retrying")
@@ -157,21 +187,30 @@ class TraktScrobbleService @Inject constructor(
                     continue
                 }
                 Log.w(TAG, "Scrobble $action failed after $attempts attempts", lastException)
-                return false
+                return TrackingScrobbleOutcome.RETRYABLE_FAILURE
             }
 
-            if (response.isSuccessful || response.code() == 409) {
+            val outcome = when {
+                completes && response.code() == 409 -> TrackingScrobbleOutcome.ALREADY_CONFIRMED
+                response.isSuccessful && (!completes || response.body()?.action == "scrobble") ->
+                    TrackingScrobbleOutcome.CONFIRMED
+                response.code() in 500..599 || response.code() == 429 -> TrackingScrobbleOutcome.RETRYABLE_FAILURE
+                response.code() in setOf(401, 403, 423) -> TrackingScrobbleOutcome.UNAVAILABLE
+                else -> TrackingScrobbleOutcome.IGNORED
+            }
+            if (outcome.isConfirmed) {
                 lastScrobbleStamp = ScrobbleStamp(
                     profileId = activeProfileId,
                     action = action,
                     itemKey = item.itemKey,
                     progress = clampedProgress,
-                    timestampMs = System.currentTimeMillis()
+                    timestampMs = System.currentTimeMillis(),
+                    account = account
                 )
                 if (action == "stop" && profileManager.activeProfileId.value == activeProfileId) {
                     traktProgressService.refreshNow()
                 }
-                return true
+                return outcome
             }
 
             // Server error (5xx) — retry for stop actions
@@ -188,9 +227,9 @@ class TraktScrobbleService @Inject constructor(
 
             // Non-retryable error (4xx other than 409)
             Log.w(TAG, "Scrobble $action failed with code ${response.code()}")
-            return false
+            return outcome
         }
-        return false
+        return TrackingScrobbleOutcome.RETRYABLE_FAILURE
     }
 
     internal fun buildRequestBody(
@@ -225,12 +264,12 @@ class TraktScrobbleService @Inject constructor(
         }
     }
 
-    private fun shouldSkip(profileId: Int, action: String, itemKey: String, progress: Float): Boolean =
+    private fun shouldSkip(account: TrackingScrobbleAccount, action: String, itemKey: String, progress: Float): Boolean =
         shouldSkipDecision(
-            last = lastScrobbleStamp,
-            issued = lastIssuedStamp,
+            last = lastScrobbleStamp?.takeIf { it.account == account },
+            issued = lastIssuedStamp?.takeIf { it.account == account },
             nowMs = System.currentTimeMillis(),
-            profileId = profileId,
+            profileId = account.profileId,
             action = action,
             itemKey = itemKey,
             progress = progress

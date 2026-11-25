@@ -1,8 +1,6 @@
 package com.nuvio.tv.data.wetrakr
 
-import android.util.Log
 import com.nuvio.tv.core.profile.ProfileManager
-import com.nuvio.tv.core.tracking.TRACKING_SCROBBLE_DIAGNOSTIC_TAG
 import com.nuvio.tv.core.tracking.TrackingCapability
 import com.nuvio.tv.core.tracking.TrackingExternalIds
 import com.nuvio.tv.core.tracking.TrackingHistoryItem
@@ -18,11 +16,12 @@ import com.nuvio.tv.core.tracking.TrackingProvider
 import com.nuvio.tv.core.tracking.TrackingProviderDescriptor
 import com.nuvio.tv.core.tracking.TrackingProviderId
 import com.nuvio.tv.core.tracking.TrackingRefreshIntent
+import com.nuvio.tv.core.tracking.TrackingScrobbleAccount
 import com.nuvio.tv.core.tracking.TrackingScrobbleAction
 import com.nuvio.tv.core.tracking.TrackingScrobbleEvent
+import com.nuvio.tv.core.tracking.TrackingScrobbleOutcome
 import com.nuvio.tv.core.tracking.TrackingScrobbler
 import com.nuvio.tv.core.tracking.parseTrackingExternalIds
-import com.nuvio.tv.core.tracking.scrobbleDiagnosticSummary
 import com.nuvio.tv.data.local.LayoutPreferenceDataStore
 import com.nuvio.tv.domain.model.LibraryEntry
 import com.nuvio.tv.domain.model.LibraryEntryInput
@@ -77,20 +76,29 @@ class WeTrakrTrackingScrobbler @Inject constructor(
     private val service: WeTrakrScrobbleService
 ) : TrackingScrobbler {
     override val providerId = TrackingProviderId.WETRAKR
+    override val completionPercent = WeTrakrProgressProjection.COMPLETION_PERCENT.toDouble()
 
-    override suspend fun scrobble(action: TrackingScrobbleAction, event: TrackingScrobbleEvent) {
-        if (!auth.state.value.isAuthenticated) return
-        try {
-            val owner = sync.currentScope()
-            check(event.profileId == null || event.profileId == owner.profileId) { "Scrobble profile changed" }
+    override suspend fun currentScrobbleAccount(): TrackingScrobbleAccount? =
+        auth.state.value.takeIf { it.isAuthenticated }?.scope?.let {
+            TrackingScrobbleAccount(it.profileId, it.generation)
+        }
+
+    override suspend fun scrobble(
+        action: TrackingScrobbleAction,
+        event: TrackingScrobbleEvent
+    ): TrackingScrobbleOutcome {
+        val authorization = auth.state.value
+        if (!authorization.isAuthenticated) return TrackingScrobbleOutcome.UNAVAILABLE
+        val owner = authorization.scope
+        if (!event.belongsTo(TrackingScrobbleAccount(owner.profileId, owner.generation))) {
+            return TrackingScrobbleOutcome.OWNER_CHANGED
+        }
+        return try {
             sync.ensureLoaded()
-            service.scrobble(owner, action, event)
-        } catch (error: WeTrakrAccountChangedException) {
-            if (event.profileId != null) throw error
-            Log.d(TRACKING_SCROBBLE_DIAGNOSTIC_TAG, "wetrakr adapter skipped action=${action.wireValue} reason=account_changed")
-        } catch (error: Throwable) {
-            Log.w(TRACKING_SCROBBLE_DIAGNOSTIC_TAG, "wetrakr adapter failed action=${action.wireValue} error=${error.javaClass.simpleName} ${event.scrobbleDiagnosticSummary()}")
-            throw error
+            val outcome = service.scrobble(owner, action, event)
+            if (auth.scope() == owner) outcome else TrackingScrobbleOutcome.OWNER_CHANGED
+        } catch (_: WeTrakrAccountChangedException) {
+            TrackingScrobbleOutcome.OWNER_CHANGED
         }
     }
 }

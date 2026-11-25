@@ -49,8 +49,22 @@ data class TrackingScrobbleEvent(
     /** Services that already get this play from elsewhere, such as a media server that scrobbles itself. */
     val skippedProviders: Set<TrackingProviderId> = emptySet(),
     val durationSeconds: Long? = null,
-    val profileId: Int? = null
-)
+    val profileId: Int? = null,
+    val expectedAccount: TrackingScrobbleAccount? = null,
+    val completionId: String? = null
+) {
+    fun belongsTo(account: TrackingScrobbleAccount): Boolean =
+        (profileId == null || profileId == account.profileId) &&
+            (expectedAccount == null || expectedAccount == account)
+}
+
+data class TrackingScrobbleAccount(val profileId: Int, val generation: Long)
+
+enum class TrackingScrobbleOutcome {
+    CONFIRMED, ALREADY_CONFIRMED, IGNORED, UNAVAILABLE, RETRYABLE_FAILURE, OWNER_CHANGED;
+
+    val isConfirmed: Boolean get() = this == CONFIRMED || this == ALREADY_CONFIRMED
+}
 
 data class TrackingMutationResult(
     val attemptedCount: Int,
@@ -112,5 +126,10 @@ interface TrackingScrobbler {
     val stopsWhenLeftPaused: Boolean
         get() = false
 
-    suspend fun scrobble(action: TrackingScrobbleAction, event: TrackingScrobbleEvent)
+    val completionPercent: Double get() = 80.0
+    val completesOnPause: Boolean get() = false
+
+    suspend fun currentScrobbleAccount(): TrackingScrobbleAccount?
+
+    suspend fun scrobble(action: TrackingScrobbleAction, event: TrackingScrobbleEvent): TrackingScrobbleOutcome
 }

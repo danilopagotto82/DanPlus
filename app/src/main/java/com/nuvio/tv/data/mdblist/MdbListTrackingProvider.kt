@@ -1,8 +1,6 @@
 package com.nuvio.tv.data.mdblist
 
-import android.util.Log
 import com.nuvio.tv.core.profile.ProfileManager
-import com.nuvio.tv.core.tracking.TRACKING_SCROBBLE_DIAGNOSTIC_TAG
 import com.nuvio.tv.core.tracking.TrackingCapability
 import com.nuvio.tv.core.tracking.TrackingHistoryItem
 import com.nuvio.tv.core.tracking.TrackingHistoryWriter
@@ -11,15 +9,18 @@ import com.nuvio.tv.core.tracking.TrackingMutationResult
 import com.nuvio.tv.core.tracking.TrackingProvider
 import com.nuvio.tv.core.tracking.TrackingProviderDescriptor
 import com.nuvio.tv.core.tracking.TrackingProviderId
+import com.nuvio.tv.core.tracking.TrackingScrobbleAccount
 import com.nuvio.tv.core.tracking.TrackingScrobbleAction
 import com.nuvio.tv.core.tracking.TrackingScrobbleEvent
+import com.nuvio.tv.core.tracking.TrackingScrobbleOutcome
 import com.nuvio.tv.core.tracking.TrackingScrobbler
-import com.nuvio.tv.core.tracking.scrobbleDiagnosticSummary
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -53,26 +54,32 @@ class MdbListTrackingScrobbler @Inject constructor(
     private val episodeMappings: MdbListEpisodeMappingService
 ) : TrackingScrobbler {
     override val providerId = TrackingProviderId.MDBLIST
+    override val completesOnPause = true
 
-    override suspend fun scrobble(action: TrackingScrobbleAction, event: TrackingScrobbleEvent) {
-        val owner = sync.currentScope()
-        check(event.profileId == null || event.profileId == owner.profileId) { "Scrobble profile changed" }
-        val authenticated = auth.state.value.isAuthenticated
-        Log.d(TRACKING_SCROBBLE_DIAGNOSTIC_TAG, "mdblist adapter received action=${action.wireValue} authenticated=$authenticated ${event.scrobbleDiagnosticSummary()}")
-        if (!authenticated) {
-            Log.d(TRACKING_SCROBBLE_DIAGNOSTIC_TAG, "mdblist adapter skipped action=${action.wireValue} reason=not_authenticated")
-            return
+    override suspend fun currentScrobbleAccount(): TrackingScrobbleAccount? =
+        auth.state.value.takeIf { it.isAuthenticated }?.scope?.let {
+            TrackingScrobbleAccount(it.profileId, it.generation)
         }
-        sync.ensureLoaded()
-        try {
-            check(sync.currentScope() == owner) { "Scrobble account changed" }
+
+    override suspend fun scrobble(
+        action: TrackingScrobbleAction,
+        event: TrackingScrobbleEvent
+    ): TrackingScrobbleOutcome {
+        val authorization = auth.state.value
+        if (!authorization.isAuthenticated) return TrackingScrobbleOutcome.UNAVAILABLE
+        val owner = authorization.scope
+        if (!event.belongsTo(TrackingScrobbleAccount(owner.profileId, owner.generation))) {
+            return TrackingScrobbleOutcome.OWNER_CHANGED
+        }
+        return try {
+            sync.ensureLoaded()
             val media = episodeMappings.toMdbListNumbering(event.media, sync.currentProjection().mediaIndex)
-            service.scrobble(owner, action, event.copy(media = media))
-        } catch (error: Throwable) {
-            Log.w(TRACKING_SCROBBLE_DIAGNOSTIC_TAG, "mdblist adapter failed action=${action.wireValue} error=${error.javaClass.simpleName}:${error.message} ${event.scrobbleDiagnosticSummary()}", error)
-            throw error
+            val outcome = service.scrobble(owner, action, event.copy(media = media))
+            if (auth.scope() == owner) outcome else TrackingScrobbleOutcome.OWNER_CHANGED
+        } catch (error: Exception) {
+            currentCoroutineContext().ensureActive()
+            if (auth.scope() != owner) TrackingScrobbleOutcome.OWNER_CHANGED else throw error
         }
-        Log.d(TRACKING_SCROBBLE_DIAGNOSTIC_TAG, "mdblist adapter complete action=${action.wireValue} ${event.scrobbleDiagnosticSummary()}")
     }
 }
 

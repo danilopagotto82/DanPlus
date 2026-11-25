@@ -7,6 +7,7 @@ import com.nuvio.tv.core.tracking.TrackingMediaKind
 import com.nuvio.tv.core.tracking.TrackingMediaReference
 import com.nuvio.tv.core.tracking.TrackingScrobbleAction
 import com.nuvio.tv.core.tracking.TrackingScrobbleEvent
+import com.nuvio.tv.core.tracking.TrackingScrobbleOutcome
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -71,9 +72,11 @@ class WeTrakrWritesTest {
     @Test
     fun `a play that stops in the first minute is not reported`() = runTest {
         val (service, harness) = scrobbler(TestScope(testScheduler))
-        service.scrobble(harness.store.scope(), TrackingScrobbleAction.START, TrackingScrobbleEvent(movie, 0.5))
+        val start = service.scrobble(harness.store.scope(), TrackingScrobbleAction.START, TrackingScrobbleEvent(movie, 0.5))
         advanceTimeBy(30_000)
-        service.scrobble(harness.store.scope(), TrackingScrobbleAction.STOP, TrackingScrobbleEvent(movie, 1.0))
+        val stop = service.scrobble(harness.store.scope(), TrackingScrobbleAction.STOP, TrackingScrobbleEvent(movie, 1.0))
+        assertEquals(TrackingScrobbleOutcome.IGNORED, start)
+        assertEquals(TrackingScrobbleOutcome.IGNORED, stop)
         advanceTimeBy(60_000)
         runCurrent()
         assertTrue(harness.engine.requests.none { it.path.startsWith("/scrobble") })
@@ -97,7 +100,8 @@ class WeTrakrWritesTest {
     fun `finishing a title is reported even when the start was never sent`() = runTest {
         val (service, harness) = scrobbler(TestScope(testScheduler))
         service.scrobble(harness.store.scope(), TrackingScrobbleAction.START, TrackingScrobbleEvent(movie, 88.0))
-        service.scrobble(harness.store.scope(), TrackingScrobbleAction.STOP, TrackingScrobbleEvent(movie, 95.0))
+        val result = service.scrobble(harness.store.scope(), TrackingScrobbleAction.STOP, TrackingScrobbleEvent(movie, 95.0))
+        assertEquals(TrackingScrobbleOutcome.CONFIRMED, result)
         assertEquals(listOf("/scrobble/stop"), harness.engine.requests.map { it.path })
         val body = Json.parseToJsonElement(harness.engine.requests.single().body!!).jsonObject
         assertEquals("tt15239678", body["movie"]!!.jsonObject["ids"]!!.jsonObject["imdb"]!!.jsonPrimitive.content)

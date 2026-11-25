@@ -6,6 +6,7 @@ import com.nuvio.tv.core.tracking.TrackingMediaKind
 import com.nuvio.tv.core.tracking.TrackingMediaReference
 import com.nuvio.tv.core.tracking.TrackingScrobbleAction
 import com.nuvio.tv.core.tracking.TrackingScrobbleEvent
+import com.nuvio.tv.core.tracking.TrackingScrobbleOutcome
 import java.io.IOException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
@@ -81,6 +82,19 @@ class MdbListScrobbleServiceTest {
                 assertTrue(harness.remote.calls.isEmpty())
             }
         }
+    }
+
+    @Test
+    fun `a missing identity or progress-only reply cannot confirm completion`() = runTest {
+        val harness = MdbListSyncTestHarness(backgroundScope)
+        val owner = harness.repository.currentScope()
+        val incomplete = event(95.0).let { it.copy(media = it.media.copy(ids = TrackingExternalIds())) }
+        assertEquals(TrackingScrobbleOutcome.IGNORED, service(harness).scrobble(owner, TrackingScrobbleAction.STOP, incomplete))
+        assertTrue(harness.http.engine.requests.isEmpty())
+
+        harness.http.reply(body = """{"action":"pause","progress":95}""")
+        assertEquals(TrackingScrobbleOutcome.IGNORED, service(harness).scrobble(owner, TrackingScrobbleAction.STOP, event(95.0)))
+        assertTrue(harness.repository.currentSnapshot()!!.watched.isEmpty())
     }
 
     @Test

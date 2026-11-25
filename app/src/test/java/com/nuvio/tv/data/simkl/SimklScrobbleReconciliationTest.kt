@@ -1,12 +1,34 @@
 package com.nuvio.tv.data.simkl
 
+import com.nuvio.tv.core.tracking.TrackingExternalIds
+import com.nuvio.tv.core.tracking.TrackingMediaKind
+import com.nuvio.tv.core.tracking.TrackingMediaReference
+import com.nuvio.tv.core.tracking.TrackingScrobbleAction
+import com.nuvio.tv.core.tracking.TrackingScrobbleEvent
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SimklScrobbleReconciliationTest {
+    @Test
+    fun `only a real watched action or dated conflict confirms the remote completion`() {
+        val event = TrackingScrobbleEvent(
+            TrackingMediaReference(kind = TrackingMediaKind.MOVIE, ids = TrackingExternalIds(imdb = "tt1520211")), 95.0
+        )
+        fun parse(status: Int, body: String) =
+            SimklApiResponse(status, body, emptyMap(), isSoftSuccess = status == 409)
+                .toSimklScrobbleResult(TrackingScrobbleAction.STOP, event, Json)
+
+        assertNull(parse(201, "{}").remoteOutcome)
+        assertFalse(parse(409, "{}").alreadyWatched)
+        assertTrue(parse(409, """{"watched_at":"2026-01-02T00:00:00Z"}""").alreadyWatched)
+        assertEquals(SimklScrobbleOutcome.SCROBBLE, parse(201, """{"action":"scrobble"}""").remoteOutcome)
+    }
+
     @Test
     fun `pause replaces local playback without advancing the sync watermark`() {
         val media = showMedia(simklId = 2090L, imdb = "tt1520211")

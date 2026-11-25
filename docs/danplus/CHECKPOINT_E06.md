@@ -46,3 +46,20 @@ O retry de conclusão no E06 é restrito à sessão existente. Reexecução apó
 Sem Gradle, build, APK, instalação, push, merge, release, alteração de main, aplicação em produção, mudança de perfil homologado, assinatura, IDs, OTA, MPV ou descarte remoto Silo.
 
 Próxima ação: auditar o único commit local acima de `6f8c19f` via Commander e decidir se libera o push. Homologação e reprodução B1-11 permanecem no E10.
+
+## E06-R1 — Confirmação de scrobble
+
+25/11/2026 · Candidato local para auditoria independente · B1-18, A1-22, A2-38 e B4-D05.
+
+- Base local `c0638db0c8be7b0d53e96533bec77e549d80113f` na mesma branch e worktree. Na consulta remota, a branch de integração estava em `6f8c19f4b1da856b878f40699fc15198d33482b3` e `main` em `04e5b4e1780c43f6de4e5627453985821c07d48b`. A ancestralidade contém E02, E02-R1, E04, E03, E03-R1, E03B e E06.
+- O contrato dos cinco provedores distingue confirmação, duplicação comprovada, operação ignorada, indisponibilidade, falha recuperável e mudança de perfil ou conta. Retornos antecipados e recibos de progresso continuam pendentes para conclusão. No Trakt, `409` do STOP terminal é a duplicação documentada e a conclusão 2xx exige ação `scrobble`. No Simkl, `409` do STOP exige `watched_at` válido. No MDBList, progresso alto sem ação de conclusão ou data de assistido não cria histórico. No WeTrakr, STOP terminal exige `201` e mantém o limiar de 90%. Floppy reaproveita o identificador de conclusão no retry. [API Trakt](https://trakt.docs.apiary.io/reference/sync) · [API Simkl](https://simkl.docs.apiary.io/reference/redirect)
+- Pausa capaz de concluir e STOP passam pelo mesmo gate. STOP concorrente com pausa é adiado uma vez antes de reenviar apenas aos pendentes. A troca de episódio reinicia o gate nas rotas direta e de recriação do player. O retry fica na mesma sessão, preserva delegação ao servidor e não usa as credenciais de outra conta. O refresh Trakt também revalida a autorização original antes de gravar ou limpar credenciais.
+- E03B mantém posição e restauração do longa. Extra ativo bloqueia scrobble, e callbacks de preparação e conclusão revalidam o item e a transição de extras. Os leitores Blu-ray, PostPlay e a persistência de progresso não foram modificados.
+- Onze casos novos e atualizações em testes existentes cobrem retorno sem envio, identidade ausente, recibo insuficiente, desconexão/reconexão, retry parcial, duplicata confirmada, troca de perfil/conta durante envio ou refresh, STOP concorrente, resposta tardia, ID de retry e isolamento de extras.
+- **PASS estático** revisão do diff, `git diff --check`, ancestralidade Git e análise sintática PSI Kotlin `files=29 errors=0`. **FAIL** nenhum nas verificações finais executadas. **NÃO TESTADO** resolução de tipos por build, JUnit, serviços com contas reais, dispositivo, smoke e recuperação após morte do processo.
+- **Limites** o retry depende de novo evento válido na mesma sessão. Uma resposta perdida após o envio pode exigir nova tentativa, e a deduplicação depende do contrato de cada provedor. Validar recibos reais no E10, em especial o STOP de conclusão e a desconexão após a escrita remota.
+- **B1-11/B4-D04** segue no E10 com o roteiro episódio 3 → 4 → segundo plano → morte do processo → retomada por Recentes, launcher e Continuar Assistindo. A rota atual segue preservada.
+
+Sem Gradle, build, instalação, push, merge ou release. Main, produção, assinatura, OTA e configuração de perfis preservadas. E07B segue fora deste lote.
+
+Próxima ação — o coordenador deve comparar o commit local E06-R1 com `c0638db` via Commander, conferir os recibos e a serialização de PAUSE/STOP e liberar explicitamente o push antes de publicar.

@@ -41,7 +41,7 @@ internal fun floppyScrobbleBody(
         }
         if (action == TrackingScrobbleAction.STOP) {
             put("completed", percent >= FLOPPY_COMPLETED_PERCENT)
-            put("client_event_id", "arc-stop-${eventId()}")
+            put("client_event_id", "arc-stop-${event.completionId ?: eventId()}")
         }
     }
 }

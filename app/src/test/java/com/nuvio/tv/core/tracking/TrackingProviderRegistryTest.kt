@@ -43,7 +43,10 @@ class TrackingProviderRegistryTest {
         override val isAuthenticated = MutableStateFlow(authenticated)
         override val scrobbler = if (scrobble) object : TrackingScrobbler {
             override val providerId = id
-            override suspend fun scrobble(action: TrackingScrobbleAction, event: TrackingScrobbleEvent) = Unit
+            override suspend fun currentScrobbleAccount() = TrackingScrobbleAccount(1, 1)
+
+            override suspend fun scrobble(action: TrackingScrobbleAction, event: TrackingScrobbleEvent) =
+                TrackingScrobbleOutcome.CONFIRMED
         } else {
             null
         }

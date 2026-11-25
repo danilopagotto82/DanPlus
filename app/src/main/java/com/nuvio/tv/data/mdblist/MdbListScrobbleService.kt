@@ -2,6 +2,7 @@ package com.nuvio.tv.data.mdblist
 
 import com.nuvio.tv.core.tracking.TrackingScrobbleAction
 import com.nuvio.tv.core.tracking.TrackingScrobbleEvent
+import com.nuvio.tv.core.tracking.TrackingScrobbleOutcome
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -10,12 +11,20 @@ class MdbListScrobbleService @Inject constructor(
     private val api: MdbListApiClient,
     private val sync: MdbListSyncRepository
 ) {
-    suspend fun scrobble(scope: MdbListAuthScope, action: TrackingScrobbleAction, event: TrackingScrobbleEvent) {
-        if (!event.progressPercent.isFinite() || event.media.ids.toMdbListIds() == null) return
-        sync.write(scope, setOf(MdbListSyncBucket.WATCHED, MdbListSyncBucket.PLAYBACK)) { snapshot ->
+    suspend fun scrobble(
+        scope: MdbListAuthScope,
+        action: TrackingScrobbleAction,
+        event: TrackingScrobbleEvent
+    ): TrackingScrobbleOutcome {
+        if (!event.progressPercent.isFinite() || event.media.ids.toMdbListIds() == null) {
+            return TrackingScrobbleOutcome.IGNORED
+        }
+        return sync.write(scope, setOf(MdbListSyncBucket.WATCHED, MdbListSyncBucket.PLAYBACK)) { snapshot ->
             val projection = sync.currentProjection().takeIf { it !== MdbListProgressProjection.Empty }
-            val target = snapshot.mutationTarget(event.media, projection) ?: return@write snapshot to Unit
-            if (target.type == MdbListItemType.SHOW || !target.scrobbleCoordinatesResolved) return@write snapshot to Unit
+            val target = snapshot.mutationTarget(event.media, projection)
+            if (target == null || target.type == MdbListItemType.SHOW || !target.scrobbleCoordinatesResolved) {
+                return@write snapshot to TrackingScrobbleOutcome.IGNORED
+            }
             val response = api.post(
                 "/scrobble/${action.wireValue}",
                 target.scrobbleBody(event.progressPercent.coerceIn(0.0, 100.0)).toString(),
@@ -23,7 +32,12 @@ class MdbListScrobbleService @Inject constructor(
                 retrySafe = action != TrackingScrobbleAction.START
             )
             val receipt = decodeMdbListScrobbleReceipt(response, target, action, System.currentTimeMillis())
-            snapshot.applyScrobble(receipt, projection?.mediaIndex) to Unit
+            val needsWatchedReceipt = action != TrackingScrobbleAction.START &&
+                event.progressPercent >= MdbListProgressProjection.COMPLETION_PERCENT
+            val outcome = if (needsWatchedReceipt && !receipt.isWatched) {
+                TrackingScrobbleOutcome.IGNORED
+            } else TrackingScrobbleOutcome.CONFIRMED
+            snapshot.applyScrobble(receipt, projection?.mediaIndex) to outcome
         }
     }
 

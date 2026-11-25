@@ -11,6 +11,8 @@ import com.nuvio.tv.core.tracking.TrackingProviderDescriptor
 import com.nuvio.tv.core.tracking.TrackingProviderId
 import com.nuvio.tv.core.tracking.TrackingScrobbleAction
 import com.nuvio.tv.core.tracking.TrackingScrobbleEvent
+import com.nuvio.tv.core.tracking.TrackingScrobbleAccount
+import com.nuvio.tv.core.tracking.TrackingScrobbleOutcome
 import com.nuvio.tv.core.tracking.TrackingScrobbler
 import com.nuvio.tv.core.tracking.TrackingSeekScrobblePolicy
 import javax.inject.Inject
@@ -52,15 +54,32 @@ class FloppyTrackingScrobbler @Inject constructor(
     override val seekScrobblePolicy = TrackingSeekScrobblePolicy.STOP_AND_RESTART
     override val stopsWhenLeftPaused = true
 
-    override suspend fun scrobble(action: TrackingScrobbleAction, event: TrackingScrobbleEvent) {
-        if (!store.state.value.isAuthenticated) return
-        val body = floppyScrobbleBody(action, event) ?: return
-        val scope = store.scope()
-        check(event.profileId == null || event.profileId == scope.profileId) { "Scrobble profile changed" }
-        api.scrobble(scope, body)
+    override suspend fun currentScrobbleAccount(): TrackingScrobbleAccount? =
+        store.state.value.takeIf { it.isAuthenticated }?.scope?.let {
+            TrackingScrobbleAccount(it.profileId, it.generation)
+        }
+
+    override suspend fun scrobble(
+        action: TrackingScrobbleAction,
+        event: TrackingScrobbleEvent
+    ): TrackingScrobbleOutcome {
+        val authorization = store.state.value
+        if (!authorization.isAuthenticated) return TrackingScrobbleOutcome.UNAVAILABLE
+        val scope = authorization.scope
+        if (!event.belongsTo(TrackingScrobbleAccount(scope.profileId, scope.generation))) {
+            return TrackingScrobbleOutcome.OWNER_CHANGED
+        }
+        val body = floppyScrobbleBody(action, event) ?: return TrackingScrobbleOutcome.IGNORED
+        try {
+            api.scrobble(scope, body)
+            store.checkScope(scope)
+        } catch (_: FloppyAccountChangedException) {
+            return TrackingScrobbleOutcome.OWNER_CHANGED
+        }
         if (action == TrackingScrobbleAction.STOP && event.progressPercent >= FLOPPY_COMPLETED_PERCENT) {
             event.media.filmTmdbId()?.let { ledger.record(scope.profileId, it, System.currentTimeMillis()) }
         }
+        return TrackingScrobbleOutcome.CONFIRMED
     }
 }
 

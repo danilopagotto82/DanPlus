@@ -23,7 +23,9 @@ internal data class SimklScrobbleResult(
     val mediaType: SimklMediaType,
     val media: SimklMedia,
     val episode: SimklPlaybackEpisode?,
-    val watchedAt: String? = null
+    val watchedAt: String? = null,
+    val remoteOutcome: SimklScrobbleOutcome? = null,
+    val alreadyWatched: Boolean = false
 )
 
 internal fun SimklApiResponse.toSimklScrobbleResult(
@@ -43,12 +45,12 @@ internal fun SimklApiResponse.toSimklScrobbleResult(
     val progress = payload.doubleValue("progress")
         ?.coerceIn(0.0, 100.0)
         ?: event.progressPercent.coerceIn(0.0, 100.0)
-    val outcome = when {
-        isSoftSuccess && status == 409 -> SimklScrobbleOutcome.SCROBBLE
-        else -> payload.stringValue("action")
-            ?.toSimklScrobbleOutcome()
-            ?: requestedAction.fallbackOutcome(progress)
-    }
+    val watchedAt = payload.stringValue("watched_at")?.takeIf { parseSimklUtcEpochMs(it) != null }
+    val remoteOutcome = if (status in 200..299) payload.stringValue("action")?.toSimklScrobbleOutcome() else null
+    val alreadyWatched = requestedAction == TrackingScrobbleAction.STOP && isSoftSuccess && status == 409 &&
+        watchedAt != null
+    val outcome = if (alreadyWatched) SimklScrobbleOutcome.SCROBBLE
+        else remoteOutcome ?: requestedAction.fallbackOutcome(progress)
     return SimklScrobbleResult(
         outcome = outcome,
         playbackId = payload.longValue("id") ?: payload.longValue("sid"),
@@ -56,8 +58,9 @@ internal fun SimklApiResponse.toSimklScrobbleResult(
         mediaType = mediaType,
         media = responseMedia?.mergeMissing(fallbackMedia) ?: fallbackMedia,
         episode = episode,
-        watchedAt = payload.stringValue("watched_at")
-            ?.takeIf { value -> parseSimklUtcEpochMs(value) != null }
+        watchedAt = watchedAt,
+        remoteOutcome = remoteOutcome,
+        alreadyWatched = alreadyWatched
     )
 }
 

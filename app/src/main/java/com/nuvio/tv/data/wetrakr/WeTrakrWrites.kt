@@ -9,6 +9,7 @@ import com.nuvio.tv.core.tracking.TrackingMediaReference
 import com.nuvio.tv.core.tracking.TrackingMutationResult
 import com.nuvio.tv.core.tracking.TrackingScrobbleAction
 import com.nuvio.tv.core.tracking.TrackingScrobbleEvent
+import com.nuvio.tv.core.tracking.TrackingScrobbleOutcome
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
@@ -250,15 +251,20 @@ class WeTrakrScrobbleService(
 ) {
     private val lock = Mutex()
     private var pending: Pending? = null
-    private var live: String? = null
+    private var live: Pair<WeTrakrAuthScope, String>? = null
 
-    private class Pending(val key: String, val job: Job)
+    private class Pending(val key: Pair<WeTrakrAuthScope, String>, val job: Job)
 
-    suspend fun scrobble(authScope: WeTrakrAuthScope, action: TrackingScrobbleAction, event: TrackingScrobbleEvent) {
-        if (!event.progressPercent.isFinite()) return
-        val target = event.media.toWeTrakrTarget()?.takeIf { it.type != WeTrakrType.SHOW } ?: return
+    suspend fun scrobble(
+        authScope: WeTrakrAuthScope,
+        action: TrackingScrobbleAction,
+        event: TrackingScrobbleEvent
+    ): TrackingScrobbleOutcome {
+        if (!event.progressPercent.isFinite()) return TrackingScrobbleOutcome.IGNORED
+        val target = event.media.toWeTrakrTarget()?.takeIf { it.type != WeTrakrType.SHOW }
+            ?: return TrackingScrobbleOutcome.IGNORED
         val progress = event.progressPercent.coerceIn(0.0, 100.0)
-        val key = target.sessionKey
+        val key = authScope to target.sessionKey
         val send: Boolean = lock.withLock {
             when (action) {
                 TrackingScrobbleAction.START -> {
@@ -268,7 +274,7 @@ class WeTrakrScrobbleService(
                     val job = scope.launch {
                         delay(shortPlayMs)
                         val confirmed = lock.withLock {
-                            if (pending?.key != key) false else {
+                            if (pending?.job !== coroutineContext[Job]) false else {
                                 pending = null
                                 live = key
                                 true
@@ -307,10 +313,15 @@ class WeTrakrScrobbleService(
                 }
             }
         }
-        if (send) post(authScope, action, target, progress)
+        return if (send) post(authScope, action, target, progress) else TrackingScrobbleOutcome.IGNORED
     }
 
-    private suspend fun post(authScope: WeTrakrAuthScope, action: TrackingScrobbleAction, target: WeTrakrTarget, progress: Double) {
+    private suspend fun post(
+        authScope: WeTrakrAuthScope,
+        action: TrackingScrobbleAction,
+        target: WeTrakrTarget,
+        progress: Double
+    ): TrackingScrobbleOutcome {
         val response = api.post(
             "/scrobble/${action.wireValue}",
             target.scrobbleBody(progress, appVersion).toString(),
@@ -318,7 +329,8 @@ class WeTrakrScrobbleService(
             query = mapOf("min_progress" to WeTrakrProgressProjection.COMPLETION_PERCENT.toInt().toString()),
             acceptedStatuses = setOf(404)
         )
-        if (response.status == 404 || action != TrackingScrobbleAction.STOP) return
+        if (response.status == 404) return TrackingScrobbleOutcome.IGNORED
+        if (action != TrackingScrobbleAction.STOP) return TrackingScrobbleOutcome.CONFIRMED
         val at = now()
         sync.mutate(authScope) { snapshot ->
             val next = if (action == TrackingScrobbleAction.STOP && response.status == 201) {
@@ -328,6 +340,9 @@ class WeTrakrScrobbleService(
             }
             next to Unit
         }
+        return if (progress >= WeTrakrProgressProjection.COMPLETION_PERCENT && response.status != 201) {
+            TrackingScrobbleOutcome.IGNORED
+        } else TrackingScrobbleOutcome.CONFIRMED
     }
 
     suspend fun clear(authScope: WeTrakrAuthScope, contentId: String, season: Int?, episode: Int?) {

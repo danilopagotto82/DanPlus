@@ -61,16 +61,39 @@ class TrackingScrobbleCoordinator @Inject constructor(
         if (!event.isCurrentOwner()) emptyList() else dispatchTrackingStopWhenLeftPaused(providerRegistry.connectedScrobblers(), event)
             .also { failures -> failures.log(TrackingScrobbleAction.STOP, false) }
 
-    internal suspend fun complete(event: TrackingScrobbleEvent): TrackingCompletionResult {
-        if (!event.isCurrentOwner()) return TrackingCompletionResult(emptySet(), complete = false)
-        val connected = providerRegistry.connectedScrobblers()
-        val targets = connected.filter { it.providerId !in event.skippedProviders }
-        val failures = dispatch(targets, TrackingScrobbleAction.STOP, event)
-        val failed = failures.mapTo(mutableSetOf()) { it.providerId }
-        return TrackingCompletionResult(
-            targets.mapTo(mutableSetOf()) { it.providerId } - failed,
-            complete = connected.isNotEmpty() && failures.isEmpty() && event.isCurrentOwner(),
-            failed = failed
+    internal suspend fun complete(
+        action: TrackingScrobbleAction,
+        event: TrackingScrobbleEvent,
+        accounts: Map<TrackingProviderId, TrackingScrobbleAccount>,
+        resolveDelegatedProviders: suspend () -> Set<TrackingProviderId>,
+        isCurrent: () -> Boolean
+    ): TrackingCompletionResult = supervisorScope {
+        fun current() = isCurrent() && event.isCurrentOwner()
+        if (!current()) return@supervisorScope TrackingCompletionResult(emptySet(), complete = false)
+        val scrobblers = providerRegistry.connectedScrobblers()
+        val snapshots = scrobblers.filter { it.providerId !in event.skippedProviders && it.providerId !in accounts }
+            .map { tracker -> async { tracker.providerId to tracker.accountOrNull() } }.awaitAll().toMap()
+        val pinned = snapshots.mapNotNull { (id, account) -> account?.let { id to it } }.toMap() + accounts
+        if (!current()) return@supervisorScope TrackingCompletionResult(emptySet(), complete = false)
+        val delegated = try {
+            resolveDelegatedProviders()
+        } catch (error: java.io.IOException) {
+            Log.w("TrackingScrobble", "Could not resolve server scrobble delegation", error)
+            return@supervisorScope TrackingCompletionResult(
+                emptySet(), complete = false, pending = snapshots.keys, accounts = pinned
+            )
+        }
+        val excluded = event.skippedProviders + delegated
+        val unbound = snapshots.filterValues { it == null }.keys - excluded
+        val receipt = dispatchTrackingCompletion(
+            scrobblers.filterNot { it.providerId in unbound }, action,
+            event.copy(skippedProviders = excluded), pinned, ::current
+        )
+        if (!current()) return@supervisorScope receipt
+        receipt.copy(
+            pending = receipt.pending + unbound,
+            accounts = receipt.accounts + pinned.filterKeys { it !in excluded },
+            delegated = delegated
         )
     }
 
@@ -93,6 +116,69 @@ class TrackingScrobbleCoordinator @Inject constructor(
             )
         }
     }
+}
+
+private suspend fun TrackingScrobbler.accountOrNull(): TrackingScrobbleAccount? =
+    try {
+        currentScrobbleAccount()
+    } catch (_: Exception) {
+        currentCoroutineContext().ensureActive()
+        null
+    }
+
+private data class CompletionReceipt(
+    val providerId: TrackingProviderId,
+    val account: TrackingScrobbleAccount?,
+    val confirmed: Boolean
+)
+
+internal suspend fun dispatchTrackingCompletion(
+    scrobblers: List<TrackingScrobbler>,
+    action: TrackingScrobbleAction,
+    event: TrackingScrobbleEvent,
+    accounts: Map<TrackingProviderId, TrackingScrobbleAccount>,
+    isCurrent: () -> Boolean
+): TrackingCompletionResult = supervisorScope {
+    if (!isCurrent()) return@supervisorScope TrackingCompletionResult(emptySet(), complete = false)
+    val targets = scrobblers.filter { it.providerId !in event.skippedProviders }
+    val receipts = targets.map { scrobbler ->
+        async {
+            val prior = accounts[scrobbler.providerId]
+            var owner = prior
+            val outcome = try {
+                val current = scrobbler.currentScrobbleAccount()
+                owner = prior ?: current
+                when {
+                    !isCurrent() -> TrackingScrobbleOutcome.OWNER_CHANGED
+                    current == null -> TrackingScrobbleOutcome.UNAVAILABLE
+                    prior != null && prior != current || !event.belongsTo(current) ->
+                        TrackingScrobbleOutcome.OWNER_CHANGED
+                    else -> scrobbler.scrobble(action, event.copy(expectedAccount = current))
+                        .let { outcome ->
+                            if (outcome.isConfirmed && scrobbler.currentScrobbleAccount() != current) {
+                                TrackingScrobbleOutcome.OWNER_CHANGED
+                            } else outcome
+                        }
+                }
+            } catch (error: Exception) {
+                currentCoroutineContext().ensureActive()
+                TrackingScrobbleOutcome.RETRYABLE_FAILURE
+            }
+            val canComplete = event.progressPercent >= scrobbler.completionPercent &&
+                (action == TrackingScrobbleAction.STOP || scrobbler.completesOnPause)
+            CompletionReceipt(scrobbler.providerId, owner, canComplete && outcome.isConfirmed)
+        }
+    }.awaitAll()
+    if (!isCurrent()) return@supervisorScope TrackingCompletionResult(emptySet(), complete = false)
+    val accepted = receipts.filter { it.confirmed }.mapTo(mutableSetOf(), CompletionReceipt::providerId)
+    val pending = (targets.map(TrackingScrobbler::providerId) + accounts.keys).toSet() -
+        event.skippedProviders - accepted
+    TrackingCompletionResult(
+        accepted = accepted,
+        complete = (scrobblers.isNotEmpty() || accounts.isNotEmpty()) && pending.isEmpty(),
+        pending = pending,
+        accounts = receipts.mapNotNull { (id, account) -> account?.let { id to it } }.toMap()
+    )
 }
 
 suspend fun dispatchTrackingScrobble(
@@ -135,8 +221,10 @@ private suspend fun scrobbleCatching(
     action: TrackingScrobbleAction,
     event: TrackingScrobbleEvent
 ): TrackingScrobbleFailure? = try {
-    scrobbler.scrobble(action, event)
-    null
+    val outcome = scrobbler.scrobble(action, event)
+    if (outcome == TrackingScrobbleOutcome.RETRYABLE_FAILURE) {
+        TrackingScrobbleFailure(scrobbler.providerId, IllegalStateException("Scrobble was not acknowledged"))
+    } else null
 } catch (error: Throwable) {
     currentCoroutineContext().ensureActive()
     TrackingScrobbleFailure(scrobbler.providerId, error)

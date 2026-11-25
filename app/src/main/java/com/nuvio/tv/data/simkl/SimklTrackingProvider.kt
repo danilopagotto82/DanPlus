@@ -3,11 +3,14 @@ package com.nuvio.tv.data.simkl
 import android.util.Log
 import com.nuvio.tv.core.tracking.TRACKING_SCROBBLE_DIAGNOSTIC_TAG
 import com.nuvio.tv.core.tracking.TrackingCapability
+import com.nuvio.tv.core.tracking.TrackingMediaKind
 import com.nuvio.tv.core.tracking.TrackingProvider
 import com.nuvio.tv.core.tracking.TrackingProviderDescriptor
 import com.nuvio.tv.core.tracking.TrackingProviderId
 import com.nuvio.tv.core.tracking.TrackingScrobbleAction
 import com.nuvio.tv.core.tracking.TrackingScrobbleEvent
+import com.nuvio.tv.core.tracking.TrackingScrobbleAccount
+import com.nuvio.tv.core.tracking.TrackingScrobbleOutcome
 import com.nuvio.tv.core.tracking.TrackingScrobbler
 import com.nuvio.tv.core.tracking.scrobbleDiagnosticSummary
 import javax.inject.Inject
@@ -26,13 +29,21 @@ class SimklTrackingScrobbler @Inject constructor(
     private val mutationService: SimklMutationService
 ) : TrackingScrobbler {
     override val providerId = TrackingProviderId.SIMKL
+    override val completesOnPause = true
+
+    override suspend fun currentScrobbleAccount(): TrackingScrobbleAccount? =
+        authRepository.currentScope().takeIf { authRepository.state.value.isAuthenticated }?.let {
+            TrackingScrobbleAccount(it.profileId, it.generation)
+        }
 
     override suspend fun scrobble(
         action: TrackingScrobbleAction,
         event: TrackingScrobbleEvent
-    ) {
+    ): TrackingScrobbleOutcome {
         val owner = authRepository.currentScope()
-        check(event.profileId == null || event.profileId == owner.profileId) { "Scrobble profile changed" }
+        if (!event.belongsTo(TrackingScrobbleAccount(owner.profileId, owner.generation))) {
+            return TrackingScrobbleOutcome.OWNER_CHANGED
+        }
         val authenticated = authRepository.state.value.isAuthenticated
         Log.d(
             TRACKING_SCROBBLE_DIAGNOSTIC_TAG,
@@ -44,7 +55,7 @@ class SimklTrackingScrobbler @Inject constructor(
                 TRACKING_SCROBBLE_DIAGNOSTIC_TAG,
                 "simkl adapter skipped action=${action.wireValue} reason=not_authenticated"
             )
-            return
+            return TrackingScrobbleOutcome.UNAVAILABLE
         }
         syncRepository.ensureLoaded()
         val entryIndex = syncRepository.currentEntryIndex()
@@ -57,18 +68,41 @@ class SimklTrackingScrobbler @Inject constructor(
             TRACKING_SCROBBLE_DIAGNOSTIC_TAG,
             "simkl adapter enriched action=${action.wireValue} ${enrichedEvent.scrobbleDiagnosticSummary()}"
         )
-        val result = mutationService.scrobble(
-            action = action,
-            event = enrichedEvent,
-            owner = owner
-        )
-        if (action != TrackingScrobbleAction.START) {
+        if (!enrichedEvent.media.hasResolvableIdentity ||
+            (enrichedEvent.media.kind != TrackingMediaKind.MOVIE && enrichedEvent.media.episode == null)
+        ) {
+            return TrackingScrobbleOutcome.IGNORED
+        }
+        val result = try {
+            mutationService.scrobble(action, enrichedEvent, owner)
+        } catch (error: SimklApiException) {
+            return when {
+                authRepository.currentScope() != owner || error.errorCode == "auth_scope_changed" ->
+                    TrackingScrobbleOutcome.OWNER_CHANGED
+                error.status == 401 || error.status == 403 -> TrackingScrobbleOutcome.UNAVAILABLE
+                else -> throw error
+            }
+        }
+        if (authRepository.currentScope() != owner) return TrackingScrobbleOutcome.OWNER_CHANGED
+        val needsWatchedReceipt = action != TrackingScrobbleAction.START &&
+            event.progressPercent >= completionPercent
+        val outcome = when {
+            result.alreadyWatched && needsWatchedReceipt -> TrackingScrobbleOutcome.ALREADY_CONFIRMED
+            result.remoteOutcome == null -> TrackingScrobbleOutcome.IGNORED
+            needsWatchedReceipt && result.remoteOutcome != SimklScrobbleOutcome.SCROBBLE ->
+                TrackingScrobbleOutcome.IGNORED
+            else -> TrackingScrobbleOutcome.CONFIRMED
+        }
+        if (action != TrackingScrobbleAction.START &&
+            (outcome.isConfirmed || result.remoteOutcome == SimklScrobbleOutcome.PAUSE)
+        ) {
             syncRepository.commitScrobble(result, owner)
         }
         Log.d(
             TRACKING_SCROBBLE_DIAGNOSTIC_TAG,
-            "simkl adapter complete action=${action.wireValue} ${enrichedEvent.scrobbleDiagnosticSummary()}"
+            "simkl adapter outcome=$outcome action=${action.wireValue} ${enrichedEvent.scrobbleDiagnosticSummary()}"
         )
+        return outcome
     }
 }
 

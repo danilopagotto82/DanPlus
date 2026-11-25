@@ -1,6 +1,7 @@
 package com.nuvio.tv.data.local
 
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -41,7 +42,8 @@ data class TraktAuthState(
     val userCode: String? = null,
     val verificationUrl: String? = null,
     val expiresAt: Long? = null,
-    val pollInterval: Int? = null
+    val pollInterval: Int? = null,
+    val authorizationGeneration: Long = 0
 ) {
     val isAuthenticated: Boolean
         get() = !accessToken.isNullOrBlank() && !refreshToken.isNullOrBlank()
@@ -59,6 +61,7 @@ class TraktAuthDataStore @Inject constructor(
 
     private val accessTokenKey = stringPreferencesKey("access_token")
     private val refreshTokenKey = stringPreferencesKey("refresh_token")
+    private val authorizationGenerationKey = longPreferencesKey("authorization_generation")
     private val tokenTypeKey = stringPreferencesKey("token_type")
     private val createdAtKey = longPreferencesKey("created_at")
     private val expiresInKey = intPreferencesKey("expires_in")
@@ -72,7 +75,9 @@ class TraktAuthDataStore @Inject constructor(
     private val expiresAtKey = longPreferencesKey("expires_at")
     private val pollIntervalKey = intPreferencesKey("poll_interval")
 
-    private fun store(profileId: Int = profileManager.activeProfileId.value) =
+    internal val activeProfileId: Int get() = profileManager.activeProfileId.value
+
+    private fun store(profileId: Int = activeProfileId) =
         factory.get(profileId, FEATURE)
 
     val state: Flow<TraktAuthState> = profileManager.activeProfileId.flatMapLatest { profileId ->
@@ -89,7 +94,8 @@ class TraktAuthDataStore @Inject constructor(
                 userCode = preferences[userCodeKey],
                 verificationUrl = preferences[verificationUrlKey],
                 expiresAt = preferences[expiresAtKey],
-                pollInterval = preferences[pollIntervalKey]
+                pollInterval = preferences[pollIntervalKey],
+                authorizationGeneration = preferences[authorizationGenerationKey] ?: 0
             )
         }
     }
@@ -116,18 +122,43 @@ class TraktAuthDataStore @Inject constructor(
             userCode = prefs[userCodeKey],
             verificationUrl = prefs[verificationUrlKey],
             expiresAt = prefs[expiresAtKey],
-            pollInterval = prefs[pollIntervalKey]
+            pollInterval = prefs[pollIntervalKey],
+            authorizationGeneration = prefs[authorizationGenerationKey] ?: 0
         )
     }
 
     suspend fun saveToken(token: TraktTokenResponseDto) {
         store().edit { preferences ->
-            preferences[accessTokenKey] = token.accessToken
-            preferences[refreshTokenKey] = token.refreshToken
-            preferences[tokenTypeKey] = token.tokenType
-            preferences[createdAtKey] = token.createdAt
-            preferences[expiresInKey] = normalizeTraktTokenLifetimeSeconds(token.expiresIn)
+            preferences.writeToken(token)
+            preferences[authorizationGenerationKey] = (preferences[authorizationGenerationKey] ?: 0L) + 1
         }
+    }
+
+    internal suspend fun saveRefreshedToken(
+        profileId: Int,
+        previous: TraktAuthState,
+        token: TraktTokenResponseDto
+    ): Boolean {
+        var saved = false
+        store(profileId).edit { preferences ->
+            if (profileId == activeProfileId && preferences.matchesAuthorization(previous)) {
+                preferences.writeToken(token)
+                saved = true
+            }
+        }
+        return saved
+    }
+
+    private fun MutablePreferences.matchesAuthorization(previous: TraktAuthState): Boolean =
+        this[refreshTokenKey] == previous.refreshToken &&
+            (this[authorizationGenerationKey] ?: 0L) == previous.authorizationGeneration
+
+    private fun MutablePreferences.writeToken(token: TraktTokenResponseDto) {
+        this[accessTokenKey] = token.accessToken
+        this[refreshTokenKey] = token.refreshToken
+        this[tokenTypeKey] = token.tokenType
+        this[createdAtKey] = token.createdAt
+        this[expiresInKey] = normalizeTraktTokenLifetimeSeconds(token.expiresIn)
     }
 
     suspend fun saveUser(username: String?, userSlug: String?) {
@@ -173,7 +204,16 @@ class TraktAuthDataStore @Inject constructor(
     }
 
     suspend fun clearAuth() {
-        store().edit { preferences ->
+        clearAuth(activeProfileId, previous = null)
+    }
+
+    internal suspend fun clearAuth(profileId: Int, previous: TraktAuthState?): Boolean {
+        var cleared = false
+        store(profileId).edit { preferences ->
+            if (previous != null && (profileId != activeProfileId || !preferences.matchesAuthorization(previous))) {
+                return@edit
+            }
+            preferences[authorizationGenerationKey] = (preferences[authorizationGenerationKey] ?: 0L) + 1
             preferences.remove(accessTokenKey)
             preferences.remove(refreshTokenKey)
             preferences.remove(tokenTypeKey)
@@ -186,6 +226,8 @@ class TraktAuthDataStore @Inject constructor(
             preferences.remove(verificationUrlKey)
             preferences.remove(expiresAtKey)
             preferences.remove(pollIntervalKey)
+            cleared = true
         }
+        return cleared
     }
 }
