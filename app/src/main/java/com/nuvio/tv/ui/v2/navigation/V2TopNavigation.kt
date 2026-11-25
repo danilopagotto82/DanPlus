@@ -30,6 +30,7 @@ import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -47,6 +48,11 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
@@ -84,14 +90,34 @@ fun V2TopNavigation(
     val menuItems = remember(items) { items.filterNot { it.route == Screen.Settings.route } }
     val routes = items.map { it.route }
     val routeFocus = remember(routes) { routes.associateWith { FocusRequester() } }
+    val menuState = rememberLazyListState()
     var lastRoute by remember { mutableStateOf(selectedRoute) }
     var navFocused by remember { mutableStateOf(false) }
     var returnToContent by remember { mutableStateOf(false) }
-    val entryFocus = routeFocus[lastRoute] ?: routeFocus[selectedRoute] ?: routeFocus.values.firstOrNull() ?: contentFocus
+    var requestedRoute by remember { mutableStateOf<String?>(null) }
+    val entryRoute = lastRoute?.takeIf(routeFocus::containsKey)
+        ?: selectedRoute?.takeIf(routeFocus::containsKey) ?: routes.firstOrNull()
 
     // Destination BackHandlers are composed later and retain priority for sheets/settings.
     BackHandler(enabled = visible) {
-        if (navFocused) onExit() else runCatching { entryFocus.requestFocus() }
+        if (navFocused) onExit() else requestedRoute = entryRoute
+    }
+    LaunchedEffect(requestedRoute, menuItems, visible) {
+        val route = requestedRoute ?: return@LaunchedEffect
+        if (visible) {
+            val index = menuItems.indexOfFirst { it.route == route }
+            if (index >= 0 && menuState.layoutInfo.visibleItemsInfo.none { it.key == route }) {
+                menuState.scrollToItem(index)
+            }
+            repeat(6) {
+                withFrameNanos { }
+                if (runCatching { routeFocus[route]?.requestFocus() == true }.getOrDefault(false)) {
+                    requestedRoute = null
+                    return@LaunchedEffect
+                }
+            }
+        }
+        requestedRoute = null
     }
     LaunchedEffect(returnToContent, currentRoute) {
         if (returnToContent) {
@@ -110,7 +136,10 @@ fun V2TopNavigation(
             .focusRequester(contentFocus).focusRestorer()
             .focusProperties {
                 this.onExit = {
-                    if (visible && requestedFocusDirection == FocusDirection.Up) entryFocus.requestFocus()
+                    if (visible && requestedFocusDirection == FocusDirection.Up && entryRoute != null) {
+                        requestedRoute = entryRoute
+                        cancelFocusChange()
+                    }
                 }
             }.focusGroup()) {
             CompositionLocalProvider(LocalContentFocusRequester provides contentFocus,
@@ -125,7 +154,15 @@ fun V2TopNavigation(
             val capsule = RoundedCornerShape(50)
             val settingsFocus = settings?.let { routeFocus[it.route] }
             val avatarFocus = remember { FocusRequester() }
-            val lastMenuFocus = menuItems.lastOrNull()?.let { routeFocus[it.route] }
+            val lastMenuRoute = menuItems.lastOrNull()?.route
+            val towardMenu = if (rtl) Key.DirectionRight else Key.DirectionLeft
+            val returnToMenu = Modifier.onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown || event.key != towardMenu || lastMenuRoute == null) false
+                else {
+                    requestedRoute = lastMenuRoute
+                    true
+                }
+            }
             val activate: (String) -> Unit = { route ->
                 onNavigate(route)
                 returnToContent = true
@@ -138,6 +175,7 @@ fun V2TopNavigation(
             ) {
                 V2Wordmark(modifier = Modifier.width(100.dp).height(30.dp))
                 LazyRow(
+                    state = menuState,
                     modifier = Modifier.weight(1f)
                         .background(Brush.verticalGradient(listOf(
                             Color(0xFF202329).copy(alpha = centerAlpha),
@@ -176,15 +214,10 @@ fun V2TopNavigation(
                             SignatureRouteButton(
                                 item = settings,
                                 selected = settings.route == selectedRoute,
-                                modifier = Modifier.focusRequester(settingsFocus).focusProperties {
+                                modifier = returnToMenu.focusRequester(settingsFocus).focusProperties {
                                     down = contentFocus
-                                    val previous = lastMenuFocus ?: FocusRequester.Default
-                                    if (rtl) {
-                                        right = previous
-                                        if (profile != null) left = avatarFocus
-                                    } else {
-                                        left = previous
-                                        if (profile != null) right = avatarFocus
+                                    if (profile != null) {
+                                        if (rtl) left = avatarFocus else right = avatarFocus
                                     }
                                 },
                                 onFocused = { lastRoute = settings.route },
@@ -196,10 +229,12 @@ fun V2TopNavigation(
                             var focused by remember { mutableStateOf(false) }
                             Button(
                                 onClick = onSwitchProfile,
-                                modifier = Modifier.focusRequester(avatarFocus).focusProperties {
+                                modifier = (if (settingsFocus == null) returnToMenu else Modifier)
+                                    .focusRequester(avatarFocus).focusProperties {
                                     down = contentFocus
-                                    val previous = settingsFocus ?: lastMenuFocus ?: FocusRequester.Default
-                                    if (rtl) right = previous else left = previous
+                                    if (settingsFocus != null) {
+                                        if (rtl) right = settingsFocus else left = settingsFocus
+                                    }
                                 }.onFocusChanged { focused = it.isFocused }.nuvioV2Focus(focused, capsule),
                                 shape = ButtonDefaults.shape(capsule),
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),

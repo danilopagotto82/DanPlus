@@ -18,6 +18,10 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
+internal data class AddonPreferenceSnapshot(
+    val urls: List<String>, val names: Map<String, String>, val enabled: Map<String, Boolean>
+)
+
 @Singleton
 @OptIn(ExperimentalCoroutinesApi::class)
 class AddonPreferences @Inject constructor(
@@ -142,6 +146,37 @@ class AddonPreferences @Inject constructor(
             changed = true
         }
         return changed
+    }
+
+    internal fun canSaveAddonOrder(owner: Pair<Int, Long>): Boolean {
+        if (owner.first != profileManager.activeProfileId.value ||
+            owner.second != profileManager.profileSelectionRevision.value) return false
+        val profile = profileManager.activeProfile?.takeIf { it.id == owner.first } ?: return false
+        return profile.isPrimary || !profile.usesPrimaryAddons
+    }
+
+    internal suspend fun saveAddonOrderDraft(owner: Pair<Int, Long>, baseline: List<String>, order: List<String>): Boolean {
+        if (!canSaveAddonOrder(owner)) return false
+        val before = baseline.map(::canonicalizeUrl)
+        val after = order.map(::canonicalizeUrl)
+        if (after == before || after.size != before.size || after.toSet().size != after.size ||
+            after.toSet() != before.toSet()) return false
+        var changed = false
+        store(owner.first).edit { prefs ->
+            if (!canSaveAddonOrder(owner) || getCurrentList(prefs).map(::canonicalizeUrl) != before) return@edit
+            prefs[orderedUrlsKey] = gson.toJson(after)
+            changed = true
+        }
+        return changed
+    }
+
+    internal suspend fun readAddonSnapshot(profileId: Int, usePrimary: Boolean = false): AddonPreferenceSnapshot {
+        val prefs = store(if (usePrimary) 1 else profileId).data.first()
+        return AddonPreferenceSnapshot(
+            urls = getCurrentList(prefs).map(::canonicalizeUrl),
+            names = prefs[userSetNamesKey]?.let(::parseNameMap).orEmpty(),
+            enabled = getCurrentEnabledStates(prefs)
+        )
     }
 
     suspend fun setAddonEnabled(url: String, enabled: Boolean): Boolean {

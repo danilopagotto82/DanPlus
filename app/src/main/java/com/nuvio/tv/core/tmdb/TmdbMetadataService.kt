@@ -35,6 +35,8 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Semaphore
@@ -44,6 +46,7 @@ private const val TAG = "TmdbMetadataService"
 private val TMDB_API_KEY get() = TmdbApiKey.value
 private const val TMDB_TRAILER_FALLBACK_LANGUAGE = "en-US"
 private const val TMDB_SEASON_REQUEST_CONCURRENCY = 4
+private const val FOCUS_DOCK_LOGO_TTL_MS = 15 * 60 * 1000L
 private val YOUTUBE_VIDEO_ID_REGEX = Regex("^[a-zA-Z0-9_-]{11}$")
 
 @Singleton
@@ -63,7 +66,7 @@ class TmdbMetadataService(
     private val enrichmentInFlight = ConcurrentHashMap<String, CompletableDeferred<TmdbEnrichment?>>()
     private val posterArtCache = ConcurrentHashMap<String, TmdbPosterArt>()
     private val posterArtInFlight = ConcurrentHashMap<String, CompletableDeferred<TmdbPosterArt?>>()
-    private data class FocusDockLogo(val url: String?)
+    private data class FocusDockLogo(val url: String, val checkedAt: Long)
     private val focusDockLogos = ConcurrentHashMap<String, FocusDockLogo>()
     private val episodeInFlight = ConcurrentHashMap<String, CompletableDeferred<Map<Pair<Int, Int>, TmdbEpisodeEnrichment>>>()
     private val personCache = ConcurrentHashMap<String, PersonDetail>()
@@ -677,12 +680,16 @@ class TmdbMetadataService(
             val normalizedLanguage = normalizeTmdbLanguage(language)
             val cacheKey = "$tmdbId:${contentType.name}:$normalizedLanguage"
             posterArtCache[cacheKey]?.let { return@withContext it }
-            posterArtInFlight[cacheKey]?.let { return@withContext it.await() }
-
             val numericId = tmdbId.toIntOrNull() ?: return@withContext null
             val requestDeferred = CompletableDeferred<TmdbPosterArt?>()
-            posterArtInFlight.putIfAbsent(cacheKey, requestDeferred)?.let { existing ->
-                return@withContext existing.await()
+            while (true) {
+                val existing = posterArtInFlight.putIfAbsent(cacheKey, requestDeferred) ?: break
+                try {
+                    return@withContext existing.await()
+                } catch (cancelled: CancellationException) {
+                    currentCoroutineContext().ensureActive()
+                    posterArtInFlight.remove(cacheKey, existing)
+                }
             }
             val tmdbType = when (contentType) {
                 ContentType.SERIES, ContentType.TV -> "tv"
@@ -706,6 +713,7 @@ class TmdbMetadataService(
                     } ?: emptyList(),
                     originalLanguage = details.originalLanguage
                 )
+                currentCoroutineContext().ensureActive()
                 posterArtCache[cacheKey] = art
                 requestDeferred.complete(art)
                 art
@@ -731,16 +739,18 @@ class TmdbMetadataService(
             val tv = type == ContentType.SERIES || type == ContentType.TV
             val originalTag = focusLogoTag(original)
             val key = "$tmdbId:$tv:pt-BR:$originalTag"
-            focusDockLogos[key]?.let { return@withContext it.url }
+            val now = System.nanoTime() / 1_000_000L
+            focusDockLogos[key]?.takeIf { now - it.checkedAt < FOCUS_DOCK_LOGO_TTL_MS }?.let { return@withContext it.url }
             val variants = listOfNotNull("pt-BR", "pt", originalTag, originalTag?.substringBefore('-'))
                 .distinct().joinToString(",")
             try {
                 val response = if (tv) tmdbApi.getTvImages(id, TMDB_API_KEY, variants)
                 else tmdbApi.getMovieImages(id, TMDB_API_KEY, variants)
                 val logos = response.body()?.takeIf { response.isSuccessful }?.logos ?: return@withContext null
-                val url = buildImageUrl(focusDockLogoPath(logos, originalTag), "original")
+                val url = buildImageUrl(focusDockLogoPath(logos, originalTag), "original") ?: return@withContext null
+                currentCoroutineContext().ensureActive()
                 if (focusDockLogos.size >= 96) focusDockLogos.keys.firstOrNull()?.let(focusDockLogos::remove)
-                focusDockLogos[key] = FocusDockLogo(url)
+                focusDockLogos[key] = FocusDockLogo(url, now)
                 url
             } catch (error: CancellationException) {
                 throw error

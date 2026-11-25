@@ -47,9 +47,16 @@ class CatalogOrderViewModelTest {
                 CatalogDescriptor(ContentType.MOVIE, id = "two", name = "Two"),
                 CatalogDescriptor(ContentType.MOVIE, id = "three", name = "Three")
             ), types = listOf(ContentType.MOVIE), resources = emptyList())
-        val addons = mockk<AddonRepository> { every { getInstalledAddons() } returns flowOf(listOf(addon)) }
-        val collections = mockk<CollectionsDataStore> { every { this@mockk.collections } returns flowOf(emptyList()) }
+        val addons = mockk<AddonRepository> {
+            every { getInstalledAddons() } returns flowOf(listOf(addon))
+            coEvery { installedAddonsForOrderSync(any(), false) } returns listOf(addon)
+        }
+        val collections = mockk<CollectionsDataStore> {
+            every { this@mockk.collections } returns flowOf(emptyList())
+            coEvery { getCollections(any()) } returns emptyList()
+        }
         val sync = mockk<HomeCatalogSettingsSyncService>(relaxed = true)
+        every { sync.orderSyncUser(any()) } returns "account"
         val vm = CatalogOrderViewModel(addons, collections, layout, sync, mockk { every { this@mockk.addons } returns flowOf(emptyList()) })
         try {
             advanceUntilIdle()
@@ -69,6 +76,7 @@ class CatalogOrderViewModelTest {
             vm.saveOrder()
             advanceUntilIdle()
             assertEquals(listOf(initial[1].key, initial[0].key, initial[2].key), layout.homeCatalogOrderKeys.first())
+            verify(exactly = 1) { sync.triggerOrderPush(1 to 0L, "account") }
             vm.toggleCatalogEnabled(initial[1].disableKey)
             advanceUntilIdle()
             assertTrue(vm.uiState.value.items.first().isDisabled)
@@ -78,6 +86,13 @@ class CatalogOrderViewModelTest {
             advanceUntilIdle()
             assertEquals(initial[1].key, layout.homeCatalogOrderKeys.first().first())
             assertTrue(vm.orderFailed.value)
+            verify(exactly = 1) { sync.triggerOrderPush(any(), any()) }
+            val baseline = layout.observeHomeOrderSnapshot().first()
+            val concurrentOrder = initial.reversed().map { it.key }
+            layout.setHomeCatalogOrderKeys(concurrentOrder)
+            assertFalse(layout.saveDraftHomeOrder(baseline, baseline.settings.orderKeys, initial.map { it.key }))
+            assertEquals(concurrentOrder, layout.homeCatalogOrderKeys.first())
+            layout.setHomeCatalogOrderKeys(baseline.settings.orderKeys)
             active.value = 2
             advanceUntilIdle()
             assertEquals(initial.map { it.key }, vm.uiState.value.items.map { it.key })

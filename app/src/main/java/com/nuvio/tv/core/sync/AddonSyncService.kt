@@ -7,6 +7,8 @@ import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.core.util.canonicalizeAddonUrl
 import com.nuvio.tv.data.local.AddonPreferences
 import com.nuvio.tv.data.remote.supabase.SupabaseAddon
+import com.nuvio.tv.domain.model.AuthState
+import kotlinx.coroutines.CancellationException
 import io.github.jan.supabase.postgrest.Postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -41,10 +43,18 @@ class AddonSyncService @Inject constructor(
      * Push local addon URLs to Supabase via RPC.
      * Uses a SECURITY DEFINER function to handle RLS for linked devices.
      */
-    suspend fun pushToRemote(): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun pushToRemote(): Result<Unit> = pushToRemote(null, null)
+
+    internal suspend fun pushOrderToRemote(owner: Pair<Int, Long>, userId: String): Result<Unit> =
+        pushToRemote(owner, userId)
+
+    private suspend fun pushToRemote(owner: Pair<Int, Long>?, userId: String?): Result<Unit> = withContext(Dispatchers.IO) {
+        fun current() = owner == null || (addonPreferences.canSaveAddonOrder(owner) &&
+            (authManager.authState.value as? AuthState.FullAccount)?.userId == userId)
         try {
+            if (!current()) return@withContext Result.success(Unit)
             val activeProfile = profileManager.activeProfile
-            val profileId = profileManager.activeProfileId.value
+            val profileId = owner?.first ?: profileManager.activeProfileId.value
             Log.d(TAG, "pushToRemote: activeProfile=${activeProfile?.id} isPrimary=${activeProfile?.isPrimary} usesPrimaryAddons=${activeProfile?.usesPrimaryAddons} profileId=$profileId")
 
             if (activeProfile != null && !activeProfile.isPrimary && activeProfile.usesPrimaryAddons) {
@@ -52,9 +62,10 @@ class AddonSyncService @Inject constructor(
                 return@withContext Result.success(Unit)
             }
 
-            val localUrls = addonPreferences.installedAddonUrls.first()
-            val userSetNames = addonPreferences.userSetNames.first()
-            val enabledStates = addonPreferences.addonEnabledStates.first()
+            val snapshot = owner?.let { addonPreferences.readAddonSnapshot(profileId) }
+            val localUrls = snapshot?.urls ?: addonPreferences.installedAddonUrls.first()
+            val userSetNames = snapshot?.names ?: addonPreferences.userSetNames.first()
+            val enabledStates = snapshot?.enabled ?: addonPreferences.addonEnabledStates.first()
             Log.d(TAG, "pushToRemote: localUrls count=${localUrls.size} for profile $profileId")
 
             val params = buildJsonObject {
@@ -76,12 +87,16 @@ class AddonSyncService @Inject constructor(
                 putSyncOriginClientId(syncClientIdentity)
             }
             Log.d(TAG, "pushToRemote: calling RPC sync_push_addons with profile_id=$profileId")
-            withJwtRefreshRetry {
+            val pushed = withJwtRefreshRetry {
+                if (!current()) return@withJwtRefreshRetry false
                 postgrest.rpc("sync_push_addons", params)
+                true
             }
 
-            Log.d(TAG, "Pushed ${localUrls.size} addons to remote for profile $profileId")
+            if (pushed) Log.d(TAG, "Pushed ${localUrls.size} addons to remote for profile $profileId")
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Failed to push addons to remote", e.forLog())
             Result.failure(e)

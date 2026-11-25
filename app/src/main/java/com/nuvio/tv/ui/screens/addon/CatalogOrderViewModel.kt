@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.nuvio.tv.core.sync.HomeCatalogSettingsSyncService
 import com.nuvio.tv.core.sync.homeCatalogKey
 import com.nuvio.tv.core.sync.homeLegacyDisabledCatalogKey
+import com.nuvio.tv.core.sync.isDeviceOnlyCatalogKey
 import com.nuvio.tv.data.local.CollectionsDataStore
 import com.nuvio.tv.data.local.LayoutPreferenceDataStore
+import com.nuvio.tv.data.local.HomeOrderSnapshot
 import com.nuvio.tv.data.mediaserver.ServerCatalog
 import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.Collection
@@ -39,7 +41,8 @@ class CatalogOrderViewModel @Inject constructor(
     private var disabledKeysCache: Set<String> = emptySet()
     private val mutableDraft = MutableStateFlow<OrderDraft?>(null)
     internal val orderDraft = mutableDraft.asStateFlow()
-    private var orderOwner: Pair<Int, Long>? = null
+    private var catalogSnapshot: HomeOrderSnapshot? = null
+    private var draftSnapshot: HomeOrderSnapshot? = null
     private val mutableSaving = MutableStateFlow(false)
     internal val savingOrder = mutableSaving.asStateFlow()
     private val mutableOrderFailed = MutableStateFlow(false)
@@ -153,11 +156,11 @@ class CatalogOrderViewModel @Inject constructor(
     private fun previewMove(key: String, destination: Int) {
         if (mutableSaving.value) return
         val baseline = _uiState.value.items.map { it.key }
-        val owner = layoutPreferenceDataStore.homeOrderOwner()
-        val draft = mutableDraft.value?.takeIf { it.baseline == baseline && orderOwner == owner } ?: OrderDraft(baseline)
+        val snapshot = catalogSnapshot?.takeIf { it.owner == layoutPreferenceDataStore.homeOrderOwner() } ?: return
+        val draft = mutableDraft.value?.takeIf { it.baseline == baseline && it.owner == snapshot.owner }
+            ?: OrderDraft(snapshot.owner, baseline).also { draftSnapshot = snapshot }
         val updated = draft.move(key, destination)
         mutableOrderFailed.value = false
-        orderOwner = owner
         mutableDraft.value = updated.takeUnless { it.keys == it.baseline }
     }
 
@@ -168,14 +171,15 @@ class CatalogOrderViewModel @Inject constructor(
 
     internal fun saveOrder() {
         val draft = mutableDraft.value ?: return
-        val owner = orderOwner ?: return
+        val expected = draftSnapshot ?: return
         if (mutableSaving.value) return
         mutableSaving.value = true
         viewModelScope.launch {
             try {
-                if (draft.baseline == _uiState.value.items.map { it.key } &&
-                    layoutPreferenceDataStore.saveDraftHomeOrder(owner, draft.keys)) {
-                    homeCatalogSettingsSyncService.triggerPush()
+                val syncUser = homeCatalogSettingsSyncService.orderSyncUser(draft.owner)
+                if (isStillCatalogOrder(draft, expected) &&
+                    layoutPreferenceDataStore.saveDraftHomeOrder(expected, draft.baseline, draft.keys)) {
+                    if (syncUser != null) homeCatalogSettingsSyncService.triggerOrderPush(draft.owner, syncUser)
                 } else {
                     mutableOrderFailed.value = true
                 }
@@ -190,6 +194,22 @@ class CatalogOrderViewModel @Inject constructor(
         }
     }
 
+    private suspend fun isStillCatalogOrder(draft: OrderDraft, expected: HomeOrderSnapshot): Boolean {
+        val usePrimary = layoutPreferenceDataStore.homeOrderUsesPrimaryAddons(draft.owner) ?: return false
+        val addons = addonRepository.installedAddonsForOrderSync(draft.owner.first, usePrimary) ?: return false
+        val collections = collectionsDataStore.getCollections(draft.owner.first)
+        val localKeys = buildOrderedCatalogItems(
+            addons, collections, expected.settings.orderKeys, emptySet(),
+            followAddonsOrder = expected.followAddonsOrder
+        ).map(CatalogOrderItem::key)
+        val visibleKeys = draft.baseline.filterNot(::isDeviceOnlyCatalogKey)
+        return draft.owner == layoutPreferenceDataStore.homeOrderOwner() &&
+            draft.baseline == _uiState.value.items.map(CatalogOrderItem::key) &&
+            visibleKeys.toSet() == localKeys.toSet() &&
+            visibleKeys.filterNot { it.startsWith("collection_") } ==
+                localKeys.filterNot { it.startsWith("collection_") }
+    }
+
     private fun observeCatalogs() {
         viewModelScope.launch {
             combine(
@@ -200,43 +220,31 @@ class CatalogOrderViewModel @Inject constructor(
                     installed.enabledAddons() + servers + builtIn
                 },
                 combine(collectionsDataStore.collections, builtInCatalogs.collections) { saved, builtIn -> saved + builtIn },
-                layoutPreferenceDataStore.homeCatalogOrderKeys,
-                layoutPreferenceDataStore.disabledHomeCatalogKeys,
-                layoutPreferenceDataStore.customCatalogTitles,
-                layoutPreferenceDataStore.followAddonsOrder
-            ) { values ->
-                @Suppress("UNCHECKED_CAST")
-                val addons = values[0] as List<Addon>
-                @Suppress("UNCHECKED_CAST")
-                val collections = values[1] as List<Collection>
-                @Suppress("UNCHECKED_CAST")
-                val savedOrderKeys = builtInCatalogs.withDefaultFirst(values[2] as List<String>)
-                @Suppress("UNCHECKED_CAST")
-                val disabledKeys = (values[3] as List<String>).toSet()
-                @Suppress("UNCHECKED_CAST")
-                val customTitles = values[4] as Map<String, String>
-                val followAddons = values[5] as Boolean
-
+                layoutPreferenceDataStore.observeHomeOrderSnapshot()
+            ) { addons, collections, snapshot ->
                 val items = buildOrderedCatalogItems(
                     addons = addons,
                     collections = collections,
-                    savedOrderKeys = savedOrderKeys,
-                    disabledKeys = disabledKeys,
-                    customTitles = customTitles,
-                    followAddonsOrder = followAddons
+                    savedOrderKeys = builtInCatalogs.withDefaultFirst(snapshot.settings.orderKeys),
+                    disabledKeys = snapshot.settings.disabledKeys,
+                    customTitles = snapshot.settings.customTitles,
+                    followAddonsOrder = snapshot.followAddonsOrder
                 )
-                Pair(items, followAddons)
-            }.collectLatest { (orderedItems, followAddons) ->
+                items to snapshot
+            }.collectLatest { (orderedItems, snapshot) ->
+                if (snapshot.owner != layoutPreferenceDataStore.homeOrderOwner()) return@collectLatest
+                catalogSnapshot = snapshot
                 mutableDraft.value?.let { draft ->
-                    if (draft.baseline != orderedItems.map { it.key } ||
-                        _uiState.value.followAddonsOrder != followAddons) cancelOrder()
+                    if (draft.owner != snapshot.owner || draft.baseline != orderedItems.map { it.key } ||
+                        draftSnapshot?.settings?.orderKeys != snapshot.settings.orderKeys ||
+                        draftSnapshot?.followAddonsOrder != snapshot.followAddonsOrder) cancelOrder()
                 }
                 disabledKeysCache = orderedItems.filter { it.isDisabled }.map { it.disableKey }.toSet()
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         items = orderedItems,
-                        followAddonsOrder = followAddons
+                        followAddonsOrder = snapshot.followAddonsOrder
                     )
                 }
             }

@@ -8,6 +8,7 @@ import com.nuvio.tv.data.local.CollectionsDataStore
 import com.nuvio.tv.data.local.LayoutPreferenceDataStore
 import com.nuvio.tv.data.remote.supabase.SupabaseHomeCatalogSettingsBlob
 import com.nuvio.tv.domain.model.AuthState
+import kotlinx.coroutines.CancellationException
 import com.nuvio.tv.domain.model.WatchedTitlesMode
 import com.nuvio.tv.domain.model.enabledAddons
 import com.nuvio.tv.domain.repository.AddonRepository
@@ -229,13 +230,44 @@ class HomeCatalogSettingsSyncService @Inject constructor(
         }
     }
 
+    internal fun orderSyncUser(owner: Pair<Int, Long>): String? =
+        currentScope(owner.first)?.userId?.takeIf { layoutPreferenceDataStore.homeOrderOwner() == owner }
+
+    internal fun triggerOrderPush(owner: Pair<Int, Long>, userId: String) {
+        if (isSyncingFromRemote || orderSyncUser(owner) != userId) return
+        pushJob?.cancel()
+        pushJob = scope.launch {
+            delay(500)
+            val syncScope = HomeCatalogSyncScope(userId, owner.first)
+            fun current() = orderSyncUser(owner) == userId
+            if (!current()) return@launch
+            try {
+                val usePrimary = layoutPreferenceDataStore.homeOrderUsesPrimaryAddons(owner) ?: return@launch
+                val addons = addonRepository.installedAddonsForOrderSync(owner.first, usePrimary) ?: return@launch
+                val collections = collectionsDataStore.getCollections(owner.first)
+                val settings = layoutPreferenceDataStore.getHomeCatalogSettingsState(owner.first)
+                if (!current() || layoutPreferenceDataStore.homeOrderUsesPrimaryAddons(owner) != usePrimary) return@launch
+                val payload = buildHomeCatalogSyncPayload(addons, collections, settings)
+                pushPayload(syncScope, payload) {
+                    current() && layoutPreferenceDataStore.homeOrderUsesPrimaryAddons(owner) == usePrimary
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.e(TAG, "Scoped catalog order push failed", error.forLog())
+            }
+        }
+    }
+
     private suspend fun loadLocalPayload(): SyncHomeCatalogPayload {
         val addons = addonRepository.getInstalledAddons().first().enabledAddons()
         val collections = collectionsDataStore.getCurrentCollections()
         return layoutPreferenceDataStore.exportCatalogSettingsToSyncPayload(addons, collections)
     }
 
-    private suspend fun pushPayload(syncScope: HomeCatalogSyncScope, payload: SyncHomeCatalogPayload) {
+    private suspend fun pushPayload(
+        syncScope: HomeCatalogSyncScope, payload: SyncHomeCatalogPayload, isCurrent: () -> Boolean = { true }
+    ) {
         val jsonElement = mergedSharedPayloadJson(syncScope, payload)
 
         val params = buildJsonObject {
@@ -245,10 +277,12 @@ class HomeCatalogSettingsSyncService @Inject constructor(
             putSyncOriginClientId(syncClientIdentity)
         }
 
-        withJwtRefreshRetry {
+        val sent = withJwtRefreshRetry {
+            if (!isCurrent()) return@withJwtRefreshRetry false
             postgrest.rpc("sync_push_home_catalog_settings", params)
+            true
         }
-        cachedSharedSettings = CachedSharedSettings(scope = syncScope, settingsJson = jsonElement)
+        if (sent && isCurrent()) cachedSharedSettings = CachedSharedSettings(scope = syncScope, settingsJson = jsonElement)
     }
 
     private suspend fun fetchRemoteBlob(profileId: Int): SupabaseHomeCatalogSettingsBlob? {

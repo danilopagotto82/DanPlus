@@ -55,6 +55,17 @@ class ScoutFamilyPolicyTest {
     }
 
     @Test
+    fun reselectingTheSameRestrictedProfileInvalidatesItsPreviousRecommendationResult() {
+        val audience = ScoutAudience(ScoutSelection(2, 8L), RatingLimit.PG, setOf(3), true)
+        val pick = ScoutPick(5, false, "Previous result")
+        val state = ScoutScreenState(row = listOf(pick), hero = ScoutShownPick(pick), audience = audience)
+        val reselected = audience.copy(owner = ScoutSelection(2, 10L))
+        assertTrue(state.visibleTo(reselected).row.isEmpty())
+        assertNull(state.visibleTo(reselected).hero)
+        assertFalse(RatingLimit.PG.allows(null))
+    }
+
+    @Test
     fun aDelayedPinFromTheClosedDialogCannotUnlockTheReopenedMember() = runBlocking {
         val owner = ScoutSelection(1, 3L)
         val requests = ScoutPinRequests()

@@ -33,6 +33,7 @@ import com.nuvio.tv.data.remote.api.TmdbSeasonResponse
 import com.nuvio.tv.data.remote.dto.trakt.TraktIdsDto
 import com.nuvio.tv.data.repository.TraktPersonalRatingRepository
 import com.nuvio.tv.data.repository.TraktPersonalRatingTarget
+import com.nuvio.tv.data.repository.TraktRatingOwner
 import com.nuvio.tv.domain.model.Meta
 import com.nuvio.tv.domain.model.Video
 import com.nuvio.tv.ui.components.NuvioDialog
@@ -55,34 +56,26 @@ class TraktPersonalRatingViewModel @Inject constructor(
     internal val revision = profiles.profileSelectionRevision
     internal val authorization = auth.state
 
-    internal data class Owner(val profile: Int, val revision: Long, val generation: Long)
-
-    private suspend fun checkOwner(owner: Owner) {
-        val state = auth.getCurrentState(owner.profile)
-        check(activeProfile.value == owner.profile && revision.value == owner.revision &&
-            state.isAuthenticated && state.authorizationGeneration == owner.generation)
-    }
-
-    internal suspend fun target(meta: Meta, video: Video?, owner: Owner): TraktPersonalRatingTarget {
-        checkOwner(owner)
+    internal suspend fun target(meta: Meta, video: Video?, owner: TraktRatingOwner): TraktPersonalRatingTarget {
+        repository.checkOwner(owner)
         val imdb = (meta.imdbId ?: meta.id).takeIf { it.matches(Regex("tt[0-9]+")) }
         if (meta.apiType == "movie" && imdb != null) return TraktPersonalRatingTarget.Movie(TraktIdsDto(imdb = imdb))
         val id = checkNotNull(tmdbIds.ensureTmdbId(meta.id, meta.apiType, imdb)?.toIntOrNull()?.takeIf { it > 0 })
-        checkOwner(owner)
+        repository.checkOwner(owner)
         if (meta.apiType == "movie") return TraktPersonalRatingTarget.Movie(TraktIdsDto(tmdb = id))
         val season = checkNotNull(video?.season).also { check(it >= 0) }
         val episode = checkNotNull(video?.episode).also { check(it > 0) }
         val response = tmdbApi.getTvSeasonDetails(id, season, TmdbApiKey.value)
-        checkOwner(owner)
+        repository.checkOwner(owner)
         val episodeId = exactRatingEpisodeId(response.body().takeIf { response.isSuccessful }, season, episode)
         return TraktPersonalRatingTarget.Episode(TraktIdsDto(tmdb = checkNotNull(episodeId)))
     }
 
-    internal suspend fun read(owner: Owner, target: TraktPersonalRatingTarget): Int? =
-        repository.read(owner.profile, target) { checkOwner(owner) }
+    internal suspend fun read(owner: TraktRatingOwner, target: TraktPersonalRatingTarget): Int? =
+        repository.read(owner, target).also { repository.checkOwner(owner) }
 
-    internal suspend fun save(owner: Owner, target: TraktPersonalRatingTarget, rating: Int?) =
-        repository.set(owner.profile, target, rating) { checkOwner(owner) }
+    internal suspend fun save(owner: TraktRatingOwner, target: TraktPersonalRatingTarget, rating: Int?) =
+        repository.set(owner, target, rating).also { repository.checkOwner(owner) }
 }
 
 internal fun exactRatingEpisodeId(details: TmdbSeasonResponse?, season: Int, episode: Int): Int? =
@@ -96,23 +89,26 @@ internal fun TraktPersonalRatingRow(meta: Meta, episodes: List<Video>, viewModel
     val revision by viewModel.revision.collectAsStateWithLifecycle()
     val authorization by viewModel.authorization.collectAsStateWithLifecycle(initialValue = null)
     val session = authorization?.takeIf { it.isAuthenticated } ?: return
-    val owner = TraktPersonalRatingViewModel.Owner(profile, revision, session.authorizationGeneration)
+    val owner = TraktRatingOwner(profile, revision, session.authorizationGeneration)
     val choices = episodes.filter { (it.season ?: -1) >= 0 && (it.episode ?: 0) > 0 }.distinctBy { it.season to it.episode }
     if (meta.apiType != "movie" && choices.isEmpty()) return
 
     val scope = rememberCoroutineScope()
     var open by remember(owner, meta.id, meta.apiType) { mutableStateOf(false) }
     var selected by remember(owner, meta.id, meta.apiType) { mutableStateOf<Video?>(null) }
-    var score by remember(owner, meta.id, selected) { mutableStateOf<Int?>(null) }
-    var current by remember(owner, meta.id, selected) { mutableStateOf<Int?>(null) }
-    var target by remember(owner, meta.id, selected) { mutableStateOf<TraktPersonalRatingTarget?>(null) }
-    var failed by remember(owner, meta.id, selected) { mutableStateOf(false) }
-    var saved by remember(owner, meta.id, selected) { mutableStateOf(false) }
-    var writing by remember(owner, meta.id, selected) { mutableStateOf(false) }
-    var attempt by remember(owner, meta.id, selected) { mutableStateOf(0) }
-    val chosen = selected?.takeIf { episode -> choices.any { it.id == episode.id } }
+    val chosen = selected?.let { episode ->
+        choices.firstOrNull { it.id == episode.id && it.season == episode.season && it.episode == episode.episode }
+    }
+    val ratingKey = Triple(meta.id, meta.apiType, chosen)
+    var score by remember(owner, ratingKey) { mutableStateOf<Int?>(null) }
+    var current by remember(owner, ratingKey) { mutableStateOf<Int?>(null) }
+    var target by remember(owner, ratingKey) { mutableStateOf<TraktPersonalRatingTarget?>(null) }
+    var failed by remember(owner, ratingKey) { mutableStateOf(false) }
+    var saved by remember(owner, ratingKey) { mutableStateOf(false) }
+    var writing by remember(owner, ratingKey) { mutableStateOf(false) }
+    var attempt by remember(owner, ratingKey) { mutableStateOf(0) }
     val available = meta.apiType == "movie" || chosen != null
-    LaunchedEffect(open, owner, meta.id, chosen?.id, attempt) {
+    LaunchedEffect(open, owner, ratingKey, attempt) {
         if (!open || !available) return@LaunchedEffect
         failed = false
         saved = false

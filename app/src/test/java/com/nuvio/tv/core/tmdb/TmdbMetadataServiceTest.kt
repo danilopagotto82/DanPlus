@@ -17,6 +17,7 @@ import com.nuvio.tv.data.remote.api.TmdbDiscoverResponse
 import com.nuvio.tv.data.remote.api.TmdbDiscoverResult
 import com.nuvio.tv.data.remote.api.TmdbEpisode
 import com.nuvio.tv.data.remote.api.TmdbImagesResponse
+import com.nuvio.tv.data.remote.api.TmdbImage
 import com.nuvio.tv.data.remote.api.TmdbMovieReleaseDatesResponse
 import com.nuvio.tv.data.remote.api.TmdbNetwork
 import com.nuvio.tv.data.remote.api.TmdbNetworkDetailsResponse
@@ -38,8 +39,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -61,6 +64,38 @@ class TmdbMetadataServiceTest {
     }
 
     @After fun tearDownImageSizes() = unmockkObject(TmdbImageSizes)
+
+    @Test
+    fun `focus dock retries missing regional art and caches a confirmed image`() = runTest {
+        val api = mockk<TmdbApi>()
+        coEvery { api.getMovieImages(10, any(), "pt-BR,pt,en") } returnsMany listOf(
+            Response.success(TmdbImagesResponse(logos = listOf(TmdbImage("/ambiguous.png", "pt")))),
+            Response.success(TmdbImagesResponse(logos = listOf(TmdbImage("/br.png", "pt", "BR"))))
+        )
+        val service = TmdbMetadataService(api, StandardTestDispatcher(testScheduler))
+        assertNull(service.fetchFocusDockLogo("10", ContentType.MOVIE, "en"))
+        assertEquals("https://image.tmdb.org/t/p/original/br.png", service.fetchFocusDockLogo("10", ContentType.MOVIE, "en"))
+        assertNotNull(service.fetchFocusDockLogo("10", ContentType.MOVIE, "en"))
+        coVerify(exactly = 2) { api.getMovieImages(10, any(), "pt-BR,pt,en") }
+    }
+
+    @Test
+    fun `cancelling an artwork owner lets an active waiter retry the same shared fetch`() = runTest {
+        val api = mockk<TmdbApi>()
+        var requests = 0
+        coEvery { api.getMovieDetails(10, any(), "en") } coAnswers {
+            if (++requests == 1) awaitCancellation()
+            Response.success(TmdbDetailsResponse(id = 10, backdropPath = "/backdrop.jpg"))
+        }
+        val service = TmdbMetadataService(api, StandardTestDispatcher(testScheduler))
+        val owner = async { service.fetchPosterArt("10", ContentType.MOVIE) }
+        val waiter = async { service.fetchPosterArt("10", ContentType.MOVIE) }
+        runCurrent()
+        assertEquals(1, requests)
+        owner.cancel()
+        assertTrue(waiter.await()?.backdrop?.endsWith("/backdrop.jpg") == true)
+        assertEquals(2, requests)
+    }
 
     @Test
     fun `details hero publishes before secondary requests and cancellation does not poison cache`() = runTest {

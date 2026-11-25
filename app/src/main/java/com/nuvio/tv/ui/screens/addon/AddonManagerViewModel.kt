@@ -243,17 +243,23 @@ class AddonManagerViewModel @Inject constructor(
     internal val orderSaving = mutableOrderSaving.asStateFlow()
     private val mutableOrderError = MutableStateFlow(false)
     internal val orderError = mutableOrderError.asStateFlow()
-    private var orderOwner: Pair<Int, Long>? = null
+
+    init {
+        viewModelScope.launch {
+            layoutPreferenceDataStore.observeHomeOrderOwner().collect { owner ->
+                if (mutableOrder.value?.owner != owner) mutableOrder.value = null
+            }
+        }
+    }
 
     private fun reorderAddon(baseUrl: String, direction: Int) {
         if (isReadOnly || mutableOrderSaving.value) return
         val owner = layoutPreferenceDataStore.homeOrderOwner()
         val baseline = _uiState.value.installedAddons.map { it.baseUrl }
-        val draft = mutableOrder.value?.takeIf { it.baseline == baseline && orderOwner == owner } ?: OrderDraft(baseline)
+        val draft = mutableOrder.value?.takeIf { it.baseline == baseline && it.owner == owner } ?: OrderDraft(owner, baseline)
         val index = draft.keys.indexOf(baseUrl)
         if (index < 0) return
         val updated = draft.move(baseUrl, index + direction)
-        orderOwner = owner
         mutableOrder.value = updated.takeUnless { it.keys == it.baseline }
         mutableOrderError.value = false
     }
@@ -269,9 +275,9 @@ class AddonManagerViewModel @Inject constructor(
         mutableOrderSaving.value = true
         viewModelScope.launch {
             try {
-                check(!isReadOnly && orderOwner == layoutPreferenceDataStore.homeOrderOwner() &&
+                check(!isReadOnly && draft.owner == layoutPreferenceDataStore.homeOrderOwner() &&
                     draft.baseline == _uiState.value.installedAddons.map { it.baseUrl })
-                addonRepository.setAddonOrder(draft.keys)
+                mutableOrderError.value = !addonRepository.saveAddonOrderDraft(draft.owner, draft.baseline, draft.keys)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (_: Exception) {

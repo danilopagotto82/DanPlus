@@ -40,6 +40,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -599,12 +600,35 @@ class LayoutPreferenceDataStore @Inject constructor(
 
     internal fun homeOrderOwner() = profileManager.activeProfileId.value to profileManager.profileSelectionRevision.value
 
-    internal suspend fun saveDraftHomeOrder(owner: Pair<Int, Long>, keys: List<String>): Boolean {
+    internal fun observeHomeOrderOwner(): Flow<Pair<Int, Long>> =
+        combine(profileManager.activeProfileId, profileManager.profileSelectionRevision) { id, revision -> id to revision }
+
+    internal fun observeHomeOrderSnapshot(): Flow<HomeOrderSnapshot> = observeHomeOrderOwner().flatMapLatest { owner ->
+        store(owner.first).data.map { prefs ->
+            HomeOrderSnapshot(owner, readHomeCatalogSettingsState(prefs), prefs[followAddonsOrderKey] ?: false)
+        }
+    }
+
+    internal fun homeOrderUsesPrimaryAddons(owner: Pair<Int, Long>): Boolean? {
+        if (homeOrderOwner() != owner) return null
+        return profileManager.profiles.value.firstOrNull { it.id == owner.first }?.usesPrimaryAddons
+    }
+
+    internal suspend fun saveDraftHomeOrder(expected: HomeOrderSnapshot, baseline: List<String>, keys: List<String>): Boolean {
+        val before = normalizeCatalogOrderKeys(baseline)
         val normalized = normalizeCatalogOrderKeys(keys)
+        if (normalized == before || normalized.size != keys.size || normalized.toSet() != before.toSet()) return false
         var saved = false
-        store(owner.first).edit { prefs ->
-            if (homeOrderOwner() != owner) return@edit
-            prefs[homeCatalogOrderKeysKey] = gson.toJson(normalized)
+        store(expected.owner.first).edit { prefs ->
+            val stored = parseCatalogKeys(prefs[homeCatalogOrderKeysKey])
+            if (homeOrderOwner() != expected.owner || stored != expected.settings.orderKeys ||
+                (prefs[followAddonsOrderKey] ?: false) != expected.followAddonsOrder) return@edit
+            val updated = normalized.toMutableList()
+            stored.forEachIndexed { index, key ->
+                if (key !in before) updated.add(index.coerceAtMost(updated.size), key)
+            }
+            if (updated == stored) return@edit
+            prefs[homeCatalogOrderKeysKey] = gson.toJson(updated)
             saved = true
         }
         return saved
@@ -1006,8 +1030,8 @@ class LayoutPreferenceDataStore @Inject constructor(
         }
     }
 
-    internal suspend fun getHomeCatalogSettingsState(): LocalHomeCatalogSettingsState {
-        return readHomeCatalogSettingsState(store().data.first())
+    internal suspend fun getHomeCatalogSettingsState(profileId: Int = profileManager.activeProfileId.value): LocalHomeCatalogSettingsState {
+        return readHomeCatalogSettingsState(store(profileId).data.first())
     }
 
     internal suspend fun exportCatalogSettingsToSyncPayload(
@@ -1081,3 +1105,6 @@ class LayoutPreferenceDataStore @Inject constructor(
 internal val legacySearchDiscoverEnabledKey = booleanPreferencesKey("search_discover_enabled")
 internal val discoverLocationKey = stringPreferencesKey("discover_location")
 internal val lastNonOffDiscoverLocationKey = stringPreferencesKey("last_non_off_discover_location")
+internal data class HomeOrderSnapshot(
+    val owner: Pair<Int, Long>, val settings: LocalHomeCatalogSettingsState, val followAddonsOrder: Boolean
+)

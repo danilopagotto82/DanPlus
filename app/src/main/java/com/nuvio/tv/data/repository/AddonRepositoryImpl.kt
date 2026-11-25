@@ -12,6 +12,7 @@ import com.nuvio.tv.data.local.AddonPreferences
 import com.nuvio.tv.data.mapper.toDomain
 import com.nuvio.tv.data.remote.api.AddonApi
 import com.nuvio.tv.domain.model.Addon
+import com.nuvio.tv.domain.model.AuthState
 import com.nuvio.tv.domain.repository.AddonRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
@@ -108,7 +109,9 @@ class AddonRepositoryImpl(
 
     private fun normalizeUrl(url: String): String = canonicalizeUrl(url).lowercase()
 
-    private fun triggerRemoteSync() {
+    private fun triggerRemoteSync(owner: Pair<Int, Long>? = null, expectedUserId: String? = null) {
+        if (owner != null && (!preferences.canSaveAddonOrder(owner) || expectedUserId == null ||
+                (authManager.authState.value as? AuthState.FullAccount)?.userId != expectedUserId)) return
         if (isSyncingFromRemote) {
             Log.d(TAG, "triggerRemoteSync: skipped (syncing from remote)")
             return
@@ -121,7 +124,8 @@ class AddonRepositoryImpl(
         syncJob?.cancel()
         syncJob = syncScope.launch {
             delay(500)
-            val result = addonSyncService.pushToRemote()
+            val result = if (owner == null) addonSyncService.pushToRemote()
+                else addonSyncService.pushOrderToRemote(owner, requireNotNull(expectedUserId))
             Log.d(TAG, "triggerRemoteSync: push result=${result.isSuccess} ${result.exceptionOrNull()?.message ?: ""}")
         }
     }
@@ -456,6 +460,24 @@ class AddonRepositoryImpl(
     override suspend fun setAddonOrder(urls: List<String>) {
         if (!preferences.setAddonOrder(urls)) return
         triggerRemoteSync()
+    }
+
+    override suspend fun saveAddonOrderDraft(owner: Pair<Int, Long>, baseline: List<String>, order: List<String>): Boolean {
+        val userId = (authManager.authState.value as? AuthState.FullAccount)?.userId
+        if (!preferences.saveAddonOrderDraft(owner, baseline, order)) return false
+        triggerRemoteSync(owner, userId)
+        return true
+    }
+
+    override suspend fun installedAddonsForOrderSync(profileId: Int, usePrimary: Boolean): List<Addon>? {
+        val snapshot = preferences.readAddonSnapshot(profileId, usePrimary)
+        diskCacheLoaded.await()
+        val addons = snapshot.urls.map { url ->
+            val enabled = snapshot.enabled[url] ?: true
+            getCachedManifest(url)?.copy(enabled = enabled)
+                ?: if (!enabled) placeholderAddon(url, snapshot.names, enabled) else return null
+        }
+        return applyDisplayNames(addons, snapshot.names, snapshot.enabled).filter { it.enabled }
     }
 
     override suspend fun setAddonEnabled(url: String, enabled: Boolean) {

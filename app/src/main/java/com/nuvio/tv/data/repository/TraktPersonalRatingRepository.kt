@@ -1,6 +1,7 @@
 package com.nuvio.tv.data.repository
 
 import com.nuvio.tv.core.profile.ProfileManager
+import com.nuvio.tv.data.local.TraktAuthState
 import com.nuvio.tv.data.remote.api.TraktApi
 import com.nuvio.tv.data.remote.dto.trakt.TraktIdsDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktRatingEntryDto
@@ -9,6 +10,8 @@ import com.nuvio.tv.data.remote.dto.trakt.TraktRatingsRequestDto
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -67,19 +70,16 @@ class TraktPersonalRatingRepository @Inject constructor(
 ) {
     private val writes = Mutex()
 
-    suspend fun read(profileId: Int, target: TraktPersonalRatingTarget, revalidate: suspend () -> Unit = {}): Int? {
+    internal suspend fun read(owner: TraktRatingOwner, target: TraktPersonalRatingTarget): Int? {
         target.request(null) // validate the target before contacting Trakt
         var page = 1
         while (true) {
-            checkOwner(profileId)
-            revalidate()
+            checkOwner(owner)
             val response = auth.executeAuthorizedRequest { authorization ->
-                checkOwner(profileId)
-                revalidate()
+                checkOwner(owner, authorization)
                 api.getRatings(authorization, target.bucket, page, 100)
             } ?: throw IOException("Trakt ratings unavailable")
-            checkOwner(profileId)
-            revalidate()
+            checkOwner(owner)
             if (!response.isSuccessful) throw IOException("Trakt ratings read failed: ${response.code()}")
             response.body().orEmpty().firstNotNullOfOrNull(target::ratingIn)?.let { return it }
             val lastPage = response.headers()["X-Pagination-Page-Count"]?.toIntOrNull() ?: 1
@@ -90,19 +90,20 @@ class TraktPersonalRatingRepository @Inject constructor(
     }
 
     /** Returns false when the existing score already matches the requested state. */
-    suspend fun set(
-        profileId: Int, target: TraktPersonalRatingTarget, rating: Int?, revalidate: suspend () -> Unit = {}
+    internal suspend fun set(
+        owner: TraktRatingOwner, target: TraktPersonalRatingTarget, rating: Int?
     ): Boolean = writes.withLock {
         val request = target.request(rating)
-        if (read(profileId, target, revalidate) == rating) return@withLock false
+        if (read(owner, target) == rating) {
+            checkOwner(owner)
+            return@withLock false
+        }
         val response = auth.executeAuthorizedWriteRequest { authorization ->
-            checkOwner(profileId)
-            revalidate()
+            checkOwner(owner, authorization)
             if (rating == null) api.deletePersonalRating(authorization, request)
             else api.putPersonalRating(authorization, request)
         } ?: throw IOException("Trakt ratings unavailable")
-        checkOwner(profileId)
-        revalidate()
+        checkOwner(owner)
         val receipt = response.body()
         val counts = if (rating == null) receipt?.deleted else receipt?.added
         if (!response.isSuccessful || receipt == null ||
@@ -111,7 +112,19 @@ class TraktPersonalRatingRepository @Inject constructor(
         true
     }
 
-    private fun checkOwner(profileId: Int) {
-        check(profiles.activeProfileId.value == profileId) { "Rating profile changed" }
+    internal suspend fun checkOwner(owner: TraktRatingOwner, authorization: String? = null) {
+        val state = auth.getCurrentAuthState(owner.profile)
+        currentCoroutineContext().ensureActive()
+        check(owner.accepts(profiles.activeProfileId.value, profiles.profileSelectionRevision.value, state, authorization)) {
+            "Trakt rating owner changed"
+        }
     }
+}
+
+internal data class TraktRatingOwner(val profile: Int, val revision: Long, val generation: Long) {
+    fun accepts(
+        activeProfile: Int, activeRevision: Long, state: TraktAuthState, authorization: String?
+    ): Boolean = profile == activeProfile && revision == activeRevision && state.isAuthenticated &&
+        generation == state.authorizationGeneration &&
+        (authorization == null || authorization == "Bearer ${state.accessToken}")
 }

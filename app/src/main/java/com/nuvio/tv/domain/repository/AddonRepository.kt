@@ -10,6 +10,8 @@ interface AddonRepository {
     suspend fun addAddon(url: String)
     suspend fun removeAddon(url: String)
     suspend fun setAddonOrder(urls: List<String>)
+    suspend fun saveAddonOrderDraft(owner: Pair<Int, Long>, baseline: List<String>, order: List<String>): Boolean = false
+    suspend fun installedAddonsForOrderSync(profileId: Int, usePrimary: Boolean): List<Addon>? = null
     suspend fun setAddonEnabled(url: String, enabled: Boolean)
 
     /**

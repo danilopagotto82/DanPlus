@@ -7,7 +7,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.nuvio.tv.R
 
-internal data class OrderDraft(val baseline: List<String>, val keys: List<String> = baseline) {
+internal data class OrderDraft(val owner: Pair<Int, Long>, val baseline: List<String>, val keys: List<String> = baseline) {
     fun move(key: String, destination: Int): OrderDraft {
         val index = keys.indexOf(key)
         if (index < 0 || destination !in keys.indices || index == destination) return this

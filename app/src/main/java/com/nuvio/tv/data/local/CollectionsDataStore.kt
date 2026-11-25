@@ -235,7 +235,11 @@ class CollectionsDataStore @Inject constructor(
     }
 
     suspend fun getCurrentCollections(): List<Collection> {
-        val prefs = store().data.first()
+        return getCollections(profileManager.activeProfileId.value)
+    }
+
+    internal suspend fun getCollections(profileId: Int): List<Collection> {
+        val prefs = store(profileId).data.first()
         return parseCollections(prefs[collectionsKey])
     }
 
