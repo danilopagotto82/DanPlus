@@ -3,6 +3,8 @@ package com.nuvio.tv.core.scout
 import android.content.Context
 import android.util.Log
 import com.nuvio.tv.core.profile.ProfileManager
+import com.nuvio.tv.core.ratinglimit.RatingLimit
+import com.nuvio.tv.core.ratinglimit.RatingLimitGate
 import com.nuvio.tv.core.tmdb.TmdbService
 import com.nuvio.tv.core.util.ArcDispatchers
 import com.nuvio.tv.data.local.ScoutStore
@@ -25,7 +27,6 @@ import com.nuvio.tv.domain.model.scoutNormalizedName
 import com.nuvio.tv.domain.model.scoutRank
 import com.nuvio.tv.domain.model.scoutSeeds
 import com.nuvio.tv.domain.model.scoutShouldRefresh
-import com.nuvio.tv.domain.repository.WatchProgressRepository
 import com.squareup.moshi.Moshi
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -33,14 +34,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -49,6 +56,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
+import okio.FileSystem
+import okio.Path.Companion.toOkioPath
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -81,6 +90,25 @@ internal fun scoutLimitSignature(history: String, limitCode: String): String =
 internal fun scoutLimitChanged(pool: ScoutPool?, limitCode: String): Boolean =
     pool != null && pool.historySignature.substringAfterLast(LIMIT_MARK, "") != limitCode
 
+internal data class ScoutSelection(val profileId: Int, val revision: Long)
+
+internal fun ProfileManager.scoutSelection(): ScoutSelection =
+    ScoutSelection(activeProfileId.value, profileSelectionRevision.value)
+
+internal fun ProfileManager.scoutSelections() =
+    combine(activeProfileId, profileSelectionRevision, ::ScoutSelection).distinctUntilChanged()
+
+internal data class ScoutPoolScope(val selection: ScoutSelection, val limit: RatingLimit?)
+internal data class OwnedScoutPool(val scope: ScoutPoolScope, val pool: ScoutPool?)
+
+internal inline fun <T> scoutReadPolicy(read: () -> T): T? = try {
+    read()
+} catch (error: CancellationException) {
+    throw error
+} catch (_: Exception) {
+    null
+}
+
 /** Builds the picks on this box, about once a day, from what the profile watched and rated. */
 @Singleton
 class ScoutEngine @Inject constructor(
@@ -88,7 +116,6 @@ class ScoutEngine @Inject constructor(
     private val tmdbApi: TmdbApi,
     private val tmdbService: TmdbService,
     private val tmdbSettings: TmdbSettingsDataStore,
-    private val watchProgress: dagger.Lazy<WatchProgressRepository>,
     private val watchedItems: WatchedItemsPreferences,
     private val progressOf: dagger.Lazy<com.nuvio.tv.data.local.WatchProgressPreferences>,
     private val store: ScoutStore,
@@ -100,41 +127,58 @@ class ScoutEngine @Inject constructor(
 ) {
     private val adapter = Moshi.Builder().build().adapter(ScoutPool::class.java)
     private val refreshLock = Mutex()
-    private val _pool = MutableStateFlow<ScoutPool?>(null)
-    val pool: StateFlow<ScoutPool?> = _pool.asStateFlow()
+    private val _pool = MutableStateFlow<OwnedScoutPool?>(null)
+    private val filesLock = Any()
+    @Volatile private var fileRevision = 0L
 
-    fun activeProfile(): Int = profileManager.activeProfileId.value
+    internal fun selection(): ScoutSelection = profileManager.scoutSelection()
+    fun activeProfile(): Int = selection().profileId
 
-    internal fun activePool(): ScoutPool? = _pool.value.takeIf { loadedProfile == activeProfile() }
+    internal fun scopeFor(owner: ScoutSelection = selection()): ScoutPoolScope? {
+        if (owner != selection()) return null
+        val scope = scoutReadPolicy { ScoutPoolScope(owner, ratingLimits.get().limitFor(owner.profileId)) }
+        return scope.takeIf { owner == selection() }
+    }
 
-    @Volatile private var loadedProfile: Int? = null
+    internal fun activePool(owner: ScoutSelection = selection()): ScoutPool? =
+        _pool.value?.takeIf { it.scope == scopeFor(owner) }?.pool
+
+    internal val pool: Flow<OwnedScoutPool?> = flow {
+        val gate = scoutReadPolicy { ratingLimits.get() }
+        if (gate == null) emit(null)
+        else emitAll(combine(_pool, profileManager.scoutSelections(), gate.limits) { stored, owner, _ ->
+            stored?.takeIf { it.pool != null && it.scope == scopeFor(owner) }
+        }.distinctUntilChanged())
+    }
 
     private fun file(profileId: Int) = File(context.filesDir, "scout/pool_$profileId.json")
 
-    private fun showSaved(profileId: Int) {
-        if (loadedProfile == profileId) return
-        _pool.value = runCatching { adapter.fromJson(file(profileId).readText()) }.getOrNull()
-        loadedProfile = profileId
-    }
+    private fun readPool(profileId: Int, limit: RatingLimit?): ScoutPool? =
+        runCatching { adapter.fromJson(file(profileId).readText()) }.getOrNull()
+            ?.takeIf { it.version == SCOUT_POOL_VERSION && !scoutLimitChanged(it, limit?.code.orEmpty()) }
 
     /** Shows the active profile's picks on every switch and keeps them no older than a day while the app stays open. */
     suspend fun followProfiles(checkEveryMs: Long = CHECK_EVERY_MS) {
-        profileManager.activeProfileId.collectLatest { profileId ->
-            refreshLock.withLock { withContext(Dispatchers.IO) { showSaved(profileId) } }
+        profileManager.scoutSelections().collectLatest { owner ->
             coroutineScope {
                 launch {
-                    store.profile.map { profile -> profile.ratings.values.sumOf { it.ratedAt } }.distinctUntilChanged().drop(1).collectLatest {
-                        delay(RATING_SETTLE_MS)
-                        refreshIfDue()
+                    store.profile.filter { it.profileId == owner.profileId }
+                        .map { profile -> profile.ratings.values.sumOf { it.ratedAt } }.distinctUntilChanged().drop(1).collectLatest {
+                            delay(RATING_SETTLE_MS)
+                            refresh(owner, System.currentTimeMillis())
+                        }
+                }
+                scoutReadPolicy { ratingLimits.get() }?.let { gate ->
+                    scoutReadPolicy { gate.limitFor(owner.profileId) }
+                    launch {
+                        gate.limits.map { it[owner.profileId] }.distinctUntilChanged().drop(1).collectLatest {
+                            refresh(owner, System.currentTimeMillis())
+                        }
                     }
                 }
-                runCatching { ratingLimits.get() }.getOrNull()?.let { gate ->
-                    gate.limitFor(profileId)
-                    launch { gate.limits.map { it[profileId] }.distinctUntilChanged().drop(1).collectLatest { refreshIfDue() } }
-                }
                 while (true) {
-                    refreshIfDue()
-                    moodCheck.get().runIfDue()
+                    refresh(owner, System.currentTimeMillis())
+                    if (owner == selection()) moodCheck.get().runIfDue()
                     delay(checkEveryMs)
                 }
             }
@@ -142,32 +186,54 @@ class ScoutEngine @Inject constructor(
     }
 
     /** Drops what is held for a removed profile, or for every profile when [profileId] is null. */
-    fun forget(profileId: Int?) {
-        if (profileId == null || loadedProfile == profileId) {
-            loadedProfile = null
-            _pool.value = null
-        }
+    fun forget(profileId: Int?) = synchronized(filesLock) {
+        fileRevision++
+        if (profileId == null || _pool.value?.scope?.selection?.profileId == profileId) _pool.value = null
     }
 
-    suspend fun refreshIfDue(now: Long = System.currentTimeMillis()) = refreshLock.withLock {
+    suspend fun refreshIfDue(now: Long = System.currentTimeMillis()) = refresh(selection(), now)
+
+    private suspend fun refresh(owner: ScoutSelection, now: Long) = refreshLock.withLock {
         withContext(ArcDispatchers.background) {
-            val profileId = profileManager.activeProfileId.value
-            showSaved(profileId)
-            val profile = store.current()
-            val watched = watchProgress.get().tasteHistory.first()
-            val started = watchProgress.get().allProgress.first()
-            val signals = scoutSignals(watched, started, profile.ratings.values, now)
-            val watching = scoutWatchingSeeds(started, signals)
-            val seeds = scoutSignalSeeds(signals, watching)
-            val limitCode = runCatching { ratingLimits.get().limitFor(profileId)?.code }.getOrNull().orEmpty()
-            val signature = scoutLimitSignature(scoutHistorySignature(seeds, profile.settings.leaveOutGenres, profile.settings.leaveOutLanguages), limitCode)
-            val limitChanged = scoutLimitChanged(_pool.value, limitCode)
-            if (!limitChanged && !scoutShouldRefresh(_pool.value, signature, now)) return@withContext
+            val scope = scopeFor(owner) ?: return@withContext
+            val revision = fileRevision
+            val operation = currentCoroutineContext()
+            val isCurrent = { operation.isActive && fileRevision == revision && scopeFor(owner) == scope }
+            val profileId = owner.profileId
             try {
-                val built = build(seeds, profile, signature, now, signals = signals + watching.filter { it in seeds }, ageTitles = signals + watching, profileId = profileId)
-                if (built.picked.isEmpty() || profileManager.activeProfileId.value != profileId) return@withContext
-                _pool.value = built
-                file(profileId).apply { parentFile?.mkdirs() }.writeText(adapter.toJson(built))
+                if (_pool.value?.scope != scope) {
+                    val saved = readPool(profileId, scope.limit)
+                    synchronized(filesLock) {
+                        if (isCurrent()) _pool.value = OwnedScoutPool(scope, saved)
+                    }
+                }
+                if (!isCurrent()) return@withContext
+                val profile = store.profileOf(profileId)
+                if (profile.profileId != profileId || !isCurrent()) return@withContext
+                val watched = watchedItems.getAllItems(profileId)
+                if (!isCurrent()) return@withContext
+                val started = progressOf.get().observeAllProgress(profileId).first()
+                if (!isCurrent()) return@withContext
+                val signals = scoutSignals(watched, started, profile.ratings.values, now)
+                val watching = scoutWatchingSeeds(started, signals)
+                val seeds = scoutSignalSeeds(signals, watching)
+                val signature = scoutLimitSignature(
+                    scoutHistorySignature(seeds, profile.settings.leaveOutGenres, profile.settings.leaveOutLanguages),
+                    scope.limit?.code.orEmpty()
+                )
+                if (!scoutShouldRefresh(activePool(owner), signature, now)) return@withContext
+                val listed = folderSupport.listed(owner, started)
+                if (!isCurrent()) return@withContext
+                val built = build(
+                    seeds, profile, signature, now, exclusionsOf(profile, watched, started, listed),
+                    signals = signals + watching.filter { it in seeds }, ageTitles = signals + watching,
+                    limit = scope.limit, isCurrent = isCurrent
+                )
+                operation.ensureActive()
+                if (built == null || built.picked.isEmpty() || !isCurrent()) return@withContext
+                savePool(profileId, built, isCurrent) {
+                    _pool.value = OwnedScoutPool(scope, built)
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -176,14 +242,42 @@ class ScoutEngine @Inject constructor(
         }
     }
 
+    private fun savePool(profileId: Int, pool: ScoutPool, isCurrent: () -> Boolean, publish: () -> Unit = {}) {
+        if (!isCurrent()) return
+        val target = file(profileId)
+        val directory = requireNotNull(target.parentFile).apply { mkdirs() }
+        val staged = File.createTempFile("pool_$profileId-", ".tmp", directory)
+        try {
+            staged.writeText(adapter.toJson(pool))
+            synchronized(filesLock) {
+                if (!isCurrent()) return
+                FileSystem.SYSTEM.atomicMove(staged.toOkioPath(), target.toOkioPath())
+                if (isCurrent()) publish()
+            }
+        } finally {
+            staged.delete()
+        }
+    }
+
     /** Another profile on this box: its saved picks, built once if it has none, and what it has seen. */
     suspend fun memberFor(profileId: Int, now: Long = System.currentTimeMillis()): ScoutGroupMember = withContext(ArcDispatchers.background) {
+        val owner = selection()
+        val revision = fileRevision
+        val policy = scoutReadPolicy { ScoutPoolScope(owner, ratingLimits.get().limitFor(profileId)) }
+            ?: return@withContext ScoutGroupMember(null, ScoutExclusions())
+        val operation = currentCoroutineContext()
+        fun isCurrent() = operation.isActive && owner == selection() && revision == fileRevision &&
+            scoutReadPolicy { ScoutPoolScope(owner, ratingLimits.get().limitFor(profileId)) } == policy
         val profile = store.profileOf(profileId)
+        if (profile.profileId != profileId || !isCurrent()) return@withContext ScoutGroupMember(null, ScoutExclusions())
         val watched = watchedItems.getAllItems(profileId)
-        val started = runCatching { progressOf.get().observeAllProgress(profileId).first() }.getOrDefault(emptyList())
-        val exclusions = exclusionsOf(profile, watched, started)
-        val saved = runCatching { adapter.fromJson(file(profileId).readText()) }.getOrNull()
-        if (saved != null && saved.version >= SCOUT_POOL_VERSION && now - saved.builtAt < MEMBER_POOL_MAX_AGE_MS) {
+        if (!isCurrent()) return@withContext ScoutGroupMember(null, ScoutExclusions())
+        val started = progressOf.get().observeAllProgress(profileId).first()
+        if (!isCurrent()) return@withContext ScoutGroupMember(null, ScoutExclusions())
+        val exclusions = exclusionsOf(profile, watched, started, ScoutListed())
+        val saved = readPool(profileId, policy.limit)
+        if (!isCurrent()) return@withContext ScoutGroupMember(null, ScoutExclusions())
+        if (saved != null && now - saved.builtAt < MEMBER_POOL_MAX_AGE_MS) {
             return@withContext ScoutGroupMember(saved, exclusions)
         }
         val finished = scoutSeeds(watched, profile.ratings.values)
@@ -191,19 +285,22 @@ class ScoutEngine @Inject constructor(
         val seeds = scoutSignalSeeds(finished, watching)
         if (seeds.isEmpty()) return@withContext ScoutGroupMember(saved, exclusions)
         val built = try {
-            build(seeds, profile, scoutHistorySignature(seeds, profile.settings.leaveOutGenres, profile.settings.leaveOutLanguages), now, exclusions, ageTitles = finished + watching, profileId = profileId)
+            build(
+                seeds, profile, scoutLimitSignature(
+                    scoutHistorySignature(seeds, profile.settings.leaveOutGenres, profile.settings.leaveOutLanguages),
+                    policy.limit?.code.orEmpty()
+                ), now, exclusions, ageTitles = finished + watching, limit = policy.limit, isCurrent = ::isCurrent
+            )
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
             Log.w(TAG, "Member picks not built: ${error.javaClass.simpleName}")
             null
         }
-        if (built != null && built.picked.isNotEmpty()) {
-            runCatching { file(profileId).apply { parentFile?.mkdirs() }.writeText(adapter.toJson(built)) }
-            ScoutGroupMember(built, exclusions)
-        } else {
-            ScoutGroupMember(saved, exclusions)
-        }
+        if (!isCurrent()) return@withContext ScoutGroupMember(null, ScoutExclusions())
+        val ready = built?.takeIf { it.picked.isNotEmpty() } ?: return@withContext ScoutGroupMember(saved, exclusions)
+        if (profileId != owner.profileId) runCatching { savePool(profileId, ready, ::isCurrent) }
+        if (isCurrent()) ScoutGroupMember(ready, exclusions) else ScoutGroupMember(null, ScoutExclusions())
     }
 
     private suspend fun build(
@@ -211,24 +308,26 @@ class ScoutEngine @Inject constructor(
         profile: ScoutProfile,
         signature: String,
         now: Long,
-        known: ScoutExclusions? = null,
+        exclusions: ScoutExclusions,
         signals: List<ScoutSeed> = seeds,
         ageTitles: List<ScoutSeed> = signals,
-        profileId: Int = profileManager.activeProfileId.value
-    ): ScoutPool {
+        limit: RatingLimit?,
+        isCurrent: () -> Boolean
+    ): ScoutPool? {
+        val profileId = profile.profileId
         val language = tmdbSettings.settings.first().language
-        val exclusions = known ?: exclusions(profile)
+        if (!isCurrent()) return null
         val gate = Semaphore(MAX_CONCURRENT_REQUESTS)
         val read = try {
-            picksBuilder.ageCeiling(ageTitles, now, profileId)
+            picksBuilder.ageCeiling(ageTitles, now, profileId, isCurrent)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
             Log.w(TAG, "No age read: ${error.javaClass.simpleName}")
             null
         }
+        if (!isCurrent()) return null
         val ratingGate = ratingLimits.get()
-        val limit = ratingGate.limitFor(profileId)
         val ceiling = listOfNotNull(read, limit?.scoutCeiling).minOrNull()
         val resolved = if (limit != null) emptyList() else coroutineScope {
             seeds.map { seed ->
@@ -238,6 +337,7 @@ class ScoutEngine @Inject constructor(
         val blockedSeeds = resolved.filter { (seed, _) -> seed.finishedOrder != null || seed.weight < 0 }.mapNotNull { (seed, result) ->
             result?.first?.let { (if (seed.tv) "tv:" else "movie:") + it }
         }
+        if (!isCurrent()) return null
         val full = exclusions.copy(tmdbKeys = exclusions.tmdbKeys + blockedSeeds)
         val results = resolved.map { (seed, result) -> seed to result?.second.orEmpty() }.toMutableList()
 
@@ -286,14 +386,16 @@ class ScoutEngine @Inject constructor(
                 certification = limit?.let { scoutLimitCertification(it, tv = true) })
         }
 
-        val improved = if (known != null || limit != null) null else try {
-            picksBuilder.improve(signals, profile.ratings.values, results, full, now, language, ceiling)
+        if (!isCurrent()) return null
+        val improved = if (limit != null || profileId != activeProfile()) null else try {
+            picksBuilder.improve(signals, profile.ratings.values, results, full, now, language, ceiling, profileId, isCurrent)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
             Log.w(TAG, "Picks kept simple: ${error.javaClass.simpleName}")
             null
         }
+        if (!isCurrent()) return null
         if (ceiling != null) levels = picksBuilder.knownAgeLevels(now)
 
         suspend fun ratedForProfile(list: List<ScoutPick>): List<ScoutPick> =
@@ -331,23 +433,37 @@ class ScoutEngine @Inject constructor(
     }
 
     /** Forgets the picks; the next refresh builds them again from what is left. */
-    suspend fun reset() = refreshLock.withLock {
-        withContext(Dispatchers.IO) {
-            runCatching { file(profileManager.activeProfileId.value).delete() }
-            _pool.value = null
+    suspend fun reset() {
+        val owner = selection()
+        refreshLock.withLock {
+            withContext(Dispatchers.IO) {
+                synchronized(filesLock) {
+                    if (owner == selection()) {
+                        fileRevision++
+                        file(owner.profileId).delete()
+                        _pool.value = null
+                    }
+                }
+            }
         }
     }
 
-    suspend fun exclusions(profile: ScoutProfile): ScoutExclusions = withContext(Dispatchers.Default) {
-        exclusionsOf(profile, watchProgress.get().tasteHistory.first(), watchProgress.get().allProgress.first())
+    internal suspend fun exclusions(profile: ScoutProfile, owner: ScoutSelection): ScoutExclusions? = withContext(Dispatchers.Default) {
+        if (profile.profileId != owner.profileId || owner != selection()) return@withContext null
+        val watched = watchedItems.getAllItems(owner.profileId)
+        if (owner != selection()) return@withContext null
+        val started = progressOf.get().observeAllProgress(owner.profileId).first()
+        if (owner != selection()) return@withContext null
+        val listed = folderSupport.listed(owner, started)
+        if (owner == selection()) exclusionsOf(profile, watched, started, listed) else null
     }
 
-    private suspend fun exclusionsOf(
+    private fun exclusionsOf(
         profile: ScoutProfile,
         watched: List<com.nuvio.tv.domain.model.WatchedItem>,
-        started: List<com.nuvio.tv.domain.model.WatchProgress>
+        started: List<com.nuvio.tv.domain.model.WatchProgress>,
+        listed: ScoutListed
     ): ScoutExclusions {
-        val listed = folderSupport.listed()
         val names = watched.map { scoutExclusionName(it.title, it.releaseInfo) } +
             started.map { scoutNormalizedName(it.name) } +
             profile.ratings.values.filter { it.rating == com.nuvio.tv.domain.model.ScoutRating.NOT_FOR_ME }.map { scoutNormalizedName(it.title.name) } +

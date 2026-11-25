@@ -16,7 +16,7 @@ import com.nuvio.tv.domain.model.ScoutRating
 import com.nuvio.tv.domain.model.ScoutRatingEntry
 import com.nuvio.tv.domain.model.WatchedItem
 import com.nuvio.tv.domain.model.scoutNormalizedName
-import com.nuvio.tv.domain.repository.WatchProgressRepository
+import com.nuvio.tv.data.local.WatchedItemsPreferences
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
@@ -26,7 +26,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
@@ -239,7 +240,7 @@ class ScoutTasteRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val tmdbApi: TmdbApi,
     private val tmdbService: TmdbService,
-    private val watchProgress: WatchProgressRepository,
+    private val watchedItems: WatchedItemsPreferences,
     private val store: ScoutStore,
     private val profileManager: ProfileManager
 ) {
@@ -250,13 +251,20 @@ class ScoutTasteRepository @Inject constructor(
 
     private fun file(profileId: Int) = File(context.filesDir, "scout/taste_$profileId.json")
 
+    internal suspend fun watched(owner: ScoutSelection): List<WatchedItem> =
+        watchedItems.getAllItems(owner.profileId).takeIf { owner == profileManager.scoutSelection() }.orEmpty()
+
     /** Only called while the page is open. Titles that fail are simply tried on the next visit. */
-    suspend fun load(onProgress: (ScoutTasteProgress) -> Unit) = lock.withLock {
+    internal suspend fun load(owner: ScoutSelection, history: List<WatchedItem>, onProgress: (ScoutTasteProgress) -> Unit) = lock.withLock {
         withContext(Dispatchers.IO) {
-            val target = file(profileManager.activeProfileId.value)
+            val operation = currentCoroutineContext()
+            fun current() = operation.isActive && owner == profileManager.scoutSelection()
+            if (!current()) return@withContext
+            val target = file(owner.profileId)
             val known = runCatching { adapter.fromJson(target.readText()).orEmpty() }.getOrDefault(emptyList())
                 .associateBy { it.contentId }.toMutableMap()
-            val wanted = scoutTasteTargets(watchProgress.tasteHistory.first(), store.current().ratings.values)
+            val wanted = scoutTasteTargets(history, store.profileOf(owner.profileId).ratings.values)
+            if (!current()) return@withContext
             val now = System.currentTimeMillis()
             known.keys.retainAll(wanted.map { it.first }.toSet())
             val missing = wanted.filter { known[it.first].needsLookUp(now) }
@@ -271,6 +279,7 @@ class ScoutTasteRepository @Inject constructor(
                         async {
                             val title = gate.withPermit { lookUp(id, tv) }
                             update.withLock {
+                                if (!current()) return@withLock
                                 done++
                                 known[id] = title ?: failed(known[id], id)
                                 onProgress(ScoutTasteProgress(titles(), done, wanted.size))
@@ -280,14 +289,20 @@ class ScoutTasteRepository @Inject constructor(
                     }.awaitAll()
                 }
             } finally {
-                save(target, known.values.toList())
+                if (current()) save(target, known.values.toList())
             }
         }
     }
 
     /** For the daily rebuild: the given titles, looked up only if they are not known yet. */
-    suspend fun fill(wanted: List<Pair<String, Boolean>>, now: Long, profileId: Int = profileManager.activeProfileId.value): Map<String, ScoutTasteTitle> = lock.withLock {
+    suspend fun fill(
+        wanted: List<Pair<String, Boolean>>,
+        now: Long,
+        profileId: Int = profileManager.activeProfileId.value,
+        isCurrent: () -> Boolean = { true }
+    ): Map<String, ScoutTasteTitle> = lock.withLock {
         withContext(ArcDispatchers.background) {
+            if (!isCurrent()) return@withContext emptyMap()
             val target = file(profileId)
             val known = runCatching { adapter.fromJson(target.readText()).orEmpty() }.getOrDefault(emptyList())
                 .associateBy { it.contentId }.toMutableMap()
@@ -296,19 +311,23 @@ class ScoutTasteRepository @Inject constructor(
             coroutineScope {
                 missing.map { (id, tv) -> async { id to gate.withPermit { lookUp(id, tv) } } }.awaitAll()
             }.forEach { (id, title) -> known[id] = title ?: failed(known[id], id) }
+            if (!isCurrent()) return@withContext emptyMap()
             if (missing.isNotEmpty()) save(target, known.values.toList())
             wanted.mapNotNull { (id, _) -> known[id]?.takeIf { it.fetchedAt > 0 }?.let { id to it } }.toMap()
         }
     }
 
     /** How much each country's shows count in what the profile watched, from facts already on the box. No lookups. */
-    suspend fun countryWeights(): Map<String, Double> = withContext(Dispatchers.IO) {
-        val known = runCatching { adapter.fromJson(file(profileManager.activeProfileId.value).readText()).orEmpty() }
-            .getOrDefault(emptyList())
-        if (known.isEmpty()) return@withContext emptyMap()
-        val ratings = store.current().ratings
-        val wanted = scoutTasteTargets(watchProgress.tasteHistory.first(), ratings.values).map { it.first }.toSet()
-        scoutCountryWeights(known.filter { it.contentId in wanted }, ratings)
+    suspend fun countryWeights(): Map<String, Double> {
+        val owner = profileManager.scoutSelection()
+        return withContext(Dispatchers.IO) {
+            val known = runCatching { adapter.fromJson(file(owner.profileId).readText()).orEmpty() }.getOrDefault(emptyList())
+            if (known.isEmpty()) return@withContext emptyMap()
+            val ratings = store.profileOf(owner.profileId).ratings
+            val wanted = scoutTasteTargets(watched(owner), ratings.values).map { it.first }.toSet()
+            if (owner != profileManager.scoutSelection()) return@withContext emptyMap()
+            scoutCountryWeights(known.filter { it.contentId in wanted }, ratings)
+        }
     }
 
     private fun save(target: File, titles: List<ScoutTasteTitle>) {

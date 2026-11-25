@@ -21,13 +21,13 @@ class ScoutProfileFiles @Inject constructor(
     private fun folder() = File(context.filesDir, "scout")
 
     override fun removeProfile(profileId: Int) {
-        scoutDeleteProfileFiles(folder(), profileId)
         engine.get().forget(profileId)
+        scoutDeleteProfileFiles(folder(), profileId)
     }
 
     override fun clearAllProfiles() {
-        scoutDeleteProfileFiles(folder(), null)
         engine.get().forget(null)
+        scoutDeleteProfileFiles(folder(), null)
     }
 }
 
@@ -36,7 +36,8 @@ internal fun scoutDeleteProfileFiles(folder: File, profileId: Int?) {
         folder.deleteRecursively()
         return
     }
-    listOf("pool", "ai", "taste", "shown", "mood_ai").forEach { File(folder, "${it}_$profileId.json").delete() }
+    listOf("pool", "ai", "taste", "shown", "mood_ai", "tile_heroes").forEach { File(folder, "${it}_$profileId.json").delete() }
+    File(folder, "opened_$profileId.txt").delete()
 }
 
 @Module

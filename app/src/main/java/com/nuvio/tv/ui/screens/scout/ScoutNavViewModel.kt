@@ -10,7 +10,7 @@ import javax.inject.Inject
 class ScoutNavViewModel @Inject constructor(
     private val engine: ScoutEngine
 ) : ViewModel() {
-    fun surprisePick(): ScoutPick? = engine.pool.value?.picked?.take(SURPRISE_FROM)?.randomOrNull()
+    fun surprisePick(): ScoutPick? = engine.activePool()?.picked?.take(SURPRISE_FROM)?.randomOrNull()
 
     private companion object {
         const val SURPRISE_FROM = 60

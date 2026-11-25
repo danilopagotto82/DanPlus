@@ -493,7 +493,9 @@ class MetaDetailsViewModel @Inject constructor(
                 }
             }
         }
-        if (com.nuvio.tv.domain.model.ScoutFeature.available) com.nuvio.tv.core.scout.ScoutOpenedLog.mark(context, itemId, itemType)
+        if (com.nuvio.tv.domain.model.ScoutFeature.available) {
+            com.nuvio.tv.core.scout.ScoutOpenedLog.mark(context, profileManager.activeProfileId.value, itemId, itemType)
+        }
         posterOptions.bind(viewModelScope)
         observeMetaViewSettings()
         observeTrailerAutoplaySettings()

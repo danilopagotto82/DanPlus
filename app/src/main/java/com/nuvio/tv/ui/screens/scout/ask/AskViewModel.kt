@@ -178,7 +178,7 @@ class AskViewModel @Inject constructor(
                     layout.customPosterEnabledScreens.first()
                 )
                 artwork.withPattern(
-                    engine.get().pool.value?.picked.orEmpty().take(WALL_POSTERS).mapNotNull { pick ->
+                    engine.get().activePool()?.picked.orEmpty().take(WALL_POSTERS).mapNotNull { pick ->
                         pick.poster?.let { poster ->
                             MetaPreview(
                                 id = "tmdb:${pick.tmdbId}",

@@ -304,14 +304,12 @@ class AskService @Inject constructor(
 
     suspend fun testKey(config: AskConfig): AskKeyTest = engine.testKey(config)
 
-    suspend fun sortPicks(candidates: List<AskCandidate>): List<AskRanked>? {
-        val config = vault.current().activeConfig ?: return null
-        return engine.sortPicks(config, candidates, tasteSources.firstOrNull()?.taste() ?: AskTaste(), answerLanguage())
-    }
+    internal suspend fun sortPicks(candidates: List<AskCandidate>, config: AskConfig, taste: AskTaste): List<AskRanked>? =
+        engine.sortPicks(config, candidates, taste, answerLanguage())
 
     /** Only the mood and the title names leave the box. */
-    suspend fun checkMood(mood: String, candidates: List<AskCandidate>): Set<String>? {
-        val config = vault.current().activeConfig ?: return null
+    suspend fun checkMood(mood: String, candidates: List<AskCandidate>, profileId: Int): Set<String>? {
+        val config = vault.current(profileId).activeConfig ?: return null
         return engine.checkMood(config, mood, candidates)
     }
 

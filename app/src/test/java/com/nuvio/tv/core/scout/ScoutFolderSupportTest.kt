@@ -43,7 +43,7 @@ class ScoutFolderSupportTest {
         onHistory: () -> Unit = {}
     ): ScoutFolderSupport {
         val store = mockk<ScoutStore> {
-            coEvery { current() } returns profile
+            coEvery { profileOf(any()) } coAnswers { profile.copy(profileId = firstArg()) }
             every { observeShowWatched(any()) } returns flowOf(showWatched)
         }
         val progress = mockk<WatchProgressRepository> {
@@ -61,7 +61,10 @@ class ScoutFolderSupportTest {
             }
             every { libraryItems } returns flowOf(entries)
         }
-        val profiles = mockk<com.nuvio.tv.core.profile.ProfileManager> { every { activeProfileId } returns active }
+        val profiles = mockk<com.nuvio.tv.core.profile.ProfileManager> {
+            every { activeProfileId } returns active
+            every { profileSelectionRevision } returns MutableStateFlow(0L)
+        }
         val localWatched = mockk<com.nuvio.tv.data.local.WatchedItemsPreferences> {
             every { observeAllItems(any()) } returns flowOf(localFilms)
         }

@@ -42,8 +42,19 @@ class ScoutCatalogProviderTest {
             every { getString(any()) } returns "text"
             every { getString(any(), *anyVararg()) } returns "text"
         }
-        val engine = mockk<ScoutEngine> { every { this@mockk.pool } returns MutableStateFlow(pool) }
-        val store = mockk<ScoutStore> { every { this@mockk.profile } returns flowOf(profile) }
+        val owner = ScoutSelection(profile.profileId, 0L)
+        val scope = ScoutPoolScope(owner, null)
+        val engine = mockk<ScoutEngine> {
+            every { this@mockk.pool } returns MutableStateFlow(pool?.let { OwnedScoutPool(scope, it) })
+            every { scopeFor(any()) } returns scope
+            every { activePool(any()) } returns pool
+            every { selection() } returns owner
+            every { activeProfile() } returns owner.profileId
+        }
+        val store = mockk<ScoutStore> {
+            every { this@mockk.profile } returns flowOf(profile)
+            coEvery { profileOf(owner.profileId) } returns profile
+        }
         val folders = mockk<ScoutFolderSupport> {
             every { changes } returns kotlinx.coroutines.flow.emptyFlow()
             coEvery { withoutSeen(any()) } answers { firstArg<List<MetaPreview>>().filterNot { it.id in hide } }
@@ -178,8 +189,9 @@ class ScoutCatalogProviderTest {
         val korea = ScoutSlices.byId("country_KR")!!
         assertEquals("own art", provider.heroFor(korea))
         io.mockk.verify { resolver.resolve(match { it.filters.withOriginCountry == "KR" }, any()) }
-        provider.tileHeroes.value = mapOf(korea.id to "own art")
-        val folders = provider.tilesFor(fullPool, ScoutProfile(settings = ScoutSettings(tilesRow = true))).single().folders
+        val folders = provider.tilesFor(
+            fullPool, ScoutProfile(settings = ScoutSettings(tilesRow = true)), heroUrls = mapOf(korea.id to "own art")
+        ).single().folders
         assertEquals("own art", folders.single { it.id == korea.id }.heroBackdropUrl)
         assertNull(folders.single { it.id == "mood_feel_good" }.heroBackdropUrl)
     }

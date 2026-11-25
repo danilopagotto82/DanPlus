@@ -15,7 +15,10 @@ import com.nuvio.tv.domain.model.ScoutProfile
 import com.nuvio.tv.domain.model.ScoutRating
 import com.nuvio.tv.domain.model.ScoutTitle
 import com.nuvio.tv.domain.model.WatchedItem
-import com.nuvio.tv.domain.repository.WatchProgressRepository
+import com.nuvio.tv.core.profile.ProfileManager
+import com.nuvio.tv.core.scout.ScoutSelection
+import com.nuvio.tv.core.scout.scoutSelection
+import com.nuvio.tv.core.scout.scoutSelections
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,10 +29,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 private const val SHAPING_TITLES = 12
@@ -80,13 +82,23 @@ class ScoutTasteViewModel @Inject constructor(
     private val store: ScoutStore,
     private val engine: ScoutEngine,
     private val taste: ScoutTasteRepository,
-    private val watchProgress: WatchProgressRepository
+    private val profiles: ProfileManager
 ) : ViewModel() {
-    private val progress = MutableStateFlow(ScoutTasteProgress(emptyList(), 0, 0))
-    private val skipped = MutableStateFlow<Set<String>>(emptySet())
-    private val watched = MutableStateFlow<List<WatchedItem>>(emptyList())
+    private data class History(
+        val owner: ScoutSelection,
+        val items: List<WatchedItem>,
+        val progress: ScoutTasteProgress = ScoutTasteProgress(emptyList(), 0, 0)
+    )
 
-    val state: StateFlow<ScoutTasteState> = combine(store.profile, engine.pool, progress, skipped, watched) { profile, pool, p, skip, items ->
+    private val history = MutableStateFlow<History?>(null)
+    private val skipped = MutableStateFlow<Pair<ScoutSelection, Set<String>>?>(null)
+
+    val state: StateFlow<ScoutTasteState> = combine(store.profile, engine.pool, history, skipped, profiles.scoutSelections()) { profile, pool, history, skipped, owner ->
+        if (profile.profileId != owner.profileId || profiles.scoutSelection() != owner) return@combine ScoutTasteState()
+        val current = history?.takeIf { it.owner == owner } ?: History(owner, emptyList())
+        val items = current.items
+        val p = current.progress
+        val skip = skipped?.takeIf { it.first == owner }?.second.orEmpty()
         val distinct = items.filter { it.contentId.isNotBlank() }.distinctBy { it.contentId }
         val recent = distinct.sortedByDescending { it.watchedAt }.take(RECENT_TITLES).map { it.contentId }.toSet()
         ScoutTasteState(
@@ -97,15 +109,21 @@ class ScoutTasteViewModel @Inject constructor(
             titlesUsed = p.titles.size,
             watchedCount = distinct.size,
             shaping = scoutShapingTitles(items, profile, p.titles.mapNotNull { title -> title.backdrop?.let { title.contentId to it } }.toMap(), p.titles.mapNotNull { title -> title.poster?.let { title.contentId to it } }.toMap()),
-            nudge = scoutNudge(pool, profile, skip)
+            nudge = scoutNudge(pool?.takeIf { it.scope == engine.scopeFor(owner) }?.pool, profile, skip)
         )
     }.flowOn(Dispatchers.Default).conflate().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ScoutTasteState())
 
     init {
         viewModelScope.launch { engine.refreshIfDue() }
         viewModelScope.launch {
-            watched.value = withContext(Dispatchers.Default) { watchProgress.tasteHistory.first() }
-            taste.load { progress.value = it }
+            profiles.scoutSelections().collectLatest { owner ->
+                val items = taste.watched(owner)
+                if (owner != profiles.scoutSelection()) return@collectLatest
+                history.value = History(owner, items)
+                taste.load(owner, items) { progress ->
+                    if (owner == profiles.scoutSelection()) history.value = History(owner, items, progress)
+                }
+            }
         }
     }
 
@@ -122,7 +140,8 @@ class ScoutTasteViewModel @Inject constructor(
     }
 
     fun skip(pick: ScoutPick) {
-        skipped.value = skipped.value + pick.key
+        val owner = profiles.scoutSelection()
+        skipped.value = owner to (skipped.value?.takeIf { it.first == owner }?.second.orEmpty() + pick.key)
     }
 
     fun leaveOut(genre: Int) {
@@ -134,7 +153,7 @@ class ScoutTasteViewModel @Inject constructor(
     fun startFresh() {
         viewModelScope.launch {
             store.clearRatings()
-            skipped.value = emptySet()
+            skipped.value = null
             engine.reset()
             engine.refreshIfDue()
         }

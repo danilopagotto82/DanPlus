@@ -11,7 +11,11 @@ import com.nuvio.tv.core.party.PartyAvatars
 import com.nuvio.tv.core.profile.LocalProfileAvatars
 import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.core.ratinglimit.RatingLimit
-import com.nuvio.tv.core.ratinglimit.ratingLimitGateOrNull
+import com.nuvio.tv.core.ratinglimit.RatingLimitGate
+import com.nuvio.tv.core.scout.ScoutSelection
+import com.nuvio.tv.core.scout.scoutReadPolicy
+import com.nuvio.tv.core.scout.scoutSelection
+import com.nuvio.tv.core.scout.scoutSelections
 import com.nuvio.tv.data.remote.supabase.AvatarRepository
 import com.nuvio.tv.data.repository.MemberAccessRepository
 import com.nuvio.tv.domain.model.CosmeticEntitlement
@@ -48,13 +52,16 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
+
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
@@ -89,6 +96,25 @@ internal data class ScoutWatchDisplay(
 internal fun scoutRecommendationLimit(active: RatingLimit?, group: List<RatingLimit>, family: Boolean): RatingLimit? =
     (listOfNotNull(active, RatingLimit.PG.takeIf { family }) + group).minByOrNull { it.highest }
 
+internal data class ScoutAudience(
+    val owner: ScoutSelection, val limit: RatingLimit?, val others: Set<Int>, val family: Boolean
+)
+
+internal fun ScoutScreenState.visibleTo(current: ScoutAudience?): ScoutScreenState =
+    if (current != null && audience == current) this
+    else copy(row = emptyList(), hero = null, heroLogo = null, everyone = emptySet(), audience = null)
+
+internal class ScoutPinRequests {
+    data class Request(val owner: ScoutSelection, val generation: Long)
+
+    private var generation = 0L
+
+    fun begin(owner: ScoutSelection): Request = Request(owner, ++generation)
+    fun invalidate() { generation++ }
+    fun accepts(request: Request, owner: ScoutSelection): Boolean =
+        request.owner == owner && request.generation == generation
+}
+
 private fun scoutWatchedTmdbId(id: String): Int? =
     id.removePrefix("tmdb:").removePrefix("movie:").removePrefix("series:").removePrefix("tv:").toIntOrNull()
 
@@ -98,7 +124,7 @@ sealed interface ScoutTab {
     data class Feeling(val mood: ScoutMood) : ScoutTab
 }
 
-data class ScoutScreenState(
+internal data class ScoutScreenState(
     val answers: ScoutAnswers = ScoutAnswers(),
     val others: Set<Int> = emptySet(),
     val tab: ScoutTab = ScoutTab.ForYou,
@@ -106,6 +132,7 @@ data class ScoutScreenState(
     val advancedSearch: ScoutAdvancedSearch? = null,
     val moreLike: String? = null,
     val row: List<ScoutPick> = emptyList(),
+    val audience: ScoutAudience? = null,
     /** Goes up each time the row shows different titles, so the page can start the new row at its first one. */
     val rowTurn: Int = 0,
     val everyone: Set<String> = emptySet(),
@@ -159,10 +186,16 @@ class ScoutViewModel @Inject constructor(
     watchedSeries: WatchedSeriesStateHolder,
     localAvatars: LocalProfileAvatars,
     private val avatars: AvatarRepository,
-    private val memberAccess: MemberAccessRepository
+    private val memberAccess: MemberAccessRepository,
+    private val ratingLimits: RatingLimitGate
 ) : ViewModel() {
     private val _state = MutableStateFlow(ScoutScreenState())
-    val state: StateFlow<ScoutScreenState> = _state.asStateFlow()
+    private var sessionOwner = profileOwner()
+
+    internal val state: StateFlow<ScoutScreenState> =
+        combine(_state, profileManager.scoutSelections(), ratingLimits.limits) { current, _, _ ->
+            current.visibleTo(audienceFor(current))
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, ScoutScreenState())
 
     val savedRows: StateFlow<Set<String>> = store.profile.map { it.settings.savedSlices.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
@@ -171,7 +204,8 @@ class ScoutViewModel @Inject constructor(
     val activeProfileId: StateFlow<Int> = profileManager.activeProfileId
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    internal val watchedDisplay = activeProfileId.flatMapLatest { id ->
+    internal val watchedDisplay = profileManager.scoutSelections().flatMapLatest { owner ->
+        val id = owner.profileId
         combine(store.observeShowWatched(id), folders.watchedMoviesForProfile(id), watchedSeries.observeCompletedIds(id)) { show, movies, series ->
             ScoutWatchDisplay(
                 profileId = id,
@@ -221,37 +255,68 @@ class ScoutViewModel @Inject constructor(
     private var heroJob: Job? = null
     private var warmJob: Job? = null
     private var nearJob: Job? = null
-    private val building = HashMap<String, Deferred<List<ScoutPick>>>()
+    private val building = HashMap<Pair<ScoutAudience, String>, Deferred<List<ScoutPick>>>()
     private var warmedFor: String? = null
     private val shown = LinkedHashSet<String>()
     private val details = HashMap<String, ScoutPickDetail>()
     private val logos = HashMap<String, String?>()
     private val members = HashMap<Int, ScoutGroupMember>()
     private val unlocked = HashSet<Int>()
+    private var unlockedFor: ScoutSelection? = null
+    private val pinRequests = ScoutPinRequests()
+    private var pinJob: Job? = null
 
-    private fun profileOwner() = activeProfileId.value to profileManager.profileSelectionRevision.value
+    private fun profileOwner() = profileManager.scoutSelection()
+
+    private fun audienceFor(s: ScoutScreenState): ScoutAudience? {
+        val owner = profileOwner()
+        if (owner != sessionOwner) return null
+        val audience = scoutReadPolicy {
+            val configured = ratingLimits.limitFor(owner.profileId)
+            val group = s.others.mapNotNull(ratingLimits::limitFor)
+            ScoutAudience(owner, scoutRecommendationLimit(configured, group, s.answers.family), s.others, s.answers.family)
+        }
+        return audience.takeIf { owner == profileOwner() }
+    }
+
+    private fun isCurrent(audience: ScoutAudience): Boolean = audience == audienceFor(_state.value)
+
+    internal fun canOpenRecommendation(pick: ScoutPick): Boolean {
+        val current = _state.value
+        val audience = current.audience ?: return false
+        return isCurrent(audience) && current.row.any { it.key == pick.key }
+    }
 
     init {
-        var previousOwner = profileOwner()
         viewModelScope.launch {
-            combine(activeProfileId, profileManager.profileSelectionRevision) { id, revision -> id to revision }
-                .collectLatest { owner ->
-                    if (owner != previousOwner) {
-                        previousOwner = owner
-                        listOfNotNull(job, heroJob, warmJob, nearJob).forEach { it.cancel() }
-                        building.values.toList().forEach { it.cancel() }
-                        building.clear()
-                        unlocked.clear()
-                        members.clear()
-                        shown.clear()
-                        warmedFor = null
-                        _state.value = ScoutScreenState(fromCountryOffered = _state.value.fromCountryOffered)
-                    }
-                    val saved = finder.pool() != null
-                    if (!saved) finder.refreshPool()
-                    if (owner == profileOwner()) loadRow(0)
-                    if (saved) finder.refreshPool()
+            profileManager.scoutSelections().collectLatest { owner ->
+                if (owner != sessionOwner) {
+                    sessionOwner = owner
+                    listOfNotNull(job, heroJob, warmJob, nearJob).forEach { it.cancel() }
+                    building.values.toList().forEach { it.cancel() }
+                    building.clear()
+                    cancelPinRequest()
+                    unlocked.clear()
+                    unlockedFor = null
+                    members.clear()
+                    shown.clear()
+                    warmedFor = null
+                    _state.value = ScoutScreenState(fromCountryOffered = _state.value.fromCountryOffered)
                 }
+                val saved = finder.pool() != null
+                if (!saved) finder.refreshPool()
+                if (owner == profileOwner()) loadRow(0)
+                if (saved) finder.refreshPool()
+            }
+        }
+        viewModelScope.launch {
+            ratingLimits.limits.collect {
+                members.clear()
+                if (_state.value.audience != audienceFor(_state.value)) {
+                    _state.update { it.visibleTo(audienceFor(it)) }
+                    if (_state.value.tab != ScoutTab.Taste) loadRow(0)
+                }
+            }
         }
         viewModelScope.launch { _state.update { it.copy(fromCountryOffered = finder.fromCountryOffered(country)) } }
     }
@@ -283,15 +348,17 @@ class ScoutViewModel @Inject constructor(
 
     /** The tile in focus takes over the page once the remote has settled on it. */
     fun focusPick(pick: ScoutPick) {
-        if (_state.value.hero?.pick?.key == pick.key) return
+        val audience = _state.value.audience ?: return
+        if (!canOpenRecommendation(pick) || _state.value.hero?.pick?.key == pick.key) return
         heroJob?.cancel()
         heroJob = viewModelScope.launch {
             delay(HERO_SETTLE_MS)
-            showHero(pick)
+            showHero(pick, audience)
         }
     }
 
-    private suspend fun showHero(pick: ScoutPick) {
+    private suspend fun showHero(pick: ScoutPick, audience: ScoutAudience) {
+        if (_state.value.audience != audience || !canOpenRecommendation(pick)) return
         val key = pick.key
         val withRating = _state.value.answers.family
         _state.update {
@@ -300,12 +367,14 @@ class ScoutViewModel @Inject constructor(
         coroutineScope {
             if (key !in details) launch {
                 finder.detail(pick, withRating)?.let { found ->
+                    if (!isCurrent(audience)) return@let
                     details[key] = found
                     _state.update { s -> if (s.hero?.pick?.key == key) s.copy(hero = s.hero?.copy(detail = found)) else s }
                 }
             }
             if (key !in logos) launch {
                 val found = finder.logo(pick)
+                if (!isCurrent(audience)) return@launch
                 logos[key] = found
                 _state.update { s -> if (s.hero?.pick?.key == key) s.copy(heroLogo = found) else s }
             }
@@ -316,41 +385,53 @@ class ScoutViewModel @Inject constructor(
 
     private fun loadRow(settle: Long = ROW_SETTLE_MS) {
         job?.cancel()
-        _state.update { it.copy(rowLoading = true, nothing = false, asking = false, askBusy = false, askFailure = null) }
-        val owner = profileOwner()
+        val audience = audienceFor(_state.value)
+        _state.update {
+            it.visibleTo(audience).copy(
+                rowLoading = audience != null, nothing = audience == null, asking = false, askBusy = false, askFailure = null
+            )
+        }
+        if (audience == null) return
         job = viewModelScope.launch {
             val started = SystemClock.elapsedRealtime()
             val landed = _state.value
-            val keptRow = keptFor(landed)
+            val keptRow = keptFor(landed, audience)
             val kept = keptRow != null
             delay(if (kept) minOf(settle, KEPT_ROW_SETTLE_MS) else settle)
             val asked = _state.value
-            val picks = keptRow?.takeIf { rowKey(asked) == rowKey(landed) } ?: rowFor(asked)
-            if (owner != profileOwner()) return@launch
-            showRow(picks, owner)
-            if (asked.surprise && picks.isNotEmpty() && owner == profileOwner()) {
-                store.updateDiscovery(owner.first) { it.record(picks) }
+            if (!isCurrent(audience)) return@launch
+            val picks = keptRow?.takeIf { rowKey(asked) == rowKey(landed) } ?: rowFor(asked, audience)
+            if (!showRow(picks, audience)) return@launch
+            if (asked.surprise && picks.isNotEmpty() && isCurrent(audience)) {
+                store.updateDiscovery(audience.owner.profileId) { if (isCurrent(audience)) it.record(picks) else it }
             }
             Log.i(SPEED_TAG, "row ${asked.answers.mood?.code ?: "for_you"} kept=$kept ${SystemClock.elapsedRealtime() - started} ms")
         }
     }
 
-    private suspend fun keptFor(s: ScoutScreenState): List<ScoutPick>? =
-        if (s.surprise || s.advancedSearch != null || shown.isNotEmpty()) null
-        else finder.keptRow(rowKey(s))?.let { restrictRecommendations(it, s) }
+    private fun cacheKey(s: ScoutScreenState, audience: ScoutAudience) = rowKey(s) + "|" + audience.limit?.code
+
+    private suspend fun keptFor(s: ScoutScreenState, audience: ScoutAudience): List<ScoutPick>? =
+        if (!isCurrent(audience) || s.surprise || s.advancedSearch != null || shown.isNotEmpty()) null
+        else finder.keptRow(cacheKey(s, audience), audience.owner)?.let { restrictRecommendations(it, audience) }
 
     /** A row already being fetched is waited for, so landing on it never starts the same fetch twice. */
-    private suspend fun rowFor(s: ScoutScreenState): List<ScoutPick> {
-        keptFor(s)?.let { return it }
-        if (s.surprise || s.advancedSearch != null || shown.isNotEmpty()) return buildRow(s)
-        val key = rowKey(s)
-        val fetch = building.getOrPut(key) {
+    private suspend fun rowFor(s: ScoutScreenState, audience: ScoutAudience): List<ScoutPick> {
+        if (!isCurrent(audience)) return emptyList()
+        keptFor(s, audience)?.let { return it }
+        if (s.surprise || s.advancedSearch != null || shown.isNotEmpty()) return buildRow(s, audience)
+        val key = cacheKey(s, audience)
+        val taskKey = audience to key
+        val fetch = building.getOrPut(taskKey) {
             viewModelScope.async {
-                val owner = profileOwner()
-                buildRow(s).also { if (it.isNotEmpty() && owner == profileOwner()) finder.keepRow(key, it, owner.first) }
-            }.also { started -> started.invokeOnCompletion { building.remove(key) } }
+                val operation = currentCoroutineContext()
+                buildRow(s, audience).also {
+                    operation.ensureActive()
+                    if (it.isNotEmpty()) finder.keepRow(key, it, audience.owner) { isCurrent(audience) }
+                }
+            }.also { started -> started.invokeOnCompletion { building.remove(taskKey, started) } }
         }
-        return fetch.await()
+        return fetch.await().takeIf { isCurrent(audience) }.orEmpty()
     }
 
     /** The moods either side of where the remote is, ahead of everything else. */
@@ -389,16 +470,18 @@ class ScoutViewModel @Inject constructor(
                     }
                 }
             }
-            finder.saveKept()
+            val audience = audienceFor(s) ?: return@launch
+            finder.saveKept { isCurrent(audience) }
         }
     }
 
     private suspend fun warm(s: ScoutScreenState) {
-        val picks = rowFor(s)
-        val top = picks.firstOrNull() ?: return
+        val audience = audienceFor(s) ?: return
+        val picks = rowFor(s, audience)
+        val top = picks.firstOrNull()?.takeIf { isCurrent(audience) } ?: return
         coroutineScope {
-            launch { finder.detail(top, s.answers.family)?.let { details[top.key] = it } }
-            launch { logos[top.key] = finder.logo(top) }
+            launch { finder.detail(top, s.answers.family)?.let { if (isCurrent(audience)) details[top.key] = it } }
+            launch { finder.logo(top).let { if (isCurrent(audience)) logos[top.key] = it } }
             launch { saveImage(top.backdrop?.let { sizedHomeArtworkUrl(it, SCOUT_BACKDROP_WIDTH) }) }
             picks.take(WARM_TILES).forEach { pick ->
                 launch { saveImage((pick.backdrop ?: pick.poster)?.let { sizedHomeArtworkUrl(it, SCOUT_TILE_IMAGE_WIDTH) }) }
@@ -418,40 +501,45 @@ class ScoutViewModel @Inject constructor(
         )
     }
 
-    private suspend fun showRow(picks: List<ScoutPick>, owner: Pair<Int, Long> = profileOwner()) {
-        if (owner != profileOwner()) return
-        val others = group()
+    private suspend fun showRow(picks: List<ScoutPick>, audience: ScoutAudience): Boolean {
+        if (!isCurrent(audience)) return false
+        val others = group(audience)
         val ownPool = finder.pool()?.picked.orEmpty().map { it.key }.toSet()
         val everyone = if (others.isEmpty()) emptySet() else picks.filter { pick ->
             pick.key in ownPool && others.all { member -> member.pool?.picked.orEmpty().any { it.key == pick.key } }
         }.map { it.key }.toSet()
-        if (owner != profileOwner()) return
+        currentCoroutineContext().ensureActive()
+        if (!isCurrent(audience)) return false
         _state.update {
             it.copy(
                 row = picks,
+                audience = audience,
                 rowTurn = nextRowTurn(it.row, picks, it.rowTurn),
                 everyone = everyone,
                 rowLoading = false,
                 nothing = picks.isEmpty(),
-                hero = it.hero.takeIf { picks.isNotEmpty() }
+                hero = it.hero?.takeIf { previous -> picks.any { it.key == previous.pick.key } },
+                heroLogo = null
             )
         }
         warmMoods()
-        picks.firstOrNull()?.let { showHero(it) }
+        picks.firstOrNull()?.let { showHero(it, audience) }
+        return isCurrent(audience)
     }
 
-    private suspend fun buildRow(s: ScoutScreenState): List<ScoutPick> {
+    private suspend fun buildRow(s: ScoutScreenState, audience: ScoutAudience): List<ScoutPick> {
         val answers = s.answers
         if (s.surprise) {
-            val profileId = activeProfileId.value
+            val profileId = audience.owner.profileId
             val display = watchedDisplay.first { it.profileId == profileId && it.loaded }
+            if (!isCurrent(audience)) return emptyList()
             val recent = store.observeDiscovery(profileId).first().suggestions
             val currentKeys = s.row.map(ScoutPick::key).toSet()
-            var candidates = if (answers.isUnset) display.visible(order(finder.surprisePool())) else emptyList()
+            var candidates = if (answers.isUnset) display.visible(order(finder.surprisePool(), audience)) else emptyList()
             val prior = recent.map(ScoutPick::key).toSet() + currentKeys
             for (page in 1..2) {
                 if (candidates.count { it.key !in prior } >= ROW_SIZE) break
-                val pagePicks = display.visible(order(finder.fetch(answers, page, relaxed = false)))
+                val pagePicks = display.visible(order(finder.fetch(answers, page, relaxed = false), audience))
                 candidates = (candidates + pagePicks).distinctBy(ScoutPick::key)
             }
             return scoutSurpriseSuggestions(candidates, recent, currentKeys, ROW_SIZE)
@@ -459,7 +547,7 @@ class ScoutViewModel @Inject constructor(
         s.advancedSearch?.let { query ->
             var candidates = emptyList<ScoutPick>()
             for (page in 1..3) {
-                candidates = (candidates + order(finder.fetchAdvanced(query, answers, page))).distinctBy(ScoutPick::key)
+                candidates = (candidates + order(finder.fetchAdvanced(query, answers, page), audience)).distinctBy(ScoutPick::key)
                 if (candidates.size >= ROW_SIZE) break
             }
             return candidates.take(ROW_SIZE)
@@ -468,10 +556,11 @@ class ScoutViewModel @Inject constructor(
             when {
                 answers.isUnset -> finder.pool()?.picked.orEmpty()
                 else -> emptyList()
-            }
+            },
+            audience
         )
-        if (fresh.size < ROW_SIZE) fresh = (fresh + order(finder.fetch(answers, 1, relaxed = false))).distinctBy { it.key }
-        if (fresh.size < ROW_SIZE / 2) fresh = (fresh + order(finder.fetch(answers, 1, relaxed = true))).distinctBy { it.key }
+        if (fresh.size < ROW_SIZE) fresh = (fresh + order(finder.fetch(answers, 1, relaxed = false), audience)).distinctBy { it.key }
+        if (fresh.size < ROW_SIZE / 2) fresh = (fresh + order(finder.fetch(answers, 1, relaxed = true), audience)).distinctBy { it.key }
         if (answers.time != ScoutTime.QUICK_EPISODES && answers.time != ScoutTime.SHORT) return fresh.take(ROW_SIZE)
         val kept = ArrayList<ScoutPick>()
         var checks = 0
@@ -490,19 +579,29 @@ class ScoutViewModel @Inject constructor(
     /** A profile with a PIN joins only once the PIN is right, so its taste cannot be read by anyone else on the box. */
     fun pressProfile(profile: UserProfile) {
         val owner = profileOwner()
+        if (owner != sessionOwner || owner.profileId == profile.id) return
+        if (unlockedFor != owner) {
+            unlockedFor = owner
+            unlocked.clear()
+        }
+        cancelPinRequest()
+        val request = pinRequests.begin(owner)
+        _state.update { it.copy(pinFor = null, pinChecking = false, pinWrong = false) }
         val current = _state.value.others
         when {
             profile.id in current -> {
                 _state.update { it.copy(others = current - profile.id) }
                 othersChanged()
             }
-            profile.id !in unlocked -> viewModelScope.launch {
-                val requiresPin = locks.pinEnabled.first()[profile.id] == true
-                if (owner != profileOwner()) return@launch
-                if (requiresPin) _state.update { it.copy(pinFor = profile, pinWrong = false) }
-                else {
-                    _state.update { it.copy(others = it.others + profile.id) }
-                    othersChanged()
+            profile.id !in unlocked -> {
+                pinJob = viewModelScope.launch {
+                    val requiresPin = scoutReadPolicy { locks.pinEnabled.first()[profile.id] == true } ?: true
+                    if (!pinRequests.accepts(request, profileOwner())) return@launch
+                    if (requiresPin) _state.update { it.copy(pinFor = profile, pinWrong = false) }
+                    else {
+                        _state.update { it.copy(others = it.others + profile.id) }
+                        othersChanged()
+                    }
                 }
             }
             else -> {
@@ -514,13 +613,14 @@ class ScoutViewModel @Inject constructor(
 
     fun submitPin(pin: String) {
         val profile = _state.value.pinFor ?: return
-        if (_state.value.pinChecking) return
-        val owner = profileOwner()
+        if (_state.value.pinChecking || unlockedFor != profileOwner()) return
+        val request = pinRequests.begin(profileOwner())
         _state.update { it.copy(pinChecking = true, pinWrong = false) }
-        viewModelScope.launch {
-            val ok = sync.verifyProfilePin(profile.id, pin).getOrNull()?.unlocked == true
-            if (owner != profileOwner() || _state.value.pinFor != profile) return@launch
+        pinJob = viewModelScope.launch {
+            val ok = scoutReadPolicy { sync.verifyProfilePin(profile.id, pin).getOrNull()?.unlocked == true } ?: false
+            if (!pinRequests.accepts(request, profileOwner()) || _state.value.pinFor != profile) return@launch
             if (ok) {
+                pinRequests.invalidate()
                 unlocked += profile.id
                 _state.update { it.copy(pinFor = null, pinChecking = false, others = it.others + profile.id) }
                 othersChanged()
@@ -530,7 +630,16 @@ class ScoutViewModel @Inject constructor(
         }
     }
 
-    fun dismissPin() = _state.update { it.copy(pinFor = null, pinChecking = false, pinWrong = false) }
+    private fun cancelPinRequest() {
+        pinRequests.invalidate()
+        pinJob?.cancel()
+        pinJob = null
+    }
+
+    fun dismissPin() {
+        cancelPinRequest()
+        _state.update { it.copy(pinFor = null, pinChecking = false, pinWrong = false) }
+    }
 
     fun clearPinError() = _state.update { it.copy(pinWrong = false) }
 
@@ -582,10 +691,11 @@ class ScoutViewModel @Inject constructor(
     }
 
     fun moreLike(pick: ScoutPick) {
+        if (!canOpenRecommendation(pick)) return
+        val audience = audienceFor(_state.value) ?: return
         job?.cancel()
-        _state.update { it.copy(moreLike = pick.name, rowLoading = true, nothing = false, asking = false, askFailure = null) }
-        val owner = profileOwner()
-        job = viewModelScope.launch { showRow(order(finder.moreLike(pick)).take(ROW_SIZE), owner) }
+        _state.update { it.copy(moreLike = pick.name, rowLoading = true, nothing = false, asking = false, askBusy = false, askFailure = null) }
+        job = viewModelScope.launch { showRow(order(finder.moreLike(pick), audience).take(ROW_SIZE), audience) }
     }
 
     /** "Or just ask": the input takes the mood line's place and the page stays as it is until there is an answer. */
@@ -596,17 +706,17 @@ class ScoutViewModel @Inject constructor(
     }
 
     fun ask(question: String) {
+        val audience = audienceFor(_state.value) ?: return
         job?.cancel()
         heroJob?.cancel()
         _state.update { it.copy(askBusy = true, askFailure = null, row = emptyList(), rowLoading = true, nothing = false) }
-        val owner = profileOwner()
         job = viewModelScope.launch {
             val outcome = asker.ask(question)
-            if (owner != profileOwner()) return@launch
+            if (!isCurrent(audience)) return@launch
             when (outcome) {
                 is AskOutcome.Answer -> {
                     _state.update { it.copy(askBusy = false) }
-                    showRow(order(outcome.items.ifEmpty { outcome.held }.mapNotNull(::askedPick)), owner)
+                    showRow(order(outcome.items.ifEmpty { outcome.held }.mapNotNull(::askedPick), audience), audience)
                 }
                 is AskOutcome.Failed -> _state.update { it.copy(askBusy = false, askFailure = outcome.failure, rowLoading = false) }
             }
@@ -648,26 +758,26 @@ class ScoutViewModel @Inject constructor(
         viewModelScope.launch { folders.toggleSaved(id) }
     }
 
-    private suspend fun group(): List<ScoutGroupMember> =
-        _state.value.others.map { id -> members.getOrPut(id) { finder.member(id) } }
+    private suspend fun group(audience: ScoutAudience): List<ScoutGroupMember> =
+        audience.others.mapNotNull { id ->
+            if (!isCurrent(audience)) null
+            else members[id] ?: finder.member(id).takeIf { isCurrent(audience) }?.also { members[id] = it }
+        }
 
-    private suspend fun order(list: List<ScoutPick>): List<ScoutPick> {
-        val exclusions = finder.exclusions()
-        val others = group()
+    private suspend fun order(list: List<ScoutPick>, audience: ScoutAudience): List<ScoutPick> {
+        if (!isCurrent(audience)) return emptyList()
+        val exclusions = finder.exclusions(audience.owner) ?: return emptyList()
+        val others = group(audience)
         val ordered = withContext(Dispatchers.Default) { scoutOrderPicks(list, finder.pool(), exclusions, System.nanoTime(), others) }
-        val kept = ordered.filterNot { it.key in shown }
-        return restrictRecommendations(kept, _state.value)
+        return restrictRecommendations(ordered.filterNot { it.key in shown }, audience)
     }
 
-    private suspend fun restrictRecommendations(picks: List<ScoutPick>, state: ScoutScreenState): List<ScoutPick> {
-        if (picks.isEmpty()) return picks
-        val owner = profileOwner()
-        val gate = ratingLimitGateOrNull(context) ?: return if (state.answers.family) emptyList() else picks
-        suspend fun currentLimit() = withContext(Dispatchers.IO) {
-            scoutRecommendationLimit(gate.limitFor(owner.first), state.others.mapNotNull(gate::limitFor), state.answers.family)
-        }
-        val limit = currentLimit() ?: return picks.takeIf { owner == profileOwner() }.orEmpty()
-        val allowed = gate.keepFitting(limit, picks) { "tmdb:${it.tmdbId}" to if (it.tv) "series" else "movie" }
-        return allowed.takeIf { owner == profileOwner() && currentLimit() == limit }.orEmpty()
+    private suspend fun restrictRecommendations(picks: List<ScoutPick>, audience: ScoutAudience): List<ScoutPick> {
+        if (!isCurrent(audience) || picks.isEmpty()) return emptyList()
+        val limit = audience.limit ?: return picks
+        val allowed = scoutReadPolicy {
+            ratingLimits.keepFitting(limit, picks) { "tmdb:${it.tmdbId}" to if (it.tv) "series" else "movie" }
+        }.orEmpty()
+        return allowed.takeIf { isCurrent(audience) }.orEmpty()
     }
 }

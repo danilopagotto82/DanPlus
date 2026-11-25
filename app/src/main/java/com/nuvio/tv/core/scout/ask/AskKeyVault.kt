@@ -70,7 +70,7 @@ class AskKeyVault @Inject constructor(
         changes.map { read(id) }
     }
 
-    fun current(): AskKeys = read(profileManager.get().activeProfileId.value)
+    fun current(profileId: Int = profileManager.get().activeProfileId.value): AskKeys = read(profileId)
 
     fun save(config: AskConfig) {
         val id = profileManager.get().activeProfileId.value

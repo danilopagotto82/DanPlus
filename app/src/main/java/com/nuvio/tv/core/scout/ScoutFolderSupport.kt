@@ -70,42 +70,53 @@ class ScoutFolderSupport @Inject constructor(
         }
     }
 
-    private class RememberedList(val profileId: Int, val at: Long, val listed: ScoutListed)
+    private class RememberedList(val owner: ScoutSelection, val at: Long, val listed: ScoutListed)
 
     @Volatile private var remembered: RememberedList? = null
     private val refreshing = AtomicBoolean(false)
     private val background = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     /** The last answer at once when there is one; the library can take seconds to reply. */
-    suspend fun listed(): ScoutListed = withContext(Dispatchers.Default) {
-        val profileId = profiles.activeProfileId.value
-        val last = remembered?.takeIf { it.profileId == profileId }
-            ?: return@withContext listedLock.withLock {
-                remembered?.takeIf { it.profileId == profileId }?.listed
-                    ?: loadListed().also { rememberListed(profileId, it) }
-                    ?: ScoutListed()
-            }
-        if (System.currentTimeMillis() - last.at >= LISTED_FRESH_MS && refreshing.compareAndSet(false, true)) {
-            background.launch {
-                try {
-                    rememberListed(profileId, loadListed())
-                } finally {
-                    refreshing.set(false)
+    suspend fun listed(): ScoutListed = listed(profiles.scoutSelection())
+
+    internal suspend fun listed(owner: ScoutSelection, localProgress: List<com.nuvio.tv.domain.model.WatchProgress>? = null): ScoutListed =
+        withContext(Dispatchers.Default) {
+            if (owner != profiles.scoutSelection()) return@withContext ScoutListed()
+            val last = remembered?.takeIf { it.owner == owner }
+                ?: return@withContext listedLock.withLock {
+                    remembered?.takeIf { it.owner == owner && owner == profiles.scoutSelection() }?.listed
+                        ?: loadListed(owner, localProgress).also { rememberListed(owner, it) }
+                        ?: ScoutListed()
+                }
+            if (System.currentTimeMillis() - last.at >= LISTED_FRESH_MS && refreshing.compareAndSet(false, true)) {
+                background.launch {
+                    try {
+                        rememberListed(owner, loadListed(owner, localProgress))
+                    } finally {
+                        refreshing.set(false)
+                    }
                 }
             }
+            last.listed.takeIf { owner == profiles.scoutSelection() } ?: ScoutListed()
         }
-        last.listed
+
+    private fun rememberListed(owner: ScoutSelection, listed: ScoutListed?) {
+        if (listed == null || owner != profiles.scoutSelection()) return
+        remembered = RememberedList(owner, System.currentTimeMillis(), listed)
     }
 
-    private fun rememberListed(profileId: Int, listed: ScoutListed?) {
-        if (listed == null || profiles.activeProfileId.value != profileId) return
-        remembered = RememberedList(profileId, System.currentTimeMillis(), listed)
-    }
-
-    private suspend fun loadListed(): ScoutListed? = withTimeoutOrNull(LIBRARY_WAIT_MS) {
+    private suspend fun loadListed(
+        owner: ScoutSelection,
+        localProgress: List<com.nuvio.tv.domain.model.WatchProgress>?
+    ): ScoutListed? = withTimeoutOrNull(LIBRARY_WAIT_MS) {
+        if (owner != profiles.scoutSelection()) return@withTimeoutOrNull null
         val tabs = library.get().listTabs.first()
+        if (owner != profiles.scoutSelection()) return@withTimeoutOrNull null
         val items = library.get().libraryItems.first()
-        val inProgress = watchProgress.get().allProgress.first().filter { it.isInProgress() }.map { it.contentId }
+        if (owner != profiles.scoutSelection()) return@withTimeoutOrNull null
+        val inProgress = (localProgress ?: watchProgress.get().allProgress.first())
+            .filter { it.isInProgress() }.map { it.contentId }
+        if (owner != profiles.scoutSelection()) return@withTimeoutOrNull null
         val listed = listedTitles(tabs, items, inProgress)
         val keys = listed.planListKeys + listed.watchingListKeys
         ScoutListed(
@@ -115,7 +126,7 @@ class ScoutFolderSupport @Inject constructor(
         )
     }
 
-    private class SeenNames(val profileId: Int, val profile: ScoutProfile, val listed: ScoutListed, val at: Long, val names: Set<String>)
+    private class SeenNames(val owner: ScoutSelection, val profile: ScoutProfile, val listed: ScoutListed, val at: Long, val names: Set<String>)
 
     @Volatile private var seenNames: SeenNames? = null
     private val namesLock = Mutex()
@@ -130,6 +141,10 @@ class ScoutFolderSupport @Inject constructor(
     }.distinctUntilChanged().flowOn(Dispatchers.IO)
 
     private fun movieHistory(profileId: Int, useLocalFirst: Boolean): Flow<ScoutWatchedMovies> {
+        val owner = profiles.scoutSelection()
+        if (owner.profileId != profileId) return localWatched.observeAllItems(profileId).map {
+            scoutWatchedMovies(it, emptySet(), tmdbIds.load())
+        }
         val repository = watchProgress.get()
         val history = repository.tasteHistory
         return combine(
@@ -137,7 +152,9 @@ class ScoutFolderSupport @Inject constructor(
             repository.observeWatchedMovieIds(),
             localWatched.observeAllItems(profileId)
         ) { remote, marked, local ->
-            scoutWatchedMovies(remote + local, marked, tmdbIds.load())
+            val known = tmdbIds.load()
+            if (owner == profiles.scoutSelection()) scoutWatchedMovies(remote + local, marked, known)
+            else scoutWatchedMovies(local, emptySet(), known)
         }
     }
 
@@ -150,26 +167,30 @@ class ScoutFolderSupport @Inject constructor(
         if (profiles.activeProfileId.value == profileId) store.setShowWatched(profileId, !show)
     }
 
-    private suspend fun namesToHide(profile: ScoutProfile, listed: ScoutListed): Set<String> = namesLock.withLock {
-        val profileId = profiles.activeProfileId.value
+    private suspend fun namesToHide(owner: ScoutSelection, profile: ScoutProfile, listed: ScoutListed): Set<String> = namesLock.withLock {
         val now = System.currentTimeMillis()
-        seenNames?.takeIf { it.profileId == profileId && it.profile == profile && it.listed == listed && now - it.at < LISTED_FRESH_MS }?.let { return@withLock it.names }
+        if (owner != profiles.scoutSelection()) return@withLock emptySet()
+        seenNames?.takeIf { it.owner == owner && it.profile == profile && it.listed == listed && now - it.at < LISTED_FRESH_MS }?.let { return@withLock it.names }
         val repository = watchProgress.get()
         val names = repository.allProgress.first().filter { it.isInProgress() }.map { scoutNormalizedName(it.name) }.toSet() +
             profile.ratings.values.filter { it.rating == com.nuvio.tv.domain.model.ScoutRating.NOT_FOR_ME }.map { scoutNormalizedName(it.title.name) } +
             listed.names
-        seenNames = SeenNames(profileId, profile, listed, now, names)
+        if (owner != profiles.scoutSelection()) return@withLock emptySet()
+        seenNames = SeenNames(owner, profile, listed, now, names)
         names
     }
 
     suspend fun withoutSeen(items: List<MetaPreview>, applyWatchFilter: Boolean = true): List<MetaPreview> = withContext(Dispatchers.Default) {
         val started = System.currentTimeMillis()
-        val profile = store.current()
-        val listed = listed()
-        val names = namesToHide(profile, listed)
+        val owner = profiles.scoutSelection()
+        val profile = store.profileOf(owner.profileId)
+        if (owner != profiles.scoutSelection()) return@withContext emptyList()
+        val listed = listed(owner)
+        val names = namesToHide(owner, profile, listed)
         val watched = if (applyWatchFilter && !store.observeShowWatched(profile.profileId).first()) {
             movieHistory(profile.profileId, useLocalFirst = false).flowOn(Dispatchers.IO).first()
         } else null
+        if (owner != profiles.scoutSelection()) return@withContext emptyList()
         val named = System.currentTimeMillis()
         items.filterNot { item ->
             val name = scoutNormalizedName(item.name)

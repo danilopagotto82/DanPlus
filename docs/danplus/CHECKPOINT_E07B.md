@@ -40,3 +40,27 @@
 - Gradle, build, APK, instalação, push, merge e release não executados. Main, dependências, binários, perfis homologados, IDs, assinatura, OTA e produção preservados. E05, E07A, E08 e E09 seguem fora deste lote.
 
 Próxima ação — auditar o commit E07B via Commander acima de `73954cd`, com foco no isolamento do Scout, no opt-in ASS e na sondagem HTTP/2. Aguardar liberação explícita antes do push.
+
+## Ajuste pós-auditoria E07B-R1
+
+### Base e escopo
+
+- Branch `feat/danplus-2.1.0-integracao-20261125`, worktree `D:\APK\Worktrees\DanPlus_2_1_0_E02_20261125`, base local `47e1aac0f223f8822391f74def84b8366018fdd4`. O precheck encontrou worktree limpa. A branch remota permanecia em `73954cd8e7fd7d52c994e589cd052a9206f9dd49`.
+- Preservados E02, E02-R1, E04, E03, E03-R1, E03B, E06, E06-R1 e E07B. ASS/SSA, HTTP/2, AutoSync, implementação de Mixes e filtros avançados preservados. Main, produção, assinatura, OTA, dependências e perfis homologados sem alterações. E05 segue pendente.
+
+### Correções
+
+- O pool podia misturar leituras do perfil ativo e aceitar uma resposta antiga de A depois de A → B → A. O Scout captura ID e revisão antes de carregar e lê preferências, histórico e progresso locais pelo ID de origem. O valor em memória reúne proprietário, limite etário e pool. O rebuild confere a seleção, a política, o cancelamento e a revisão dos arquivos antes de persistir e publicar. O arquivo do pool é substituído por movimentação atômica.
+- Fileiras, destaques, capas de atalhos, resultados de busca e caches personalizados validam o contexto na leitura e após operações assíncronas. A versão nova invalida pools derivados anteriores. As chaves de fileiras anteriores ficam fora da leitura. O registro de títulos abertos foi separado por perfil. O arquivo compartilhado anterior fica preservado e sem uso porque as entradas não identificam o dono.
+- A consulta de exigência de PIN e cada tentativa de validação têm geração própria. Fechar, mudar o membro, reabrir ou selecionar um perfil invalida a operação em andamento. O Scout cancela o trabalho pendente e ignora respostas antigas. A verificação existente de PIN e a proteção infantil seguem em uso.
+- A fileira, o destaque, o logotipo e as opções de título ficam indisponíveis quando o público muda ou a política não pode ser obtida. A seleção de grupo usa o menor limite aplicável. Sob limite, classificação desconhecida fica excluída. O toque e as ações de título revalidam o contexto.
+
+### Evidências e limites
+
+- **PASS estático**. `git diff --check`, checagem do índice, parser PSI dos 23 arquivos Kotlin, revisão dos consumidores do pool e conferência dos nove commits protegidos.
+- **Testes escritos**. Cinco regressões novas para resposta atrasada em A → B → A, origem do histórico e arquivos de pool, invalidação por limite mais restritivo ou indisponível, remoção imediata de fileira/hero, PIN reaberto e troca de membro/perfil. As fixtures existentes foram adaptadas e o caso de classificação desconhecida ficou explícito no teste da política restrita.
+- **FAIL**. Nenhuma falha nas verificações estáticas finais. **NÃO TESTADO**. Execução JUnit, compilação e DI, troca rápida em dispositivo, PIN online/offline, catálogo Home, Mixes e regressões dos megalotes anteriores em runtime.
+- Histórico exclusivamente remoto que ainda não aparece no armazenamento local deixou de alimentar o pool, a página de gosto e os pesos por país dos Mixes neste fluxo. Isso impede consumir um histórico agregado sem ID de origem. A biblioteca ativa ainda fornece exclusões com checagens da revisão ao redor das leituras. Seu fluxo não carimba o perfil no valor emitido. Validar em E10 a atualização da biblioteca remota durante trocas rápidas e o impacto do histórico remoto na precisão das sugestões.
+- Gradle, build, instalação, push, merge e release fora desta execução.
+
+Próxima ação — auditar pelo Commander o commit local filho direto de `47e1aac0f223f8822391f74def84b8366018fdd4`. Conferir pool/cache sob A → B → A, respostas atrasadas do PIN e troca imediata para grupo ou perfil infantil. Aguardar a liberação do coordenador antes de publicar.

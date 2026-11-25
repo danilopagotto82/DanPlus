@@ -12,6 +12,7 @@ import com.squareup.moshi.Moshi
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -69,7 +70,8 @@ class ScoutMoodAiStore @Inject constructor(
 
     private fun file(profileId: Int) = File(context.filesDir, "scout/mood_ai_$profileId.json")
 
-    fun isOn(): Boolean = aiStore.read().sortOn && vault.current().activeConfig != null
+    fun isOn(profileId: Int = profileManager.activeProfileId.value): Boolean =
+        aiStore.read(profileId).sortOn && vault.current(profileId).activeConfig != null
 
     @Synchronized
     fun read(profileId: Int = profileManager.activeProfileId.value): ScoutMoodAiState =
@@ -83,9 +85,12 @@ class ScoutMoodAiStore @Inject constructor(
 
     /** Titles the AI said do not fit these answers. Empty when the switch is off or no key is left. */
     suspend fun rejected(answers: ScoutAnswers, now: Long = System.currentTimeMillis()): Set<String> = withContext(Dispatchers.IO) {
+        val owner = profileManager.scoutSelection()
         val key = answers.scoutMoodAiKey() ?: return@withContext emptySet()
-        if (!isOn()) return@withContext emptySet()
-        read().moods[key]?.takeIf { scoutMoodVerdictFresh(it, now) }?.rejected.orEmpty().toSet()
+        if (!isOn(owner.profileId)) return@withContext emptySet()
+        read(owner.profileId).moods[key]?.takeIf {
+            owner == profileManager.scoutSelection() && scoutMoodVerdictFresh(it, now)
+        }?.rejected.orEmpty().toSet()
     }
 }
 
@@ -114,8 +119,9 @@ class ScoutMoodCheck @Inject constructor(
     }
 
     suspend fun runIfDue(now: Long = System.currentTimeMillis()) {
+        val owner = profileManager.scoutSelection()
         try {
-            withContext(Dispatchers.IO) { checkAll(now) }
+            withContext(Dispatchers.IO) { checkAll(now, owner) }
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
@@ -123,25 +129,28 @@ class ScoutMoodCheck @Inject constructor(
         }
     }
 
-    private suspend fun checkAll(now: Long) {
-        if (!store.isOn()) return
-        val profileId = profileManager.activeProfileId.value
+    private suspend fun checkAll(now: Long, owner: ScoutSelection) {
+        val profileId = owner.profileId
+        if (owner != profileManager.scoutSelection() || !store.isOn(profileId)) return
         val asks = ScoutMood.entries.filter { it.sliceId != null }.map { ScoutAnswers(mood = it) to meaning(it) } +
             (ScoutAnswers(watch = ScoutWatch.DOCUMENTARY) to "Documentary: a genuine factual programme")
         val saved = store.read(profileId).moods
         var failures = 0
         for ((answers, words) in asks) {
+            if (owner != profileManager.scoutSelection()) return
             val key = answers.scoutMoodAiKey() ?: continue
             val entry = saved[key]
             if (words == null || !scoutMoodDue(entry, now)) continue
             val rejected = try {
-                verdict(key, answers, words)
+                verdict(key, answers, words, owner)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
                 Log.w(TAG, "Mood $key failed: ${error.javaClass.simpleName}")
                 null
             }
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+            if (owner != profileManager.scoutSelection()) return
             if (rejected == null) {
                 Log.i(TAG, "Mood $key not checked")
                 store.save(profileId, key, ScoutMoodAiEntry(entry?.checkedAt ?: 0L, entry?.rejected.orEmpty(), now))
@@ -154,10 +163,12 @@ class ScoutMoodCheck @Inject constructor(
         }
     }
 
-    private suspend fun verdict(key: String, answers: ScoutAnswers, words: String): List<String>? {
+    private suspend fun verdict(key: String, answers: ScoutAnswers, words: String, owner: ScoutSelection): List<String>? {
         val listed = (1..MOOD_PAGES).flatMap { finder.get().fetchUnchecked(answers, it) }.distinctBy { it.key }.take(MOOD_CANDIDATES)
-        if (listed.isEmpty()) return null
-        val kept = service.get().checkMood(words, listed.map { AskCandidate(it.key, it.name, it.released?.take(4)?.toIntOrNull(), it.tv) })
+        if (listed.isEmpty() || owner != profileManager.scoutSelection()) return null
+        val kept = service.get().checkMood(
+            words, listed.map { AskCandidate(it.key, it.name, it.released?.take(4)?.toIntOrNull(), it.tv) }, owner.profileId
+        )
         return scoutMoodRejected(listed.map { it.key }, kept)?.also {
             Log.i(TAG, "Mood $key checked: ${it.size} of ${listed.size} left out")
         }

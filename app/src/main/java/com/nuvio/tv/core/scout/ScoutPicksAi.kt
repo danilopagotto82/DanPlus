@@ -41,15 +41,22 @@ class ScoutAiStore @Inject constructor(
 ) {
     private val adapter = Moshi.Builder().build().adapter(ScoutAiState::class.java)
 
-    private fun file() = File(context.filesDir, "scout/ai_${profileManager.activeProfileId.value}.json")
+    private fun file(profileId: Int) = File(context.filesDir, "scout/ai_$profileId.json")
 
     @Synchronized
-    fun read(): ScoutAiState = runCatching { adapter.fromJson(file().readText()) }.getOrNull() ?: ScoutAiState()
+    fun read(profileId: Int = profileManager.activeProfileId.value): ScoutAiState =
+        runCatching { adapter.fromJson(file(profileId).readText()) }.getOrNull() ?: ScoutAiState()
 
     @Synchronized
-    fun update(transform: (ScoutAiState) -> ScoutAiState): ScoutAiState {
-        val next = transform(read())
-        runCatching { file().apply { parentFile?.mkdirs() }.writeText(adapter.toJson(next)) }
+    fun update(
+        profileId: Int = profileManager.activeProfileId.value,
+        isCurrent: () -> Boolean = { true },
+        transform: (ScoutAiState) -> ScoutAiState
+    ): ScoutAiState {
+        val previous = read(profileId)
+        if (!isCurrent()) return previous
+        val next = transform(previous)
+        if (isCurrent()) runCatching { file(profileId).apply { parentFile?.mkdirs() }.writeText(adapter.toJson(next)) }
         return next
     }
 }
@@ -71,19 +78,24 @@ fun scoutSortDue(state: ScoutAiState, now: Long): Boolean =
 class ScoutPicksAi @Inject constructor(
     private val store: ScoutAiStore,
     private val vault: AskKeyVault,
-    private val service: dagger.Lazy<AskService>
+    private val service: dagger.Lazy<AskService>,
+    private val taste: ScoutAskTasteSource
 ) {
-    suspend fun sort(picks: List<ScoutPick>, now: Long): List<ScoutPick> {
-        val hasKey = vault.current().activeConfig != null
-        var state = store.read()
-        if (!state.sortOn || !hasKey) return picks
+    suspend fun sort(picks: List<ScoutPick>, now: Long, profileId: Int, isCurrent: () -> Boolean): List<ScoutPick> {
+        if (!isCurrent()) return emptyList()
+        val config = vault.current(profileId).activeConfig ?: return picks
+        var state = store.read(profileId)
+        if (!state.sortOn) return picks
         if (scoutSortDue(state, now)) {
             val candidates = picks.take(com.nuvio.tv.core.scout.ask.ASK_SORT_CANDIDATES).map {
                 AskCandidate(it.key, it.name, it.released?.take(4)?.toIntOrNull(), it.tv)
             }
-            val ranked = service.get().sortPicks(candidates)
+            val preferences = taste.taste(profileId)
+            if (!isCurrent()) return emptyList()
+            val ranked = service.get().sortPicks(candidates, config, preferences)
+            if (!isCurrent()) return emptyList()
             if (!ranked.isNullOrEmpty()) {
-                state = store.update { old ->
+                state = store.update(profileId, isCurrent) { old ->
                     old.copy(sortedAt = now, sorted = ranked.map { ScoutAiSorted(it.key, it.reason) })
                 }
             }
@@ -107,8 +119,11 @@ class ScoutAskTasteSource @Inject constructor(
     private val scoutStore: ScoutStore,
     private val aiStore: ScoutAiStore
 ) : AskTasteSource {
-    override suspend fun taste(): AskTaste {
-        val profile = scoutStore.current()
+    override suspend fun taste(): AskTaste = taste(scoutStore.current())
+
+    internal suspend fun taste(profileId: Int): AskTaste = taste(scoutStore.profileOf(profileId))
+
+    private fun taste(profile: com.nuvio.tv.domain.model.ScoutProfile): AskTaste {
         val rated = profile.ratings.values.sortedByDescending { it.ratedAt }
         val liked = rated.filter { it.rating == ScoutRating.LOVE } + rated.filter { it.rating == ScoutRating.LIKE }
         return AskTaste(
@@ -117,7 +132,7 @@ class ScoutAskTasteSource @Inject constructor(
             leaveOutGenres = profile.settings.leaveOutGenres.mapNotNull { id ->
                 ScoutSlices.byId("genre_$id")?.titleRes?.takeIf { it != 0 }?.let(context::getString)
             },
-            summary = aiStore.read().summary
+            summary = aiStore.read(profile.profileId).summary
         )
     }
 }

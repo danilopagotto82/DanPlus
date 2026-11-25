@@ -36,10 +36,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
@@ -73,7 +73,8 @@ class ScoutCatalogProvider @Inject constructor(
 ) : BuiltInCatalogProvider {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val started = java.util.concurrent.atomic.AtomicBoolean(false)
-    internal val tileHeroes = MutableStateFlow<Map<String, String>>(emptyMap())
+    internal data class TileHeroes(val scope: ScoutPoolScope, val builtAt: Long, val urls: Map<String, String>)
+    internal val tileHeroes = MutableStateFlow<TileHeroes?>(null)
     @Volatile private var savedAnswers: List<String> = emptyList()
     @Volatile private var localized: Pair<String, Context>? = null
 
@@ -85,12 +86,27 @@ class ScoutCatalogProvider @Inject constructor(
         }
 
     override val addons: Flow<List<Addon>> = if (!ScoutFeature.available) flowOf(emptyList()) else
-        combine(engine.pool, store.profile, LocaleCache.tags) { pool, profile, _ -> addonsFor(pool, profile) }
+        combine(engine.pool, store.profile, LocaleCache.tags) { owned, profile, _ ->
+            if (profile.profileId == engine.activeProfile()) {
+                addonsFor(owned?.takeIf {
+                    it.scope.selection.profileId == profile.profileId && engine.scopeFor(it.scope.selection) == it.scope
+                }?.pool, profile)
+            } else emptyList()
+        }
             .distinctUntilChanged()
             .onStart { startOnce() }
 
     override val collections: Flow<List<Collection>> = if (!ScoutFeature.available) flowOf(emptyList()) else
-        combine(engine.pool, store.profile, LocaleCache.tags, tileHeroes) { pool, profile, _, _ -> tilesFor(pool, profile) }.distinctUntilChanged()
+        combine(engine.pool, store.profile, LocaleCache.tags, tileHeroes) { owned, profile, _, heroes ->
+            if (profile.profileId != engine.activeProfile()) emptyList()
+            else {
+                val current = owned?.takeIf {
+                    it.scope.selection.profileId == profile.profileId && engine.scopeFor(it.scope.selection) == it.scope
+                }
+                val urls = heroes?.takeIf { current?.scope == it.scope && current?.pool?.builtAt == it.builtAt }?.urls.orEmpty()
+                tilesFor(current?.pool, profile, urls)
+            }
+        }.distinctUntilChanged()
 
     override val rowChanges: Flow<Unit> = if (!ScoutFeature.available) kotlinx.coroutines.flow.emptyFlow() else
         merge(folderSupport.changes, engine.pool.drop(1).map { })
@@ -133,40 +149,62 @@ class ScoutCatalogProvider @Inject constructor(
         }
         scope.launch {
             delay(START_DELAY_MS)
-            combine(engine.pool.filterNotNull().map { it.builtAt }, store.profile.map { it.settings.tilesRow }) { builtAt, on -> builtAt to on }
-                .distinctUntilChanged()
-                .collectLatest { (builtAt, on) -> if (on) refreshTileHeroes(builtAt) else tileHeroes.value = emptyMap() }
+            combine(engine.pool, store.profile) { owned, profile ->
+                owned?.takeIf { it.scope.selection.profileId == profile.profileId && profile.settings.tilesRow }
+            }.distinctUntilChanged().collectLatest { owned ->
+                tileHeroes.value = null
+                if (owned != null) refreshTileHeroes(owned)
+            }
         }
     }
 
-    private fun heroFile() = File(appContext.filesDir, "scout/tile_heroes_${engine.activeProfile()}.json")
-
     /** One page per Home tile, after a rebuild only: the same pool on the same day reads what is saved. */
-    private suspend fun refreshTileHeroes(builtAt: Long) {
-        val file = heroFile()
+    private suspend fun refreshTileHeroes(owned: OwnedScoutPool) {
+        val builtAt = owned.pool?.builtAt ?: return
+        val scope = owned.scope
+        fun isCurrent() = engine.scopeFor(scope.selection) == scope && engine.activePool(scope.selection)?.builtAt == builtAt
+        if (!isCurrent()) return
+        val file = File(appContext.filesDir, "scout/tile_heroes_${scope.selection.profileId}.json")
         val saved = runCatching { JSONObject(file.readText()) }.getOrNull()
         val now = System.currentTimeMillis()
-        if (saved != null && saved.optLong("builtAt") == builtAt && now - saved.optLong("at") < HERO_KEEP_MS) {
-            val heroes = saved.getJSONObject("heroes")
-            tileHeroes.value = heroes.keys().asSequence().associateWith { heroes.getString(it) }
+        if (saved != null && saved.optInt("version") == com.nuvio.tv.domain.model.SCOUT_POOL_VERSION &&
+            saved.optLong("builtAt") == builtAt && now - saved.optLong("at") < HERO_KEEP_MS
+        ) {
+            val heroes = saved.optJSONObject("heroes") ?: return
+            if (isCurrent()) tileHeroes.value = TileHeroes(scope, builtAt, heroes.keys().asSequence().associateWith { heroes.getString(it) })
             return
         }
-        tileHeroes.value = emptyMap()
         delay(HERO_WAIT_MS)
-        val found = ScoutSlices.homeTiles.mapNotNull(ScoutSlices::byId).mapNotNull { slice -> heroFor(slice)?.let { slice.id to it } }.toMap()
-        tileHeroes.value = found
-        runCatching {
+        val found = ScoutSlices.homeTiles.mapNotNull(ScoutSlices::byId)
+            .mapNotNull { slice -> if (isCurrent()) heroFor(slice, scope)?.let { slice.id to it } else null }.toMap()
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        if (!isCurrent()) return
+        val serialized = JSONObject().put("version", com.nuvio.tv.domain.model.SCOUT_POOL_VERSION)
+            .put("builtAt", builtAt).put("at", now).put("heroes", JSONObject(found)).toString()
+        if (isCurrent()) runCatching {
             file.parentFile?.mkdirs()
-            file.writeText(JSONObject().put("builtAt", builtAt).put("at", now).put("heroes", JSONObject(found)).toString())
+            file.writeText(serialized)
         }
+        if (isCurrent()) tileHeroes.value = TileHeroes(scope, builtAt, found)
     }
 
     /** The backdrop of a title from the tile's own list, so the big picture always matches the tile. */
-    internal suspend fun heroFor(slice: ScoutSlice): String? {
+    internal suspend fun heroFor(slice: ScoutSlice, scope: ScoutPoolScope? = engine.scopeFor()): String? {
+        if (scope == null || engine.scopeFor(scope.selection) != scope) return null
         val source = sourcesFor(slice).firstOrNull() ?: return null
         val result = resolver.resolve(source).first { it !is com.nuvio.tv.core.network.NetworkResult.Loading }
         val items = (result as? com.nuvio.tv.core.network.NetworkResult.Success)?.data?.items.orEmpty()
-        return folderSupport.withoutSeen(items).firstNotNullOfOrNull { it.background }
+        val eligible = visibleUnder(scope, items)
+        val filtered = folderSupport.withoutSeen(eligible)
+        return filtered.takeIf { engine.scopeFor(scope.selection) == scope }?.firstNotNullOfOrNull { it.background }
+    }
+
+    private suspend fun visibleUnder(scope: ScoutPoolScope?, items: List<MetaPreview>): List<MetaPreview> {
+        if (scope == null || engine.scopeFor(scope.selection) != scope) return emptyList()
+        val limit = scope.limit ?: return items
+        val gate = scoutReadPolicy { com.nuvio.tv.core.ratinglimit.ratingLimitGateOrNull(appContext) } ?: return emptyList()
+        val allowed = scoutReadPolicy { gate.keepFitting(limit, items) { it.id to it.apiType } }.orEmpty()
+        return allowed.takeIf { engine.scopeFor(scope.selection) == scope }.orEmpty()
     }
 
     override fun collectionForFolders(collectionId: String): Collection? =
@@ -231,7 +269,9 @@ class ScoutCatalogProvider @Inject constructor(
 
     private fun sliceTitle(slice: ScoutSlice) = slice.title { res, args -> context.getString(res, *args) }
 
-    internal fun tilesFor(pool: ScoutPool?, profile: ScoutProfile): List<Collection> {
+    internal fun tilesFor(
+        pool: ScoutPool?, profile: ScoutProfile, heroUrls: Map<String, String> = emptyMap()
+    ): List<Collection> {
         val folders = buildList {
             if (profile.settings.tilesRow) {
                 add(actionFolder(FOLDER_SURPRISE, R.string.scout_tile_surprise, actionCover("surprise_me", "acclaim_crowd")))
@@ -240,7 +280,7 @@ class ScoutCatalogProvider @Inject constructor(
                     val folder = folderFor(slice, tileCover(slice) ?: art.getOrNull(index)?.backdrop)
                     add(folder.copy(
                         title = scoutListTitle(folder.title, scoutSliceEmoji(slice.id), profile.settings.listEmojis),
-                        heroBackdropUrl = tileHeroes.value[slice.id]
+                        heroBackdropUrl = heroUrls[slice.id]
                     ))
                 }
                 add(actionFolder(FOLDER_MORE, R.string.scout_tile_more, actionCover("more_filters", "acclaim_gems")))
@@ -354,11 +394,12 @@ class ScoutCatalogProvider @Inject constructor(
         posterPattern: String
     ): CatalogRow {
         if (catalogId.startsWith(CATALOG_SAVED)) return savedRow(addonBaseUrl, addonId, addonName, catalogId, catalogName, skip, posterPattern)
-        val pool = engine.pool.value
-        val profile = store.profile.first()
-        val leftOut = profile.settings.leaveOutGenres
+        val scope = engine.scopeFor()
+        val profile = scope?.let { store.profileOf(it.selection.profileId) }
+        val pool = scope?.let { engine.activePool(it.selection) }
+        val leftOut = profile?.settings?.leaveOutGenres.orEmpty()
         val picks = when {
-            skip > 0 -> emptyList()
+            scope == null || engine.scopeFor(scope.selection) != scope || skip > 0 -> emptyList()
             catalogId == CATALOG_PICKED -> scoutRotate(
                 pool?.picked.orEmpty(), PICKED_ITEMS, System.currentTimeMillis() / ROTATE_MS
             )
@@ -371,13 +412,13 @@ class ScoutCatalogProvider @Inject constructor(
                 scoutTasteSlotIndex(catalogId.removePrefix(CATALOG_TASTE))?.let { pool?.tasteRows?.getOrNull(it) }?.picks.orEmpty()
             else -> emptyList()
         }
-        if (catalogId == CATALOG_PICKED || catalogId == CATALOG_NEW || catalogId == CATALOG_TRENDING || catalogId.startsWith(CATALOG_TASTE)) {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { picksBuilder.noteShown(picks.take(SHOWN_FIRST).map { it.key }) }
+        val eligible = visibleUnder(scope, picks.filterNot { it.genres.any(leftOut::contains) }.map { it.toPreview(catalogId) })
+        val items = artwork.withPattern(folderSupport.withoutSeen(eligible), posterPattern)
+        if (scope != null && (catalogId == CATALOG_PICKED || catalogId == CATALOG_NEW ||
+                catalogId == CATALOG_TRENDING || catalogId.startsWith(CATALOG_TASTE))
+        ) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            if (engine.scopeFor(scope.selection) == scope) picksBuilder.noteShown(picks.take(SHOWN_FIRST).map { it.key }, scope.selection)
         }
-        val items = artwork.withPattern(
-            folderSupport.withoutSeen(picks.filterNot { it.genres.any(leftOut::contains) }.map { it.toPreview(catalogId) }),
-            posterPattern
-        )
         return CatalogRow(
             addonId = addonId,
             addonName = addonName,
@@ -386,7 +427,7 @@ class ScoutCatalogProvider @Inject constructor(
             catalogName = catalogName,
             type = ContentType.UNKNOWN,
             rawType = ROW_TYPE,
-            items = items,
+            items = items.takeIf { scope != null && engine.scopeFor(scope.selection) == scope }.orEmpty(),
             hasMore = false,
             supportsSkip = false
         )
@@ -396,14 +437,14 @@ class ScoutCatalogProvider @Inject constructor(
         addonBaseUrl: String, addonId: String, addonName: String, catalogId: String, catalogName: String, skip: Int,
         posterPattern: String
     ): CatalogRow {
+        val scope = engine.scopeFor()
         val slice = ScoutSlices.byId(catalogId.removePrefix(CATALOG_SAVED))
-        val lists = if (skip > 0 || slice == null) emptyList() else sourcesFor(slice).map { source ->
+        val lists = if (scope == null || skip > 0 || slice == null) emptyList() else sourcesFor(slice).map { source ->
             val result = resolver.resolve(source).first { it !is com.nuvio.tv.core.network.NetworkResult.Loading }
             (result as? com.nuvio.tv.core.network.NetworkResult.Success)?.data?.items.orEmpty()
         }
         val all = (0 until (lists.maxOfOrNull { it.size } ?: 0)).flatMap { i -> lists.mapNotNull { it.getOrNull(i) } }
-        val ratingLimits = com.nuvio.tv.core.ratinglimit.ratingLimitGateOrNull(appContext)
-        val mixed = ratingLimits?.activeLimit()?.let { limit -> ratingLimits.keepFitting(limit, all) { it.id to it.apiType } } ?: all
+        val items = artwork.withPattern(folderSupport.withoutSeen(visibleUnder(scope, all)), posterPattern)
         return CatalogRow(
             addonId = addonId,
             addonName = addonName,
@@ -412,7 +453,7 @@ class ScoutCatalogProvider @Inject constructor(
             catalogName = catalogName,
             type = ContentType.UNKNOWN,
             rawType = ROW_TYPE,
-            items = artwork.withPattern(folderSupport.withoutSeen(mixed), posterPattern),
+            items = items.takeIf { scope != null && engine.scopeFor(scope.selection) == scope }.orEmpty(),
             hasMore = false,
             supportsSkip = false
         )

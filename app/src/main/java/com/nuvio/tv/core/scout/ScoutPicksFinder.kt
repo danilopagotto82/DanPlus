@@ -182,7 +182,7 @@ class ScoutPicksFinder @Inject constructor(
 ) {
     private val fromCountryCounts = HashMap<String, Int>()
 
-    private class SeenExclusions(val profileId: Int, val profile: ScoutProfile, val at: Long, val exclusions: ScoutExclusions)
+    private class SeenExclusions(val owner: ScoutSelection, val profile: ScoutProfile, val at: Long, val exclusions: ScoutExclusions)
 
     @Volatile private var seenExclusions: SeenExclusions? = null
     private val refreshingExclusions = AtomicBoolean(false)
@@ -218,10 +218,14 @@ class ScoutPicksFinder @Inject constructor(
     }
 
     /** So tomorrow's first visit, or one after the app was closed, doesn't start from nothing. */
-    suspend fun saveKept() = withContext(Dispatchers.IO) {
+    internal suspend fun saveKept(isCurrent: () -> Boolean) = withContext(Dispatchers.IO) {
+        if (!isCurrent()) return@withContext
         runCatching {
-            keptFile.parentFile?.mkdirs()
-            keptFile.writeText(keptAdapter.toJson(ScoutKeptFile(keptRows.all(), keptDetails.all(), keptLogos.all(), titlesAt)))
+            val serialized = keptAdapter.toJson(ScoutKeptFile(keptRows.all(), keptDetails.all(), keptLogos.all(), titlesAt))
+            if (isCurrent()) {
+                keptFile.parentFile?.mkdirs()
+                keptFile.writeText(serialized)
+            }
         }
         Unit
     }
@@ -234,50 +238,59 @@ class ScoutPicksFinder @Inject constructor(
         titlesAt = now
     }
 
-    private suspend fun fullRowKey(key: String): String {
-        val profile = engine.activeProfile()
+    private suspend fun fullRowKey(key: String, scope: ScoutPoolScope): String? {
+        val owner = scope.selection
+        if (scope != engine.scopeFor(owner)) return null
+        val profile = owner.profileId
         val rated = store.profileOf(profile).ratings.values.sumOf { it.ratedAt }
+        if (scope != engine.scopeFor(owner)) return null
         val moodsChecked = withContext(Dispatchers.IO) { moodAi.read(profile).moods.values.sumOf { it.checkedAt } }
-        return "$key|${tmdbSettings.settings.first().language}|${pool()?.builtAt}|$rated|$profile|$moodsChecked"
+        val language = tmdbSettings.settings.first().language
+        if (scope != engine.scopeFor(owner)) return null
+        return "scoped|$profile|${scope.limit?.code}|$key|$language|${engine.activePool(owner)?.builtAt}|$rated|$moodsChecked"
     }
 
     /** A row built in the last day, without anything the profile has since seen or rated. */
-    suspend fun keptRow(key: String): List<ScoutPick>? {
-        val started = System.currentTimeMillis()
+    internal suspend fun keptRow(key: String, owner: ScoutSelection): List<ScoutPick>? {
+        val scope = engine.scopeFor(owner) ?: return null
         restoreKept()
-        val fullKey = fullRowKey(key)
-        val looked = System.currentTimeMillis()
-        val kept = keptRows[fullKey]?.takeIf { looked - it.at < DAY_MS } ?: return null
-        val exclusions = exclusions()
-        val excluded = System.currentTimeMillis()
-        return eligibleForActiveProfile(kept.picks.filterNot(exclusions::blocks)).also {
-            Log.i("ScoutSpeed", "kept key=${looked - started} exclusions=${excluded - looked} filter=${System.currentTimeMillis() - excluded} ms")
-        }
-    }
-
-    suspend fun keepRow(key: String, picks: List<ScoutPick>, profileId: Int = engine.activeProfile()) {
-        if (engine.activeProfile() != profileId) return
-        val fullKey = fullRowKey(key)
-        if (engine.activeProfile() == profileId) keptRows[fullKey] = ScoutKeptRow(picks, System.currentTimeMillis())
-    }
-
-    suspend fun exclusions(): ScoutExclusions {
-        val profileId = engine.activeProfile()
-        val profile = store.profileOf(profileId)
+        val fullKey = fullRowKey(key, scope) ?: return null
         val now = System.currentTimeMillis()
-        val seen = seenExclusions?.takeIf { it.profileId == profileId }
-            ?: return engine.exclusions(profile).also { seenExclusions = SeenExclusions(profileId, profile, now, it) }
+        val kept = keptRows[fullKey]?.takeIf { now - it.at < DAY_MS } ?: return null
+        val exclusions = exclusions(owner) ?: return null
+        return eligibleForActiveProfile(kept.picks.filterNot(exclusions::blocks), scope)
+            .takeIf { scope == engine.scopeFor(owner) }
+    }
+
+    internal suspend fun keepRow(key: String, picks: List<ScoutPick>, owner: ScoutSelection, isCurrent: () -> Boolean) {
+        if (!isCurrent()) return
+        val scope = engine.scopeFor(owner) ?: return
+        val fullKey = fullRowKey(key, scope) ?: return
+        if (isCurrent() && scope == engine.scopeFor(owner)) keptRows[fullKey] = ScoutKeptRow(picks, System.currentTimeMillis())
+    }
+
+    internal suspend fun exclusions(owner: ScoutSelection = engine.selection()): ScoutExclusions? {
+        if (owner != engine.selection()) return null
+        val profile = store.profileOf(owner.profileId)
+        if (owner != engine.selection()) return null
+        val now = System.currentTimeMillis()
+        val seen = seenExclusions?.takeIf { it.owner == owner }
+            ?: return engine.exclusions(profile, owner)?.takeIf { owner == engine.selection() }?.also {
+                seenExclusions = SeenExclusions(owner, profile, now, it)
+            }
         if ((seen.profile != profile || now - seen.at >= EXCLUSIONS_FRESH_MS) && refreshingExclusions.compareAndSet(false, true)) {
             background.launch {
                 try {
-                    val fresh = engine.exclusions(profile)
-                    seenExclusions = SeenExclusions(profileId, profile, System.currentTimeMillis(), fresh)
+                    val fresh = engine.exclusions(profile, owner)
+                    if (fresh != null && owner == engine.selection()) {
+                        seenExclusions = SeenExclusions(owner, profile, System.currentTimeMillis(), fresh)
+                    }
                 } finally {
                     refreshingExclusions.set(false)
                 }
             }
         }
-        return seen.exclusions.withNotForMe(profile)
+        return seen.exclusions.withNotForMe(profile).takeIf { owner == engine.selection() }
     }
 
     fun pool(): ScoutPool? = engine.activePool()
@@ -288,25 +301,32 @@ class ScoutPicksFinder @Inject constructor(
 
     /** One page of each side the answers allow. */
     suspend fun fetch(answers: ScoutAnswers, page: Int, relaxed: Boolean): List<ScoutPick> {
+        val scope = engine.scopeFor() ?: return emptyList()
         val found = fetchUnchecked(answers, page, relaxed)
+        if (engine.scopeFor(scope.selection) != scope) return emptyList()
         val rejected = moodAi.rejected(answers)
+        if (engine.scopeFor(scope.selection) != scope) return emptyList()
         val kept = found.scoutWithoutRejected(rejected)
         if (rejected.isEmpty() || kept.size >= SCOUT_MOOD_ROW_TARGET) return kept
-        return (kept + fetchUnchecked(answers, page + 1, relaxed).scoutWithoutRejected(rejected)).distinctBy { it.key }
+        val more = fetchUnchecked(answers, page + 1, relaxed).scoutWithoutRejected(rejected)
+        return (kept + more).distinctBy { it.key }.takeIf { engine.scopeFor(scope.selection) == scope }.orEmpty()
     }
 
     suspend fun fetchUnchecked(answers: ScoutAnswers, page: Int, relaxed: Boolean = false): List<ScoutPick> {
+        val scope = engine.scopeFor() ?: return emptyList()
         val slice = answers.slice()
         val language = tmdbSettings.settings.first().language
-        val noAnimation = answers.scoutLaughLeavesOutAnimation(pool())
+        if (engine.scopeFor(scope.selection) != scope) return emptyList()
+        val noAnimation = answers.scoutLaughLeavesOutAnimation(engine.activePool(scope.selection))
         val shaped = { f: TmdbCollectionFilters ->
             if (noAnimation) f.copy(withoutGenres = listOfNotNull(f.withoutGenres, ANIMATION.toString()).joinToString(",")) else f
         }
         return coroutineScope {
-            val movies = slice.movie?.let(shaped)?.let { f -> async { discover(if (relaxed) f.scoutRelaxed() else f, false, slice.sortBy, page, language) } }
-            val series = slice.tv?.let(shaped)?.let { f -> async { discover(if (relaxed) f.scoutRelaxed() else f, true, slice.sortBy, page, language) } }
+            val movies = slice.movie?.let(shaped)?.let { f -> async { discover(if (relaxed) f.scoutRelaxed() else f, false, slice.sortBy, page, language, scope) } }
+            val series = slice.tv?.let(shaped)?.let { f -> async { discover(if (relaxed) f.scoutRelaxed() else f, true, slice.sortBy, page, language, scope) } }
             val a = movies?.await().orEmpty()
             val b = series?.await().orEmpty()
+            if (engine.scopeFor(scope.selection) != scope) return@coroutineScope emptyList()
             (0 until maxOf(a.size, b.size)).flatMap { i -> listOfNotNull(a.getOrNull(i), b.getOrNull(i)) }
         }
     }
@@ -315,7 +335,7 @@ class ScoutPicksFinder @Inject constructor(
 
     suspend fun fetchAdvanced(query: ScoutAdvancedSearch, answers: ScoutAnswers, page: Int): List<ScoutPick> {
         val normalized = query.normalized()
-        val profileId = engine.activeProfile()
+        val scope = engine.scopeFor() ?: return emptyList()
         val slice = answers.slice()
         val language = tmdbSettings.settings.first().language
         fun TmdbCollectionFilters.withQuery(): TmdbCollectionFilters {
@@ -344,29 +364,31 @@ class ScoutPicksFinder @Inject constructor(
                     } catch (_: java.io.IOException) {
                         return emptyList()
                     }
-                    return eligibleForActiveProfile(response.body()?.results.orEmpty().mapNotNull { it.toPick(tv) })
+                    return eligibleForActiveProfile(response.body()?.results.orEmpty().mapNotNull { it.toPick(tv) }, scope)
                 }
-                return discover(filters.withQuery(), tv, slice.sortBy, page, language)
+                return discover(filters.withQuery(), tv, slice.sortBy, page, language, scope)
             }
             val movies = async { candidates(slice.movie, false) }
             val series = async { candidates(slice.tv, true) }
             movies.await() + series.await()
         }
-        return if (engine.activeProfile() == profileId) matches.filter(normalized::matches) else emptyList()
+        return if (engine.scopeFor(scope.selection) == scope) matches.filter(normalized::matches) else emptyList()
     }
 
     suspend fun moreLike(pick: ScoutPick): List<ScoutPick> {
+        val scope = engine.scopeFor() ?: return emptyList()
         val language = tmdbSettings.settings.first().language
+        if (engine.scopeFor(scope.selection) != scope) return emptyList()
         val key = com.nuvio.tv.core.tmdb.TmdbApiKey.value
-        if (ratingLimitGateOrNull(context)?.activeLimit() != null) {
+        if (scope.limit != null) {
             val genres = pick.genres.distinct().takeIf { it.isNotEmpty() } ?: return emptyList()
-            return discover(TmdbCollectionFilters(withGenres = genres.joinToString("|")), pick.tv, null, 1, language)
+            return discover(TmdbCollectionFilters(withGenres = genres.joinToString("|")), pick.tv, null, 1, language, scope)
                 .filterNot { it.key == pick.key }
         }
         val body = runCatching {
             if (pick.tv) tmdbApi.getTvRecommendations(pick.tmdbId, key, language) else tmdbApi.getMovieRecommendations(pick.tmdbId, key, language)
         }.getOrNull()?.body()
-        return eligibleForActiveProfile(body?.results.orEmpty().mapNotNull { it.toPick(pick.tv) })
+        return eligibleForActiveProfile(body?.results.orEmpty().mapNotNull { it.toPick(pick.tv) }, scope)
     }
 
     /** Only worth offering where the list would not come up nearly empty. Asked once per country. */
@@ -461,19 +483,25 @@ class ScoutPicksFinder @Inject constructor(
     suspend fun discoverSeries(f: TmdbCollectionFilters, page: Int, sortBy: String): List<ScoutPick> =
         discover(f, true, sortBy, page, tmdbSettings.settings.first().language)
 
-    private suspend fun eligibleForActiveProfile(picks: List<ScoutPick>): List<ScoutPick> {
-        val profile = engine.activeProfile()
+    private suspend fun eligibleForActiveProfile(
+        picks: List<ScoutPick>, scope: ScoutPoolScope? = engine.scopeFor()
+    ): List<ScoutPick> {
+        if (scope == null || scope != engine.scopeFor(scope.selection)) return emptyList()
         val candidates = picks.filterNot(ScoutPick::isAnimeRecap)
-        val gate = ratingLimitGateOrNull(context) ?: return candidates
-        val limit = gate.activeLimit() ?: return candidates
-        val kept = gate.keepFitting(limit, candidates) { "tmdb:${it.tmdbId}" to if (it.tv) "series" else "movie" }
-        return kept.takeIf { engine.activeProfile() == profile && gate.activeLimit() == limit }.orEmpty()
+        val limit = scope.limit ?: return candidates
+        val gate = scoutReadPolicy { ratingLimitGateOrNull(context) } ?: return emptyList()
+        val kept = scoutReadPolicy {
+            gate.keepFitting(limit, candidates) { "tmdb:${it.tmdbId}" to if (it.tv) "series" else "movie" }
+        }.orEmpty()
+        return kept.takeIf { scope == engine.scopeFor(scope.selection) }.orEmpty()
     }
 
-    private suspend fun discover(filters: TmdbCollectionFilters, tv: Boolean, sortBy: String?, page: Int, language: String): List<ScoutPick> {
-        val profile = engine.activeProfile()
-        val gate = ratingLimitGateOrNull(context)
-        val limit = gate?.activeLimit()
+    private suspend fun discover(
+        filters: TmdbCollectionFilters, tv: Boolean, sortBy: String?, page: Int, language: String,
+        scope: ScoutPoolScope? = engine.scopeFor()
+    ): List<ScoutPick> {
+        if (scope == null || engine.scopeFor(scope.selection) != scope) return emptyList()
+        val limit = scope.limit
         val f = if (limit != null) filters.copy(
             certificationCountry = "US",
             certificationLte = filters.certificationLte?.takeIf {
@@ -501,8 +529,7 @@ class ScoutPicksFinder @Inject constructor(
                 certificationCountry = f.certificationCountry, certificationLte = f.certificationLte
             )
         }.getOrNull()?.body()
-        if (engine.activeProfile() != profile || gate?.activeLimit() != limit) return emptyList()
-        return eligibleForActiveProfile(body?.results.orEmpty().mapNotNull { it.toPick(tv) })
+        return eligibleForActiveProfile(body?.results.orEmpty().mapNotNull { it.toPick(tv) }, scope)
     }
 }
 

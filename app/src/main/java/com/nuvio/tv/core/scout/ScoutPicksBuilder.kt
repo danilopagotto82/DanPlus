@@ -88,27 +88,32 @@ class ScoutPicksBuilder @Inject constructor(
 
     /** Called with the titles a row is showing; counts once a day per title. */
     @Synchronized
-    fun noteShown(keys: List<String>, now: Long = System.currentTimeMillis()) {
-        val file = shownFile(profileManager.activeProfileId.value)
+    internal fun noteShown(keys: List<String>, owner: ScoutSelection, now: Long = System.currentTimeMillis()) {
+        if (owner != profileManager.scoutSelection()) return
+        val file = shownFile(owner.profileId)
         val old = readShown(file)
         val updated = old.toMutableMap()
         keys.forEach { updated[it] = scoutShownToday(old[it], now) }
         if (updated == old) return
         val kept = updated.entries.sortedByDescending { it.value.last }.take(SHOWN_KEEP).associate { it.key to it.value }
-        runCatching { file.apply { parentFile?.mkdirs() }.writeText(shownAdapter.toJson(kept)) }
+        if (owner == profileManager.scoutSelection()) {
+            runCatching { file.apply { parentFile?.mkdirs() }.writeText(shownAdapter.toJson(kept)) }
+        }
     }
 
     private fun readShown(file: File): Map<String, ScoutShown> =
         runCatching { shownAdapter.fromJson(file.readText()).orEmpty() }.getOrDefault(emptyMap())
 
-    private fun resting(now: Long): Set<String> =
-        scoutResting(readShown(shownFile(profileManager.activeProfileId.value)), ScoutOpenedLog.read(context), now)
+    private fun resting(profileId: Int, now: Long): Set<String> =
+        scoutResting(readShown(shownFile(profileId)), ScoutOpenedLog.read(context, profileId), now)
 
     /** The age ceiling read from the profile's own titles; their facts are kept, so the rebuild needs no second look-up. */
-    suspend fun ageCeiling(titles: List<ScoutSeed>, now: Long, profileId: Int = profileManager.activeProfileId.value): Int? {
+    suspend fun ageCeiling(
+        titles: List<ScoutSeed>, now: Long, profileId: Int, isCurrent: () -> Boolean = { true }
+    ): Int? {
         val positive = titles.filter { it.weight > 0 }.sortedByDescending { it.weight }.distinctBy { it.contentId }.take(AGE_TITLES)
         if (positive.isEmpty()) return null
-        val facts = taste.get().fill(positive.map { it.contentId to it.tv }, now, profileId)
+        val facts = taste.get().fill(positive.map { it.contentId to it.tv }, now, profileId, isCurrent)
         return scoutAgeCeiling(positive.mapNotNull { seed -> facts[seed.contentId]?.ageLevel?.let { it to seed.weight } })
     }
 
@@ -122,11 +127,15 @@ class ScoutPicksBuilder @Inject constructor(
         exclusions: ScoutExclusions,
         now: Long,
         language: String? = null,
-        ageCeiling: Int? = null
+        ageCeiling: Int? = null,
+        profileId: Int,
+        isCurrent: () -> Boolean
     ): ScoutImproved? {
+        if (!isCurrent()) return null
         val positive = signals.filter { it.weight > 0 }.sortedByDescending { it.weight }.take(TASTE_TITLES)
         val negative = signals.filter { it.weight < 0 }.take(TASTE_NEGATIVE)
-        val titles = taste.get().fill((positive + negative).map { it.contentId to it.tv }, now)
+        val titles = taste.get().fill((positive + negative).map { it.contentId to it.tv }, now, profileId, isCurrent)
+        if (!isCurrent()) return null
         val items = (positive + negative).mapNotNull { seed -> titles[seed.contentId]?.let { it to seed.weight } }
         if (items.count { it.second > 0 } < MIN_TASTE_TITLES) return null
         val loved = ratings.filter { it.rating == ScoutRating.LOVE }.map { it.title.id }.toSet()
@@ -145,7 +154,8 @@ class ScoutPicksBuilder @Inject constructor(
 
         val known = readFacts(now)
         val related = relatedResults(results.map { it.first }.filter { it.weight > 0 && it.name.isNotBlank() }, known, now, language)
-        val found = scoutTally(results + extra + related, exclusions.copy(tmdbKeys = exclusions.tmdbKeys + resting(now)))
+        if (!isCurrent()) return null
+        val found = scoutTally(results + extra + related, exclusions.copy(tmdbKeys = exclusions.tmdbKeys + resting(profileId, now)))
         val candidates = lookUpCandidates(found, known, now)
         val tally = found.filterValues { (pick, _) -> scoutWithinCeiling(pick, known[pick.key]?.ageLevel, ageCeiling) }
         val all = candidates + items.associate { it.first.contentId to it.first }
@@ -155,7 +165,9 @@ class ScoutPicksBuilder @Inject constructor(
         val ranked = scoutReRank(tally, all, vector, LOOKUPS)
         val limited = scoutLimitDuplicates(ranked, all)
         val ordered = scoutAddStretch(limited, all, vector).take(POOL).map { scoutWithReason(it, all[it.key], vector, frequency) }
-        val picked = ai.get().sort(ordered, now)
+        if (!isCurrent()) return null
+        val picked = ai.get().sort(ordered, now, profileId, isCurrent)
+        if (!isCurrent()) return null
 
         val groups = scoutTasteGroups(items)
         val rows = if (groups.size < 2) emptyList() else groups.map { group ->
@@ -173,9 +185,10 @@ class ScoutPicksBuilder @Inject constructor(
         val freshFrequency = HashMap<String, Int>()
         freshFacts.values.forEach { title -> title.usefulKeywords().forEach { freshFrequency.merge(it.name, 1, Int::plus) } }
         val shownFirst = picked.take(FRESH_SKIP_TOP).map { it.key }.toSet()
-        val blocked = exclusions.copy(tmdbKeys = exclusions.tmdbKeys + resting(now))
+        val blocked = exclusions.copy(tmdbKeys = exclusions.tmdbKeys + resting(profileId, now))
         val newRow = scoutFreshRow(suitable(newTitles), freshFacts, vector, freshFrequency, blocked, shownFirst)
         val trendingRow = scoutFreshRow(suitable(trending), freshFacts, vector, freshFrequency, blocked, shownFirst + newRow.take(FRESH_SKIP_TOP).map { it.key })
+        if (!isCurrent()) return null
         saveFacts(known)
         return ScoutImproved(picked, rows, newRow, trendingRow)
     }
@@ -385,20 +398,20 @@ class ScoutPicksBuilder @Inject constructor(
 /** Titles opened from a Scout row. A plain file so a title page needs nothing injected. */
 object ScoutOpenedLog {
     private const val KEEP_BYTES = 64_000L
-    private fun file(context: Context) = File(context.filesDir, "scout/opened.txt")
+    private fun file(context: Context, profileId: Int) = File(context.filesDir, "scout/opened_$profileId.txt")
 
-    fun mark(context: Context, itemId: String, itemType: String) {
+    fun mark(context: Context, profileId: Int, itemId: String, itemType: String) {
         if (!itemId.startsWith("tmdb:")) return
         val key = (if (itemType.trim().lowercase() == "movie") "movie:" else "tv:") + itemId.removePrefix("tmdb:")
         kotlin.concurrent.thread(name = "scout-opened") {
             runCatching {
-                val target = file(context).apply { parentFile?.mkdirs() }
+                val target = file(context, profileId).apply { parentFile?.mkdirs() }
                 if (target.length() > KEEP_BYTES) target.writeText(target.readLines().takeLast(1000).joinToString("\n", postfix = "\n"))
                 target.appendText(key + "\n")
             }
         }
     }
 
-    fun read(context: Context): Set<String> =
-        runCatching { file(context).readLines().filter { it.isNotBlank() }.toSet() }.getOrDefault(emptySet())
+    fun read(context: Context, profileId: Int): Set<String> =
+        runCatching { file(context, profileId).readLines().filter { it.isNotBlank() }.toSet() }.getOrDefault(emptySet())
 }

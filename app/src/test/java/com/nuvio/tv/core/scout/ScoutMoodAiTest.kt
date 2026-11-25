@@ -79,12 +79,15 @@ class ScoutMoodAiTest {
 
     private fun parts(on: Boolean = true, moods: Map<String, ScoutMoodAiEntry> = emptyMap()): Parts {
         val store = mockk<ScoutMoodAiStore>(relaxed = true)
-        every { store.isOn() } returns on
+        every { store.isOn(any()) } returns on
         every { store.read(any()) } returns ScoutMoodAiState(moods)
         val finder = mockk<ScoutPicksFinder>()
         coEvery { finder.fetchUnchecked(any(), any()) } returns (1..8).map { pick(it) }
         val service = mockk<AskService>()
-        val profiles = mockk<ProfileManager> { every { activeProfileId } returns MutableStateFlow(2) }
+        val profiles = mockk<ProfileManager> {
+            every { activeProfileId } returns MutableStateFlow(2)
+            every { profileSelectionRevision } returns MutableStateFlow(0L)
+        }
         return Parts(store, finder, service, ScoutMoodCheck(store, dagger.Lazy { finder }, dagger.Lazy { service }, profiles))
     }
 
@@ -94,20 +97,20 @@ class ScoutMoodAiTest {
     fun `switch off or no key means no call`() = runBlocking {
         val p = parts(on = false)
         p.check.runIfDue(now)
-        coVerify(exactly = 0) { p.service.checkMood(any(), any()) }
+        coVerify(exactly = 0) { p.service.checkMood(any(), any(), any()) }
     }
 
     @Test
     fun `nothing is asked again inside the week`() = runBlocking {
         val p = parts(moods = everyMood.associateWith { ScoutMoodAiEntry(now - 1000) })
         p.check.runIfDue(now)
-        coVerify(exactly = 0) { p.service.checkMood(any(), any()) }
+        coVerify(exactly = 0) { p.service.checkMood(any(), any(), any()) }
     }
 
     @Test
     fun `a verdict is saved for that profile and mood`() = runBlocking {
         val p = parts(moods = (everyMood - "sc").associateWith { ScoutMoodAiEntry(now - 1000) })
-        coEvery { p.service.checkMood(any(), any()) } returns (1..6).map { pick(it).key }.toSet()
+        coEvery { p.service.checkMood(any(), any(), any()) } returns (1..6).map { pick(it).key }.toSet()
         val saved = slot<ScoutMoodAiEntry>()
         every { p.store.save(2, "sc", capture(saved)) } returns Unit
         p.check.runIfDue(now)
@@ -151,7 +154,7 @@ class ScoutMoodAiTest {
     @Test
     fun `a failed mood does not stop the next one`() = runBlocking {
         val p = parts(moods = (everyMood - "fg" - "la").associateWith { ScoutMoodAiEntry(now - 1000) })
-        coEvery { p.service.checkMood(any(), any()) } returnsMany listOf(null, (1..6).map { pick(it).key }.toSet())
+        coEvery { p.service.checkMood(any(), any(), any()) } returnsMany listOf(null, (1..6).map { pick(it).key }.toSet())
         val saved = slot<ScoutMoodAiEntry>()
         every { p.store.save(2, "la", capture(saved)) } returns Unit
         p.check.runIfDue(now)
@@ -164,13 +167,13 @@ class ScoutMoodAiTest {
         val p = parts(moods = mapOf("fg" to ScoutMoodAiEntry(now - week)))
         coEvery { p.finder.fetchUnchecked(any(), any()) } returns emptyList()
         assertRetryNoted(p)
-        coVerify(exactly = 0) { p.service.checkMood(any(), any()) }
+        coVerify(exactly = 0) { p.service.checkMood(any(), any(), any()) }
     }
 
     @Test
     fun `an exception notes the try`() {
         val p = parts(moods = mapOf("fg" to ScoutMoodAiEntry(now - week)))
-        coEvery { p.service.checkMood(any(), any()) } throws IllegalStateException("bad")
+        coEvery { p.service.checkMood(any(), any(), any()) } throws IllegalStateException("bad")
         assertRetryNoted(p)
     }
 
@@ -178,14 +181,14 @@ class ScoutMoodAiTest {
     fun `a failed call keeps the last verdict, retries in a day and three failures end the round`() = runBlocking {
         val old = listOf(pick(9).key)
         val p = parts(moods = mapOf("fg" to ScoutMoodAiEntry(now - week, old)))
-        coEvery { p.service.checkMood(any(), any()) } returns null
+        coEvery { p.service.checkMood(any(), any(), any()) } returns null
         val saved = slot<ScoutMoodAiEntry>()
         every { p.store.save(2, "fg", capture(saved)) } returns Unit
         p.check.runIfDue(now)
         assertEquals(old, saved.captured.rejected)
         assertTrue(scoutMoodDue(saved.captured, now + 24L * 60 * 60 * 1000))
         assertFalse(scoutMoodDue(saved.captured, now + 1000))
-        coVerify(exactly = 3) { p.service.checkMood(any(), any()) }
+        coVerify(exactly = 3) { p.service.checkMood(any(), any(), any()) }
         verify(exactly = 3) { p.store.save(any(), any(), any()) }
     }
 }

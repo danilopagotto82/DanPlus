@@ -15,7 +15,12 @@ import com.nuvio.tv.domain.model.ScoutProfile
 import com.nuvio.tv.domain.model.ScoutSettings
 import com.nuvio.tv.domain.model.WatchProgress
 import com.nuvio.tv.domain.model.WatchedItem
-import com.nuvio.tv.domain.repository.WatchProgressRepository
+import com.nuvio.tv.core.ratinglimit.RatingLimit
+import com.nuvio.tv.core.ratinglimit.RatingLimitGate
+import com.nuvio.tv.data.local.WatchedItemsPreferences
+import com.nuvio.tv.data.local.WatchProgressPreferences
+import com.nuvio.tv.domain.model.ScoutPick
+import kotlinx.coroutines.CompletableDeferred
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -67,32 +72,50 @@ class ScoutEngineTest {
         started: List<WatchProgress> = emptyList(),
         listed: ScoutListed = ScoutListed(),
         activeProfile: MutableStateFlow<Int> = MutableStateFlow(1),
+        selectionRevision: MutableStateFlow<Long> = MutableStateFlow(0L),
         ceiling: Int? = null,
         levels: Map<String, Int?> = emptyMap(),
         improved: ScoutImproved? = null,
-        limit: com.nuvio.tv.core.ratinglimit.RatingLimit? = null
+        limit: RatingLimit? = null,
+        policy: MutableStateFlow<Map<Int, RatingLimit>> = MutableStateFlow(limit?.let { mapOf(1 to it) }.orEmpty()),
+        policyUnavailable: () -> Boolean = { false },
+        watchedByProfile: Map<Int, List<WatchedItem>> = mapOf(1 to watched)
     ): ScoutEngine {
-        val gate = mockk<com.nuvio.tv.core.ratinglimit.RatingLimitGate> {
-            every { limitFor(any()) } returns limit
-            every { limits } returns MutableStateFlow(if (limit == null) emptyMap() else mapOf(1 to limit))
+        val gate = mockk<RatingLimitGate> {
+            every { limitFor(any()) } answers {
+                check(!policyUnavailable()) { "Rating policy unavailable" }
+                policy.value[firstArg<Int>()]
+            }
+            every { limits } returns policy
+            coEvery { keepFitting<ScoutPick>(any(), any(), any()) } coAnswers {
+                val ceiling = firstArg<RatingLimit>()
+                secondArg<List<ScoutPick>>().filter { ceiling.allows(levels[it.key]) }
+            }
         }
         val context = mockk<Context> { every { filesDir } returns folder.root }
         val settings = mockk<TmdbSettingsDataStore>(relaxed = true)
         every { settings.settings } returns MutableStateFlow(com.nuvio.tv.domain.model.TmdbSettings(language = "en"))
-        val progress = mockk<WatchProgressRepository> {
-            every { tasteHistory } returns flowOf(watched)
-            every { allProgress } returns flowOf(started)
+        val history = mockk<WatchedItemsPreferences> {
+            coEvery { getAllItems(any(), any()) } coAnswers { watchedByProfile[firstArg<Int>()].orEmpty() }
         }
-        val store = mockk<ScoutStore> { coEvery { current() } returns profile }
-        io.mockk.every { store.profile } returns kotlinx.coroutines.flow.flowOf(profile)
-        val profiles = mockk<ProfileManager> { every { activeProfileId } returns activeProfile }
-        val support = mockk<ScoutFolderSupport> { coEvery { listed() } returns listed }
+        val progress = mockk<WatchProgressPreferences> {
+            every { observeAllProgress(any()) } returns flowOf(started)
+        }
+        val store = mockk<ScoutStore> {
+            coEvery { profileOf(any()) } coAnswers { profile.copy(profileId = firstArg()) }
+            every { this@mockk.profile } returns flowOf(profile)
+        }
+        val profiles = mockk<ProfileManager> {
+            every { activeProfileId } returns activeProfile
+            every { profileSelectionRevision } returns selectionRevision
+        }
+        val support = mockk<ScoutFolderSupport> { coEvery { listed(any(), any()) } returns listed }
         val picks = mockk<ScoutPicksBuilder> {
-            coEvery { improve(any(), any(), any(), any(), any(), any(), any()) } returns improved
-            coEvery { ageCeiling(any(), any(), any()) } returns ceiling
+            coEvery { improve(any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns improved
+            coEvery { ageCeiling(any(), any(), any(), any()) } returns ceiling
             every { knownAgeLevels(any()) } returns levels
         }
-        return ScoutEngine(context, tmdb, service, settings, dagger.Lazy { progress }, mockk(relaxed = true), dagger.Lazy { mockk(relaxed = true) }, store, profiles, support, picks, dagger.Lazy { mockk<ScoutMoodCheck>(relaxed = true) }, dagger.Lazy { gate })
+        return ScoutEngine(context, tmdb, service, settings, history, dagger.Lazy { progress }, store, profiles, support, picks, dagger.Lazy { mockk<ScoutMoodCheck>(relaxed = true) }, dagger.Lazy { gate })
     }
 
     private fun watched(id: String, name: String, at: Long, year: String? = "2019") =
@@ -112,7 +135,7 @@ class ScoutEngineTest {
         stubDiscover(emptyList())
         val e = engine(seeded())
         e.refreshIfDue(now)
-        val pool = e.pool.value!!
+        val pool = e.activePool()!!
         assertEquals(60, pool.picked.size)
         assertEquals("One", pool.picked.first().seedName)
         assertEquals(2, pool.because.size)
@@ -123,10 +146,10 @@ class ScoutEngineTest {
         stubDiscover((1..30).map { disc(it) })
         val e = engine(emptyList())
         e.refreshIfDue(now)
-        val picked = e.pool.value!!.picked
+        val picked = e.activePool()!!.picked
         assertTrue(picked.isNotEmpty())
         assertNull(picked.first().seedName)
-        assertTrue(e.pool.value!!.because.isEmpty())
+        assertTrue(e.activePool()!!.because.isEmpty())
     }
 
     @Test
@@ -143,7 +166,7 @@ class ScoutEngineTest {
         })
         val e = engine(seeded(), started = started)
         e.refreshIfDue(now)
-        assertEquals(listOf("Other"), e.pool.value!!.picked.map { it.name })
+        assertEquals(listOf("Other"), e.activePool()!!.picked.map { it.name })
     }
 
     @Test
@@ -153,7 +176,7 @@ class ScoutEngineTest {
         val listed = ScoutListed(ids = setOf("tmdb:1"), names = setOf(com.nuvio.tv.domain.model.scoutNormalizedName("Listed by name")))
         val e = engine(seeded(), listed = listed)
         e.refreshIfDue(now)
-        assertEquals(listOf("Free"), e.pool.value!!.picked.map { it.name })
+        assertEquals(listOf("Free"), e.activePool()!!.picked.map { it.name })
     }
 
     @Test
@@ -162,7 +185,7 @@ class ScoutEngineTest {
         stubDiscover(emptyList())
         val e = engine(seeded(), ScoutProfile(settings = ScoutSettings(leaveOutGenres = setOf(18))))
         e.refreshIfDue(now)
-        assertNull(e.pool.value)
+        assertNull(e.activePool())
     }
 
     @Test
@@ -172,7 +195,7 @@ class ScoutEngineTest {
         engine(seeded()).refreshIfDue(now)
         val second = engine(seeded())
         second.refreshIfDue(now + 1000)
-        assertEquals(60, second.pool.value!!.picked.size)
+        assertEquals(60, second.activePool()!!.picked.size)
         coVerify(exactly = 3) { tmdb.getMovieRecommendations(any(), any(), any(), any()) }
     }
 
@@ -184,8 +207,8 @@ class ScoutEngineTest {
         e.refreshIfDue(now)
         coEvery { tmdb.getMovieRecommendations(any(), any(), any(), any()) } throws java.io.IOException("offline")
         e.refreshIfDue(now + SCOUT_REFRESH_MS)
-        assertEquals(60, e.pool.value!!.picked.size)
-        assertEquals(now, e.pool.value!!.builtAt)
+        assertEquals(60, e.activePool()!!.picked.size)
+        assertEquals(now, e.activePool()!!.builtAt)
     }
 
     @Test
@@ -194,8 +217,8 @@ class ScoutEngineTest {
         stubDiscover((1..3).map { disc(it) })
         val e = engine(seeded())
         e.refreshIfDue(now)
-        assertNotNull(e.pool.value)
-        assertFalse(e.pool.value!!.picked.isEmpty())
+        assertNotNull(e.activePool())
+        assertFalse(e.activePool()!!.picked.isEmpty())
         coVerify(exactly = 0) { tmdb.getMovieRecommendations(any(), any(), any(), any()) }
     }
     private fun savePool(profileId: Int, title: String) {
@@ -211,7 +234,7 @@ class ScoutEngineTest {
     }
 
     private suspend fun ScoutEngine.awaitFirst(title: String?) = withTimeout(5_000) {
-        while (pool.value?.picked?.firstOrNull()?.name != title) delay(10)
+        while (activePool()?.picked?.firstOrNull()?.name != title) delay(10)
     }
 
     @Test
@@ -240,7 +263,7 @@ class ScoutEngineTest {
         stubDiscover(emptyList())
         val e = engine(seeded(), activeProfile = active)
         e.refreshIfDue(now)
-        assertNull(e.pool.value)
+        assertNull(e.activePool())
         assertFalse(java.io.File(folder.root, "scout/pool_1.json").exists())
     }
 
@@ -254,7 +277,7 @@ class ScoutEngineTest {
         stubDiscover(listOf(kidsTv))
         val e = engine(seeded(), ceiling = 0, levels = mapOf("movie:1" to 0, "movie:2" to 3))
         e.refreshIfDue(now)
-        val pool = e.pool.value!!
+        val pool = e.activePool()!!
         assertTrue(pool.picked.any { it.name == "Kids film" })
         assertFalse(pool.picked.any { it.name == "Adult film" || it.name == "Unrated drama" })
         assertTrue(pool.because.flatMap { it.picks }.none { it.name == "Adult film" })
@@ -281,7 +304,7 @@ class ScoutEngineTest {
         stubKidsTvPage(2, (1..12).map { kidsShow(100 + it, "Kids show $it") })
         val e = engine(seeded(), ceiling = 0, levels = mapOf("movie:2" to 3))
         e.refreshIfDue(now)
-        val picked = e.pool.value!!.picked.map { it.name }
+        val picked = e.activePool()!!.picked.map { it.name }
         assertEquals((1..12).map { "Kids show $it" }.toSet(), picked.toSet())
         coVerify { tmdb.discoverTv(apiKey = any(), language = any(), page = 2, sortBy = any(), withCompanies = any(), withNetworks = any(), firstAirDateLte = any(), voteCountGte = any(), withGenres = any(), firstAirDateGte = any(), voteAverageGte = any(), voteAverageLte = any(), withOriginalLanguage = any(), withOriginCountry = any(), withKeywords = any(), firstAirDateYear = any(), withStatus = any(), watchRegion = any(), withWatchProviders = any(), withWatchMonetizationTypes = any(), withoutCompanies = any(), withoutGenres = any(), withoutKeywords = any(), withoutWatchProviders = any(), voteCountLte = any(), withRuntimeLte = any(), withRuntimeGte = any(), certificationCountry = any(), certificationLte = any(), withType = any()) }
     }
@@ -299,20 +322,19 @@ class ScoutEngineTest {
             rows = listOf(short)
         ))
         e.refreshIfDue(now)
-        val row = e.pool.value!!.tasteRows.single()
+        val row = e.activePool()!!.tasteRows.single()
         assertEquals(12, row.picks.size)
         assertEquals("Kids show 1", row.picks.first().name)
     }
 
     @Test
     fun `a rating limit keeps Scout under it even for a profile that watches grown-up titles`() = runBlocking {
-        stubRecs(rec(1, "Kids film"), rec(2, "Adult film"))
-        stubDiscover(emptyList())
-        val e = engine(seeded(), ceiling = null, levels = mapOf("movie:1" to 0, "movie:2" to 3), limit = com.nuvio.tv.core.ratinglimit.RatingLimit.PG)
+        stubDiscover(listOf(disc(1).copy(title = "Kids film"), disc(2).copy(title = "Adult film"), disc(3).copy(title = "Unknown film")))
+        val e = engine(seeded(), levels = mapOf("movie:1" to 0, "movie:2" to 3), limit = RatingLimit.PG)
         e.refreshIfDue(now)
-        val names = e.pool.value!!.picked.map { it.name }
+        val names = e.activePool()!!.picked.map { it.name }
         assertTrue("Kids film" in names)
-        assertFalse("Adult film" in names)
+        assertFalse("Adult film" in names || "Unknown film" in names)
     }
 
     @Test
@@ -330,7 +352,7 @@ class ScoutEngineTest {
         val e = engine(listOf(watched("tt1", "One", 3)), started = started)
         e.refreshIfDue(now)
         coVerify(exactly = 2) { tmdb.getTvRecommendations(any(), any(), any(), any()) }
-        assertTrue(e.pool.value!!.picked.any { it.tmdbId in 61..70 })
+        assertTrue(e.activePool()!!.picked.any { it.tmdbId in 61..70 })
     }
 
     @Test
@@ -338,11 +360,11 @@ class ScoutEngineTest {
         savePool(2, "Gone")
         val e = engine(emptyList(), activeProfile = MutableStateFlow(2))
         e.refreshIfDue()
-        assertEquals("Gone", e.pool.value!!.picked.first().name)
+        assertEquals("Gone", e.activePool()!!.picked.first().name)
         e.forget(5)
-        assertNotNull(e.pool.value)
+        assertNotNull(e.activePool())
         e.forget(2)
-        assertNull(e.pool.value)
+        assertNull(e.activePool())
     }
 
     @Test
@@ -357,4 +379,59 @@ class ScoutEngineTest {
         assertTrue(scoutLimitChanged(built("a|limit=pg"), "y"))
         assertTrue(scoutLimitChanged(built("a|limit=pg"), ""))
     }
+
+    @Test
+    fun `A to B to A discards the first A build and only the current profiles history seeds a later build`() = runBlocking {
+        val active = MutableStateFlow(1)
+        val revision = MutableStateFlow(0L)
+        val requestEntered = CompletableDeferred<Unit>()
+        val releaseResponse = CompletableDeferred<Unit>()
+        coEvery { service.ensureTmdbId(any(), any(), any()) } returns "9999"
+        coEvery { tmdb.getMovieRecommendations(any(), any(), any(), any()) } coAnswers {
+            requestEntered.complete(Unit)
+            releaseResponse.await()
+            Response.success(TmdbRecommendationsResponse(results = listOf(rec(10, "Delayed A"))))
+        }
+        stubDiscover(emptyList())
+        val e = engine(seeded(), activeProfile = active, selectionRevision = revision, watchedByProfile = mapOf(
+            1 to seeded(),
+            2 to listOf(watched("tt101", "B1", 6), watched("tt102", "B2", 5), watched("tt103", "B3", 4))
+        ))
+        val request = launch { e.refreshIfDue(now) }
+        withTimeout(5_000) { requestEntered.await() }
+        revision.value = 1L
+        active.value = 2
+        revision.value = 2L
+        active.value = 1
+        releaseResponse.complete(Unit)
+        withTimeout(5_000) { request.join() }
+        assertNull(e.activePool())
+        assertFalse(java.io.File(folder.root, "scout/pool_1.json").exists())
+        assertFalse(java.io.File(folder.root, "scout/pool_2.json").exists())
+
+        active.value = 2
+        revision.value = 3L
+        stubRecs(rec(20, "Current B"))
+        e.refreshIfDue(now)
+        assertEquals("Current B", e.activePool()?.picked?.firstOrNull()?.name)
+        coVerify { service.ensureTmdbId("tt101", "movie", any()) }
+        assertTrue(java.io.File(folder.root, "scout/pool_2.json").exists())
+        assertFalse(java.io.File(folder.root, "scout/pool_1.json").exists())
+    }
+
+    @Test
+    fun `a stricter or unavailable policy hides a built pool before refresh`() = runBlocking {
+        savePool(1, "Adult pick")
+        val policy = MutableStateFlow(emptyMap<Int, RatingLimit>())
+        var unavailable = false
+        val e = engine(emptyList(), policy = policy, policyUnavailable = { unavailable })
+        e.refreshIfDue()
+        assertNotNull(e.activePool())
+        unavailable = true
+        assertNull(e.activePool())
+        unavailable = false
+        policy.value = mapOf(1 to RatingLimit.PRESCHOOL)
+        assertNull(e.activePool())
+    }
+
 }

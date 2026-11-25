@@ -393,9 +393,15 @@ fun ScoutScreen(
                             rating = scoutProfile.rating("tmdb:${hero.pick.tmdbId}"),
                             focus = ::focus,
                             controller = posterOptions.controller,
-                            onPlay = { onPlayTitle("tmdb:${hero.pick.tmdbId}", if (hero.pick.tv) "series" else "movie", hero.pick.backdrop, state.heroLogo) },
-                            onDetails = { onOpenTitle("tmdb:${hero.pick.tmdbId}", if (hero.pick.tv) "series" else "movie") },
-                            onRate = { rating = hero.pick }
+                            onPlay = {
+                                if (viewModel.canOpenRecommendation(hero.pick)) {
+                                    onPlayTitle("tmdb:${hero.pick.tmdbId}", if (hero.pick.tv) "series" else "movie", hero.pick.backdrop, state.heroLogo)
+                                }
+                            },
+                            onDetails = {
+                                if (viewModel.canOpenRecommendation(hero.pick)) onOpenTitle("tmdb:${hero.pick.tmdbId}", if (hero.pick.tv) "series" else "movie")
+                            },
+                            onRate = { if (viewModel.canOpenRecommendation(hero.pick)) rating = hero.pick }
                         )
                     }
                 }
@@ -487,14 +493,16 @@ fun ScoutScreen(
         CHOOSING_WHO -> ScoutWhoDialog(state, profiles, pictures, activeId, viewModel, onDismiss = { choosing = null })
     }
 
-    rating?.let { pick ->
+    rating?.takeIf { state.row.any { visible -> visible.key == it.key } }?.let { pick ->
         val first = remember { FocusRequester() }
         val id = "tmdb:${pick.tmdbId}"
         NuvioDialog(onDismiss = { rating = null }, title = pick.name) {
             ScoutRateRow(
                 current = scoutProfile.rating(id),
                 onRate = {
-                    ratings.setRating(ScoutTitle(id, if (pick.tv) "series" else "movie", pick.name, pick.poster), it)
+                    if (viewModel.canOpenRecommendation(pick)) {
+                        ratings.setRating(ScoutTitle(id, if (pick.tv) "series" else "movie", pick.name, pick.poster), it)
+                    }
                     rating = null
                 },
                 firstFocus = first
@@ -504,10 +512,17 @@ fun ScoutScreen(
     }
 
     val optionsState by posterOptions.controller.state.collectAsState()
-    PosterOptionsHost(
+    val optionsPick = state.row.firstOrNull { "tmdb:" + it.tmdbId == optionsState.originalItemId }
+    val optionsCurrent = optionsPick?.let(viewModel::canOpenRecommendation) == true
+    LaunchedEffect(optionsState.target, optionsCurrent) {
+        if (optionsState.target != null && !optionsCurrent) posterOptions.controller.dismiss()
+    }
+    if (optionsCurrent) PosterOptionsHost(
         state = optionsState,
         controller = posterOptions.controller,
-        onNavigateToDetail = { id, type, _ -> onOpenTitle(id, type) },
+        onNavigateToDetail = { id, type, _ ->
+            if (optionsPick?.let(viewModel::canOpenRecommendation) == true) onOpenTitle(id, type)
+        },
         onMoreLike = { item ->
             state.row.firstOrNull { "tmdb:${it.tmdbId}" == item.id }?.let { viewModel.moreLike(it) }
         }
@@ -901,8 +916,10 @@ private fun ScoutPickRow(
                     title = pick.name,
                     line = scoutReasonLine(ScoutShownPick(pick, null, pick.key in state.everyone, pick.aiReason.takeIf { state.asking })),
                     height = height,
-                    onClick = { onOpenTitle("tmdb:${pick.tmdbId}", if (pick.tv) "series" else "movie") },
-                    onLongClick = { onLongPress(pick) },
+                    onClick = {
+                        if (viewModel.canOpenRecommendation(pick)) onOpenTitle("tmdb:${pick.tmdbId}", if (pick.tv) "series" else "movie")
+                    },
+                    onLongClick = { if (viewModel.canOpenRecommendation(pick)) onLongPress(pick) },
                     onFocused = { viewModel.focusPick(pick) },
                     modifier = Modifier.focusProperties { canFocus = !state.rowLoading }.then(focus("pick_${pick.key}")),
                     corner = if (watchDisplay?.isWatched(pick) == true) {
