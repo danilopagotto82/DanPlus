@@ -6,6 +6,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
+import com.nuvio.tv.R
 import com.nuvio.tv.domain.model.Subtitle
 import com.nuvio.tv.data.local.InternalPlayerEngine
 import com.nuvio.tv.data.local.SubtitleLanguageRanking

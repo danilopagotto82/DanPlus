@@ -616,14 +616,14 @@ class PlayerRuntimeController(
 
     internal var playbackStartedForParentalGuide = false
     internal var hasRenderedFirstFrame = false
-    internal var tunneledFirstFrameAssumed = false
-    internal val hasPresentedPlayback: Boolean
-        get() = PlayerStartupPlaybackPolicy.hasPresentedPlayback(hasRenderedFirstFrame, tunneledFirstFrameAssumed)
-    internal var sourceSwitchStartPositionMs: Long? = null
         set(value) {
             field = value
             if (!value) filmDecoderKeptNoted = false
         }
+    internal var tunneledFirstFrameAssumed = false
+    internal val hasPresentedPlayback: Boolean
+        get() = PlayerStartupPlaybackPolicy.hasPresentedPlayback(hasRenderedFirstFrame, tunneledFirstFrameAssumed)
+    internal var sourceSwitchStartPositionMs: Long? = null
     /** "Dolby Vision decoder kept held" was logged for this play. */
     internal var filmDecoderKeptNoted = false
     // Prevent the previous stream's end from completing the new stream.

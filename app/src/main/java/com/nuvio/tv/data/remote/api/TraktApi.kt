@@ -39,6 +39,7 @@ import com.nuvio.tv.data.remote.dto.trakt.TraktWatchedShowItemDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktHiddenItemDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktRatingItemDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktRatingsRequestDto
+import com.nuvio.tv.data.remote.dto.trakt.TraktRatingsMutationResponseDto
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
