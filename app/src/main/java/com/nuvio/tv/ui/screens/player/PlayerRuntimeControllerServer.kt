@@ -169,22 +169,6 @@ internal suspend fun PlayerRuntimeController.prepareServerStream(
     )
 }
 
-/** A server source the failover moved to could not be opened: skip it, or show the playback error. */
-internal fun PlayerRuntimeController.skipUnavailableServerSource(stream: Stream) {
-    stream.deadSourceKey()?.let { deadSourceStreamUrls.add(it) }
-    deadSourceFailoverCount = (deadSourceFailoverCount - 1).coerceAtLeast(0)
-    val message = context.getString(R.string.player_error_play_stream_failed)
-    if (advanceToNextLiveSource(message)) return
-    _uiState.update {
-        it.copy(
-            error = message,
-            isBuffering = false,
-            showLoadingOverlay = false,
-            showPauseOverlay = false
-        )
-    }
-}
-
 internal val PlayerRuntimeController.isServerDirectPlay: Boolean
     get() = serverPlayback.session(currentStreamUrl)?.playMethod == ServerPlayMethod.DIRECT_PLAY
 

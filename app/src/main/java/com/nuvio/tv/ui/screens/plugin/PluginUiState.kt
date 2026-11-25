@@ -15,6 +15,7 @@ data class PluginUiState(
     val syncedReposToReview: List<PluginRepository> = emptyList(),
     val outcomes: Map<String, PluginRunOutcome> = emptyMap(),
     val pendingRepoAdd: String? = null,
+    val pendingRepositoryRemoval: PendingRepositoryRemoval? = null,
     val providerChooser: ProviderChooserState? = null,
     val isLoading: Boolean = false,
     val isAddingRepo: Boolean = false,
@@ -47,9 +48,18 @@ data class PendingScraperEnableInfo(
     val scraperName: String
 )
 
+class PendingRepositoryRemoval(val profileId: Int, val repository: PluginRepository) {
+    internal fun matches(activeProfileId: Int, readOnly: Boolean, repositories: List<PluginRepository>): Boolean =
+        !readOnly && activeProfileId == profileId && repositories.any {
+            it.id == repository.id && it.url == repository.url && it.type == repository.type
+        }
+}
+
 sealed interface PluginUiEvent {
     data class AddRepository(val url: String) : PluginUiEvent
-    data class RemoveRepository(val repoId: String) : PluginUiEvent
+    data class RequestRepositoryRemoval(val repoId: String) : PluginUiEvent
+    data class ConfirmRepositoryRemoval(val request: PendingRepositoryRemoval) : PluginUiEvent
+    data class CancelRepositoryRemoval(val request: PendingRepositoryRemoval) : PluginUiEvent
     data class RefreshRepository(val repoId: String) : PluginUiEvent
     data class ToggleScraper(val scraperId: String, val enabled: Boolean) : PluginUiEvent
     data class ToggleAllScrapersForRepo(val repoId: String, val enabled: Boolean) : PluginUiEvent

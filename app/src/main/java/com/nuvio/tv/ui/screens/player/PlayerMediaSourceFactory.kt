@@ -181,6 +181,9 @@ internal class PlayerMediaSourceFactory(
             .build()
     }
 
+    private fun transportRetryUrl(url: String): String? =
+        url.takeUnless { isLoopbackUrl(it) || isMediaServerUrl(it) || SlowStartServer.matches(it) }
+
     private fun chunkSessionClient(url: String): okhttp3.OkHttpClient =
         if (SlowStartServer.matches(url)) chunkSessionSlowStartHttpClient else chunkSessionHttpClient
 
@@ -271,7 +274,10 @@ internal class PlayerMediaSourceFactory(
         if (!shape.useChunkSessionSource || shape.mp4SessionMode) return
         val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return
         val sanitizedHeaders = sanitizeHeaders(headers)
-        val okHttpFactory = OkHttpDataSource.Factory(chunkSessionClient(url)).apply {
+        val callFactory = PlayerPlaybackNetworking.playbackCallFactory(
+            chunkSessionClient(url), transportRetryUrl(url), sanitizedHeaders
+        )
+        val okHttpFactory = OkHttpDataSource.Factory(callFactory).apply {
             setDefaultRequestProperties(sanitizedHeaders)
             if (sanitizedHeaders.none { it.key.equals("User-Agent", ignoreCase = true) }) {
                 setUserAgent(DEFAULT_USER_AGENT)
@@ -324,11 +330,14 @@ internal class PlayerMediaSourceFactory(
                 PlayerPlaybackNetworking.createHttpDataSourceFactory(
                     sanitizedHeaders,
                     useLongReadTimeout = isLoopbackUrl(url),
-                    slowStart = slowStart
+                    slowStart = slowStart,
+                    transportRetryUrl = transportRetryUrl(url)
                 )
             )
         } else {
-            PlayerPlaybackNetworking.createDataSourceFactory(context, sanitizedHeaders, slowStart = slowStart)
+            PlayerPlaybackNetworking.createDataSourceFactory(
+                context, sanitizedHeaders, slowStart = slowStart, transportRetryUrl = transportRetryUrl(url)
+            )
         }
 
         val mediaItemBuilder = MediaItem.Builder().setUri(url)
@@ -382,7 +391,10 @@ internal class PlayerMediaSourceFactory(
                         "for progressive MP4 with parallel connections off"
                 )
             }
-            val okHttpFactory = OkHttpDataSource.Factory(chunkSessionClient(url)).apply {
+            val callFactory = PlayerPlaybackNetworking.playbackCallFactory(
+                chunkSessionClient(url), transportRetryUrl(url), sanitizedHeaders
+            )
+            val okHttpFactory = OkHttpDataSource.Factory(callFactory).apply {
                 setDefaultRequestProperties(sanitizedHeaders)
                 if (sanitizedHeaders.none { it.key.equals("User-Agent", ignoreCase = true) }) {
                     setUserAgent(DEFAULT_USER_AGENT)
@@ -555,7 +567,8 @@ internal class PlayerMediaSourceFactory(
             .cookieJar(NuvioApplication.extensionCookieJar)
             .let(::withChunkSessionTimeouts)
             .build()
-        val okHttpFactory = OkHttpDataSource.Factory(client).apply {
+        val callFactory = PlayerPlaybackNetworking.playbackCallFactory(client, transportRetryUrl(url), headers)
+        val okHttpFactory = OkHttpDataSource.Factory(callFactory).apply {
             setDefaultRequestProperties(headers)
             if (headers.none { it.key.equals("User-Agent", ignoreCase = true) }) setUserAgent(DEFAULT_USER_AGENT)
         }

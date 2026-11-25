@@ -202,7 +202,7 @@ internal fun PlayerRuntimeController.handleMpvPlaybackError(
     allowEngineFailover: Boolean = true
 ) {
     if (!isUsingMpvEngine()) return
-    if (isReleasingPlayer) return
+    if (isReleasingPlayer || sourceFailoverJob?.isActive == true || debridResolveJob?.isActive == true) return
     if (startupEngineFailoverTriggered) return
     if (mpvErrorRecoveryArmed) return
     if (_uiState.value.error != null) return
@@ -251,7 +251,7 @@ internal fun PlayerRuntimeController.handleMpvPlaybackError(
         )
         playbackAnalyticsDiagnostics.recordRawEventLine(
             "MPV_PLAYBACK_ERROR: source=$source mpvErrorCode=$mpvErrorCode " +
-                "httpStatus=${mpvHttpStatusCodeFromLog()} detail=${detailedError.take(200)}"
+                "httpStatus=${mpvHttpStatusCodeFromLog()} detail=${detailedError.redactLinksForLog().take(200)}"
         )
         com.nuvio.tv.core.report.PlaybackRecorder.event(
             com.nuvio.tv.core.report.RecorderEvent.ERROR,
@@ -275,7 +275,7 @@ internal fun PlayerRuntimeController.handleMpvPlaybackError(
 
         if (isMpvDeadLinkHttpStatus(httpCode) &&
             isMpvHttpErrorFresh(mpvLastHttpErrorAtMs, SystemClock.elapsedRealtime()) &&
-            advanceToNextLiveSource(detailedError)
+            advanceToNextLiveSource(detailedError, allowAfterFirstFrame = true)
         ) {
             return
         }
@@ -297,6 +297,7 @@ internal fun PlayerRuntimeController.handleMpvPlaybackError(
         }
         val retryCanHelp = httpCode == null || !isPermanentHttpStatus(httpCode)
         if (retryCanHelp && attemptMpvAutoRetry(detailedError = detailedError, savedPosition = savedPosition)) return
+        if (startupFailed && attemptStartupExhaustedSourceFailover(detailedError)) return
 
         finishLoadingDiagnostics("mpv_error")
         cancelNextEpisodeAutoPlayOnFatalError()

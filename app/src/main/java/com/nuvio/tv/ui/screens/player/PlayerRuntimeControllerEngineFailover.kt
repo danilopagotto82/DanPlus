@@ -76,11 +76,12 @@ internal fun PlayerRuntimeController.switchToInternalPlayerEngine(
     reason: String = "manual-switch"
 ) {
     if (currentStreamUrl.isBlank()) return
+    finishSourceFailover()
 
     beginSwitchTraceSession(reason = reason, targetEngine = targetEngine)
     val targetEngineLabel = targetEngineLabel(targetEngine)
     val switchMessage = context.getString(R.string.player_engine_switching_manual_message, targetEngineLabel)
-    val currentPosition = currentPlaybackPositionMs()?.coerceAtLeast(0L) ?: 0L
+    val currentPosition = captureSourceSwitchPosition() ?: 0L
     logSwitchTrace(
         stage = "manual-switch-trigger",
         message = "targetEngine=$targetEngine positionMs=$currentPosition " +

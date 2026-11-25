@@ -170,6 +170,7 @@ class PlayerViewModel @Inject constructor(
         serverStreams = serverStreams,
         profileId = savedStateHandle.get<String>("profileId")?.toIntOrNull()
             ?: profileManager.activeProfileId.value,
+        activeProfileId = profileManager.activeProfileId,
         savedStateHandle = savedStateHandle,
         scope = viewModelScope
     )
@@ -202,6 +203,11 @@ class PlayerViewModel @Inject constructor(
         get() = controller.uiState
 
     init {
+        viewModelScope.launch {
+            profileManager.activeProfileId.collect { activeProfileId ->
+                if (activeProfileId != controller.profileId) controller.cancelSourceSelectionForProfileChange()
+            }
+        }
         // OLED screensaver: mirror playback-active (playing or buffering) so the idle
         // dimmer never engages during playback, restarts its clock on pause, and
         // auto-wakes on resume (including MediaSession resumes).

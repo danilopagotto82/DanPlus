@@ -6,6 +6,9 @@ package com.nuvio.tv.ui.screens.player
  */
 internal object PlayerStartupPlaybackPolicy {
 
+    fun hasPresentedPlayback(firstFrameMarked: Boolean, tunneledFrameAssumed: Boolean): Boolean =
+        firstFrameMarked && !tunneledFrameAssumed
+
     data class ReadyState(
         val shouldEnforceAutoplayOnFirstReady: Boolean,
         val hasRenderedFirstFrame: Boolean,

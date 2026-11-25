@@ -425,6 +425,9 @@ internal fun PlayerRuntimeController.startProgressUpdates() {
                                 (pos > 0L || (playingNow && !cacheBuffering && playerDuration > 0L))
                             if (firstFrameReady) {
                                 hasRenderedFirstFrame = true
+                                tunneledFirstFrameAssumed = false
+                                sourceSwitchStartPositionMs = null
+                                finishSourceFailover()
                                 com.nuvio.tv.core.formatcheck.FormatCheckSession.onFirstFrame()
                                 playerSession.firstFrame()
                                 resetMpvStartupWatchdog()
@@ -2442,7 +2445,8 @@ fun PlayerRuntimeController.onEvent(
             hasRetriedCurrentStreamAfter416 = false
             playbackIssueReportRequestVersion.incrementAndGet()
             resetErrorRetryState()
-            deadSourceFailoverCount = 0
+            finishSourceFailover()
+            sourceSwitchStartPositionMs = null
             serverDeadAnswerRetried.clear()
             lastPlaybackIssueError = null
             clearPendingEngineSwitchTrackPreference()

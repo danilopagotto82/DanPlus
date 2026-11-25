@@ -614,6 +614,8 @@ internal fun PlayerRuntimeController.loadSavedProgressFor(season: Int?, episode:
     val progressContentId = contentId
     if (!isCloudLibraryPlayback && progressContentId == null) return
 
+    val sourceUrl = currentStreamUrl
+    val requestKey = currentSourceRequestKey()
     scope.launch {
         pendingResumeProgress = null
         val progress = if (isCloudLibraryPlayback) {
@@ -629,8 +631,11 @@ internal fun PlayerRuntimeController.loadSavedProgressFor(season: Int?, episode:
             watchProgressRepository.getProgress(progressContentId!!, profileId).firstOrNull()
         }
 
-        progress?.let { saved ->
+        if (sourceUrl != currentStreamUrl || requestKey != currentSourceRequestKey() ||
+            activeProfileId.value != profileId || sourceSwitchStartPositionMs != null
+        ) return@launch
 
+        progress?.let { saved ->
             if (saved.isInProgress()) {
                 pendingResumeProgress = saved
                 if (isUsingMpvEngine()) {
@@ -1549,6 +1554,7 @@ internal fun PlayerRuntimeController.handleVc1PlaybackFailure(errorMessage: Stri
     cancelStableProgressReset()
     errorRetryJob?.cancel()
     errorRetryJob = null
+    if (advanceToNextLiveSource(displayMessage, offerMpvOnExhaustion = true)) return
     releasePlayer(flushPlaybackState = false)
     cancelNextEpisodeAutoPlayOnFatalError()
     _uiState.update {

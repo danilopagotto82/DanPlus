@@ -16,14 +16,16 @@ import com.nuvio.tv.R
 import com.nuvio.tv.core.util.findCause
 import com.nuvio.tv.domain.model.Stream
 import com.nuvio.tv.ui.screens.player.iec.LiveDirectAudioPlayback
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private const val MAX_STARTUP_AUTO_RETRIES = 2
 private const val MAX_AUTO_RETRIES = 2
-private const val MAX_DEAD_SOURCE_FAILOVERS = 3
-private const val FAILOVER_SOURCE_LIST_WAIT_MS = 20_000L
 private const val FAILOVER_SOURCE_LIST_POLL_MS = 250L
 
 // Ceiling on TOTAL automatic recoveries for one stream URL, across
@@ -457,9 +459,15 @@ internal fun PlayerRuntimeController.scheduleStableProgressReset() {
     stableProgressResetJob?.cancel()
     stableProgressResetJob = scope.launch {
         val playingSinceMs = android.os.SystemClock.elapsedRealtime()
-        delay(STABLE_PROGRESS_RESET_DELAY_MS)
         val player = _exoPlayer ?: return@launch
-        if (player.playbackState == Player.STATE_READY && player.isPlaying) {
+        val playingPositionMs = player.currentPosition
+        delay(STABLE_PROGRESS_RESET_DELAY_MS)
+        if (_exoPlayer === player && player.playbackState == Player.STATE_READY && player.isPlaying) {
+            if (tunneledFirstFrameAssumed && player.currentPosition > playingPositionMs) {
+                tunneledFirstFrameAssumed = false
+                sourceSwitchStartPositionMs = null
+                finishSourceFailover()
+            }
             resetErrorRetryState()
             delay(PlaybackRecoveryGate.AUDIO_RETRY_STABLE_RESET_MS - STABLE_PROGRESS_RESET_DELAY_MS)
             if (_exoPlayer === player && player.playbackState == Player.STATE_READY && player.isPlaying) {
@@ -1000,9 +1008,8 @@ internal fun PlayerRuntimeController.isDeadSourceHttpError(error: PlaybackExcept
 /**
  * Handles a dead-source error: one narrowly-scoped same-URL retry if a mimeType
  * override was steering the extractor (the only genuinely recoverable sub-case),
- * otherwise mark the URL dead for the session and auto-advance to the next source
- * in the user's existing sort order. Returns false when out of options (failover
- * cap reached or no live sources left) so the caller surfaces the error screen.
+ * otherwise use the same-addon recovery window. Returns false when recovery
+ * cannot start, so the caller can surface the original playback error.
  */
 internal fun PlayerRuntimeController.attemptDeadSourceFailover(
     error: PlaybackException,
@@ -1064,94 +1071,157 @@ internal fun PlayerRuntimeController.attemptDeadSourceFailover(
     val refusal = error.findInvalidResponseCodeException()?.let { longRefusalMs(it) }
     return advanceToNextLiveSource(
         if (refusal == null) detailedError
-        else context.getString(com.nuvio.tv.R.string.player_source_rate_limited, ((refusal + 59_999L) / 60_000L).toInt())
+        else context.getString(com.nuvio.tv.R.string.player_source_rate_limited, ((refusal + 59_999L) / 60_000L).toInt()),
+        allowAfterFirstFrame = true
     )
 }
 
-/**
- * Marks the current stream URL dead for this session (greying it in the source
- * panel), then auto-advances to the next live source in the user's existing
- * sort order. Shared by the dead-source path and the startup-exhausted path;
- * both draw on the same MAX_DEAD_SOURCE_FAILOVERS cap. Returns false when out
- * of options (cap reached or no live sources left) so the caller surfaces the
- * error screen.
- *
- * The source list must belong to the title or episode that is playing. When it
- * is missing, belongs to another episode or is still loading, it is loaded first
- * and the switch happens once it is there, or the error screen shows if nothing
- * usable turned up.
- */
+/** Continue only within the same playback request, profile and addon. */
 internal fun PlayerRuntimeController.advanceToNextLiveSource(
     detailedError: String,
     slowSourceAddon: String? = null,
-    stillWaitingForData: () -> Boolean = { true }
+    stillWaitingForData: () -> Boolean = { true },
+    allowAfterFirstFrame: Boolean = false,
+    offerMpvOnExhaustion: Boolean = false
 ): Boolean {
-    if (!sourceSelectedAutomatically || hasRenderedFirstFrame) return false
-    val failedUrl = currentStreamUrl
-    deadSourceStreamUrls.add(failedUrl)
-    serverPlayback.session(currentStreamUrl)?.target?.let { deadSourceStreamUrls.add(it.key()) }
-    _uiState.update { it.copy(deadSourceStreamUrls = deadSourceStreamUrls.toSet()) }
+    if (!sourceSelectedAutomatically || isInBackground || activeProfileId.value != profileId) return false
+    if (debridResolveJob?.isActive == true) return false
+    if (!allowAfterFirstFrame && hasPresentedPlayback) return false
+    if (sourceFailoverJob?.isActive == true) return true
 
-    if (deadSourceFailoverCount >= MAX_DEAD_SOURCE_FAILOVERS) {
-        Log.w(
-            PlayerRuntimeController.TAG,
-            "Dead-source failover cap ($MAX_DEAD_SOURCE_FAILOVERS) reached; surfacing error"
-        )
-        return false
-    }
     val requestKey = currentSourceRequestKey() ?: return false
-    val savedPosition = currentPlaybackPositionMs()?.takeIf { it > 0L } ?: 0L
-
-    if (sourceStreamsCacheRequestKey == requestKey) {
-        val next = nextFailoverSource(slowSourceAddon)
-        if (next != null) {
-            errorRetryJob?.cancel()
-            errorRetryJob = scope.launch {
-                if (currentStreamUrl != failedUrl || !sourceSelectedAutomatically || hasRenderedFirstFrame || !stillWaitingForData()) return@launch
-                failOverToSource(next, detailedError, savedPosition, slowSourceAddon != null)
-            }
-            return true
+    val addon = currentAddonName?.takeIf(String::isNotBlank) ?: return false
+    if (slowSourceAddon != null && slowSourceAddon != addon) return false
+    val window = sourceFailoverWindow?.takeIf { it.matches(requestKey, profileId, addon) }
+        ?: SourceFailoverWindow(requestKey, profileId, addon, SystemClock.elapsedRealtime()).also {
+            sourceFailoverWindow = it
         }
-        if (sourceStreamsFetchCompleted) {
-            Log.w(PlayerRuntimeController.TAG, "Dead source and no live sources left; surfacing error")
-            return false
+    val failedUrl = currentStreamUrl
+    val remainingMs = window.remainingMs(SystemClock.elapsedRealtime())
+    if (remainingMs == 0L) return false
+
+    window.positionMs = captureSourceSwitchPosition(window.positionMs)
+    if (slowSourceAddon == null) markFailedSource(failedUrl)
+    errorRetryJob?.cancel()
+    errorRetryJob = null
+
+    fun stillCurrent(): Boolean = sourceFailoverWindow === window &&
+        window.matches(currentSourceRequestKey(), activeProfileId.value, currentAddonName) &&
+        currentStreamUrl == failedUrl && sourceSelectedAutomatically && !isInBackground
+
+    if (sourceFailoverTimeoutJob?.isActive != true) {
+        sourceFailoverTimeoutJob = scope.launch {
+            delay(remainingMs)
+            if (sourceFailoverWindow === window &&
+                window.matches(currentSourceRequestKey(), activeProfileId.value, currentAddonName)
+            ) {
+                sourceFailoverTimeoutJob = null
+                sourceSwitchStartPositionMs = captureSourceSwitchPosition(window.positionMs)
+                finishSourceFailover()
+                stopSourceStreamSearch()
+                stopServerPlayback()
+                releasePlayer(flushPlaybackState = false)
+                surfaceSourceFailoverError(context.getString(R.string.player_source_recovery_timeout), offerMpvOnExhaustion)
+            }
         }
     }
 
-    Log.w(PlayerRuntimeController.TAG, "Dead source (${detailedError.redactLinksForLog()}) - loading the source list before failing over")
-    val attemptNo = deadSourceFailoverCount + 1
-    loadSourceStreams(forceRefresh = false)
-    errorRetryJob?.cancel()
-    errorRetryJob = scope.launch {
-        showSourceFailoverOverlay(attemptNo, savedPosition, slowSource = slowSourceAddon != null)
-        val deadline = SystemClock.elapsedRealtime() + FAILOVER_SOURCE_LIST_WAIT_MS
-        var next: Stream? = null
-        while (true) {
-            if (currentSourceRequestKey() != requestKey || currentStreamUrl != failedUrl || !sourceSelectedAutomatically) return@launch
-            if (hasRenderedFirstFrame || !stillWaitingForData()) {
-                _uiState.update { it.copy(sourceFailoverNotice = null) }
+    // LAZY keeps the owner registered even when the initial list is already complete.
+    sourceFailoverJob = scope.launch(start = CoroutineStart.LAZY) {
+        var candidate = nextFailoverSource(window)
+        while (stillCurrent() && stillWaitingForData() && window.remainingMs(SystemClock.elapsedRealtime()) > 0L) {
+            if (candidate == null) {
+                if (sourceStreamsCacheRequestKey == requestKey && sourceStreamsFetchCompleted) break
+                showSourceFailoverOverlay(context.getString(R.string.player_source_recovery_searching))
+                if (sourceStreamsJob?.isActive != true) loadSourceStreams(forceRefresh = false)
+                delay(FAILOVER_SOURCE_LIST_POLL_MS)
+                candidate = nextFailoverSource(window)
+                continue
+            }
+
+            val next = candidate
+            SourceFailoverSelection.failoverKey(next)?.let(window.attemptedKeys::add)
+            SourceFailoverSelection.debridKey(next)?.let(window.attemptedKeys::add)
+            val name = next.getDisplayName().lineSequence().first().take(100)
+            showSourceFailoverOverlay(context.getString(R.string.player_source_recovery_candidate, name))
+            val resolved = prepareSourceForFailover(next)
+            if (!stillCurrent() || !stillWaitingForData() ||
+                window.remainingMs(SystemClock.elapsedRealtime()) == 0L
+            ) {
+                resolved?.takeIf { it.serverTarget != null }?.getStreamUrl()?.let { serverPlayback.stop(it) }
+                currentCoroutineContext().ensureActive()
+                break
+            }
+            currentCoroutineContext().ensureActive()
+            val resolvedUrl = resolved?.getStreamUrl()
+            val address = SourceFailoverSelection.addressKey(resolvedUrl)
+            if (resolved != null && address != null &&
+                address != SourceFailoverSelection.addressKey(failedUrl) &&
+                deadSourceStreamUrls.none { SourceFailoverSelection.addressKey(it) == address }
+            ) {
+                markFailedSource(failedUrl)
+                if (serverPlayback.session(failedUrl) != null) stopServerPlayback()
+                sourceFailoverJob = null
+                switchToSourceStream(resolved, automatic = true, carriedPositionMs = window.positionMs)
                 return@launch
             }
-            if (sourceStreamsCacheRequestKey == requestKey) {
-                next = nextFailoverSource(slowSourceAddon)
-                if (next != null || sourceStreamsFetchCompleted) break
+
+            if (resolved?.serverTarget != null && resolvedUrl != null && resolvedUrl != failedUrl) {
+                serverPlayback.stop(resolvedUrl)
             }
-            if (SystemClock.elapsedRealtime() >= deadline) break
-            delay(FAILOVER_SOURCE_LIST_POLL_MS)
+            SourceFailoverSelection.failoverKey(next)?.let { deadSourceStreamUrls.add(it) }
+            _uiState.update { it.copy(deadSourceStreamUrls = deadSourceStreamUrls.toSet()) }
+            candidate = nextFailoverSource(window)
         }
-        errorRetryJob = null
-        if (next != null) {
-            failOverToSource(next, detailedError, savedPosition, slowSourceAddon != null)
-        } else {
-            Log.w(PlayerRuntimeController.TAG, "Dead source and no live sources in the loaded list; surfacing error")
-            surfaceSourceFailoverError(detailedError)
+        sourceFailoverJob = null
+        if (!stillCurrent()) return@launch
+        if (window.remainingMs(SystemClock.elapsedRealtime()) == 0L) return@launch // Timeout owner handles this.
+        finishSourceFailover()
+        if (stillWaitingForData()) {
+            sourceSwitchStartPositionMs = captureSourceSwitchPosition(window.positionMs)
+            stopSourceStreamSearch()
+            stopServerPlayback()
+            releasePlayer(flushPlaybackState = false)
+            surfaceSourceFailoverError(detailedError, offerMpvOnExhaustion)
         }
     }
+    sourceFailoverJob?.start()
     return true
 }
 
-/** Marks the list entry that is playing as dead and returns the next playable one after it. */
-private fun PlayerRuntimeController.nextFailoverSource(addonName: String?): Stream? {
+private fun PlayerRuntimeController.markFailedSource(url: String) {
+    if (url.isNotBlank()) deadSourceStreamUrls.add(url)
+    serverPlayback.session(url)?.target?.let { deadSourceStreamUrls.add(it.key()) }
+    _uiState.update { it.copy(deadSourceStreamUrls = deadSourceStreamUrls.toSet()) }
+}
+
+internal fun PlayerRuntimeController.finishSourceFailover() {
+    sourceFailoverJob?.cancel()
+    sourceFailoverJob = null
+    sourceFailoverTimeoutJob?.cancel()
+    sourceFailoverTimeoutJob = null
+    sourceFailoverWindow = null
+    if (_uiState.value.sourceFailoverNotice != null) _uiState.update { it.copy(sourceFailoverNotice = null) }
+}
+
+internal fun PlayerRuntimeController.cancelSourceSelectionForProfileChange() {
+    if (sourceFailoverWindow != null || sourceSwitchStartPositionMs != null) {
+        playbackRecoveryGate.cancel()
+        playbackPreparationJob?.cancel()
+        playbackPreparationJob = null
+    }
+    clearSourceStreams()
+}
+
+private fun PlayerRuntimeController.stopSourceStreamSearch() {
+    sourceStreamsScope?.cancel()
+    sourceStreamsScope = null
+    sourceStreamsJob = null
+    streamRepository.setLocalPluginSearchPaused(true)
+    _uiState.update { it.copy(isLoadingSourceStreams = false) }
+}
+
+private fun PlayerRuntimeController.nextFailoverSource(window: SourceFailoverWindow): Stream? {
     val state = _uiState.value
     val streams = state.sourceAllStreams
     if (streams.isEmpty()) return null
@@ -1166,11 +1236,10 @@ private fun PlayerRuntimeController.nextFailoverSource(addonName: String?): Stre
         currentStreamDescription = state.currentStreamDescription,
         currentFilename = currentFilename
     ).takeIf { it >= 0 } ?: indexOfServerTarget(streams, serverTarget)
-    if (currentIdx >= 0) {
-        streams.getOrNull(currentIdx)?.let(SourceFailoverSelection::failoverKey)?.let { url ->
-            if (deadSourceStreamUrls.add(url)) {
-                _uiState.update { it.copy(deadSourceStreamUrls = deadSourceStreamUrls.toSet()) }
-            }
+    if (sourceStreamsCacheRequestKey == window.requestKey) {
+        streams.getOrNull(currentIdx)?.let { playing ->
+            SourceFailoverSelection.failoverKey(playing)?.let(window.attemptedKeys::add)
+            SourceFailoverSelection.debridKey(playing)?.let(window.attemptedKeys::add)
         }
     }
     val request = currentSourceStreamsRequest()
@@ -1189,7 +1258,11 @@ private fun PlayerRuntimeController.nextFailoverSource(addonName: String?): Stre
         deadUrls = deadSourceStreamUrls,
         season = request?.season,
         episode = request?.episode,
-        addonName = addonName,
+        addonName = window.addonName,
+        attemptedKeys = window.attemptedKeys,
+        knownBytesPerSecond = { stream ->
+            HostSpeeds.keyOf(stream.getStreamUrl())?.let { HostSpeeds.get(it)?.perDownloadBps }
+        },
         matchesProfile = { stream ->
             val label = listOfNotNull(stream.behaviorHints?.filename, stream.name, stream.title, stream.description).joinToString(" ")
             (regexMatches == null || stream in regexMatches) &&
@@ -1202,56 +1275,29 @@ private fun PlayerRuntimeController.nextFailoverSource(addonName: String?): Stre
 private val REMUX_SOURCE = Regex("""\bremux\b""", RegexOption.IGNORE_CASE)
 private val DUBBED_SOURCE = Regex("""\b(dublad[oa]s?|dubbed)\b""", RegexOption.IGNORE_CASE)
 
-private fun PlayerRuntimeController.showSourceFailoverOverlay(
-    attemptNo: Int,
-    savedPosition: Long,
-    sourceName: String? = null,
-    slowSource: Boolean = false
-) {
-    val notice = when {
-        slowSource && sourceName != null ->
-            context.getString(com.nuvio.tv.R.string.player_slow_source_next_named, attemptNo, MAX_DEAD_SOURCE_FAILOVERS, sourceName)
-        slowSource ->
-            context.getString(com.nuvio.tv.R.string.player_slow_source_next, attemptNo, MAX_DEAD_SOURCE_FAILOVERS)
-        sourceName != null ->
-            context.getString(com.nuvio.tv.R.string.player_dead_source_failover_named, attemptNo, MAX_DEAD_SOURCE_FAILOVERS, sourceName)
-        else ->
-            context.getString(com.nuvio.tv.R.string.player_dead_source_failover, attemptNo, MAX_DEAD_SOURCE_FAILOVERS)
-    }
+private fun PlayerRuntimeController.showSourceFailoverOverlay(notice: String) {
     _uiState.update {
         it.copy(
             error = null,
             showPauseOverlay = false,
             showLoadingOverlay = it.loadingOverlayEnabled,
             loadingMessage = notice,
-            sourceFailoverNotice = notice,
-            pendingSeekPosition = if (savedPosition > 0L) savedPosition else it.pendingSeekPosition
+            sourceFailoverNotice = notice
         )
     }
 }
 
-private fun PlayerRuntimeController.failOverToSource(
-    next: Stream, detailedError: String, savedPosition: Long, slowSource: Boolean
+internal fun PlayerRuntimeController.surfaceSourceFailoverError(
+    detailedError: String,
+    offerMpvOnExhaustion: Boolean = false
 ) {
-    deadSourceFailoverCount++
-    if (serverPlayback.session(currentStreamUrl) != null) stopServerPlayback()
-    val attemptNo = deadSourceFailoverCount
-    Log.w(
-        PlayerRuntimeController.TAG,
-        "Dead source (${detailedError.redactLinksForLog()}) - failing over to next source ($attemptNo/$MAX_DEAD_SOURCE_FAILOVERS): " +
-                "host=${next.getStreamUrl()?.safeHost()}"
-    )
-    val sourceName = next.name?.lineSequence()?.firstOrNull { it.isNotBlank() }?.trim() ?: next.addonName
-    showSourceFailoverOverlay(attemptNo, savedPosition, sourceName.takeIf { it.isNotBlank() }, slowSource)
-    switchToSourceStream(next, automatic = true)
-}
-
-internal fun PlayerRuntimeController.surfaceSourceFailoverError(detailedError: String) {
     cancelNextEpisodeAutoPlayOnFatalError()
     _uiState.update {
         it.copy(
             error = detailedError,
+            showSwitchToMpvErrorAction = offerMpvOnExhaustion,
             sourceFailoverNotice = null,
+            isPlaying = false,
             isBuffering = false,
             showLoadingOverlay = false,
             showPauseOverlay = false
@@ -1267,7 +1313,7 @@ internal fun PlayerRuntimeController.surfaceSourceFailoverError(detailedError: S
  * source for this session.
  */
 internal fun PlayerRuntimeController.attemptStartupExhaustedSourceFailover(detailedError: String): Boolean {
-    if (hasRenderedFirstFrame) return false
+    if (hasPresentedPlayback) return false
     Log.w(
         PlayerRuntimeController.TAG,
         "Startup recovery exhausted; attempting next-source failover for: ${detailedError.redactLinksForLog()}"

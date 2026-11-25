@@ -201,15 +201,106 @@ class SourceFailoverSelectionTest {
     }
 
     @Test
-    fun anAutomaticSwitchOpensTheNextSourceAtTheCarriedPosition() {
-        assertEquals(1_234_000L, SourceFailoverSelection.startPositionMs(automatic = true, carriedPositionMs = 1_234_000L))
+    fun aSourceSwitchOpensAtTheCarriedPosition() {
+        assertEquals(1_234_000L, SourceFailoverSelection.startPositionMs(null, null, 1_234_000L, null))
     }
 
     @Test
-    fun aPickByTheUserOrNoPositionKeepsTheNormalStart() {
-        assertNull(SourceFailoverSelection.startPositionMs(automatic = false, carriedPositionMs = 1_234_000L))
-        assertNull(SourceFailoverSelection.startPositionMs(automatic = true, carriedPositionMs = null))
-        assertNull(SourceFailoverSelection.startPositionMs(automatic = true, carriedPositionMs = 0L))
+    fun positionHonorsExplicitZeroAndKnownDuration() {
+        assertEquals(0L, SourceFailoverSelection.startPositionMs(0L, 1_234_000L, 1_000L, null))
+        assertEquals(499L, SourceFailoverSelection.startPositionMs(null, null, 1_000L, 500L))
+        assertNull(SourceFailoverSelection.startPositionMs(null, null, null, null))
+    }
+
+    @Test
+    fun emptyAndSingleListsHaveNoAlternative() {
+        val only = stream(url = "https://cdn.example/only")
+        assertNull(SourceFailoverSelection.selectNext(emptyList(), -1, key, key, emptySet(), 1, 2))
+        assertNull(SourceFailoverSelection.selectNext(listOf(only), 0, key, key, emptySet(), 1, 2))
+    }
+
+    @Test
+    fun scansSevenSourcesAndWrapsWithoutRepeatingAttempts() {
+        val sources = (0..6).map { stream(url = "https://cdn.example/source/$it") }
+        val attempted = mutableSetOf<String>()
+        var current = 3
+        for (expected in listOf(4, 5, 6, 0, 1, 2)) {
+            attempted += requireNotNull(SourceFailoverSelection.failoverKey(sources[current]))
+            val next = SourceFailoverSelection.selectNext(
+                sources, current, key, key, emptySet(), 1, 2, addonName = "Addon", attemptedKeys = attempted
+            )
+            assertSame(sources[expected], next)
+            current = expected
+        }
+        attempted += requireNotNull(SourceFailoverSelection.failoverKey(sources[current]))
+        assertNull(SourceFailoverSelection.selectNext(
+            sources, current, key, key, emptySet(), 1, 2, addonName = "Addon", attemptedKeys = attempted
+        ))
+    }
+
+    @Test
+    fun skipsDuplicateExpiredMalformedAndOutOfProfileSources() {
+        val wanted = stream(url = "https://cdn.example/right", name = "REMUX")
+        val list = listOf(
+            wanted,
+            stream(url = "https://cdn.example/expired", name = "REMUX"),
+            stream(url = "https://cdn.example/current", name = "REMUX"),
+            stream(url = "HTTPS://CDN.EXAMPLE:443/current#fragment", name = "REMUX"),
+            stream(url = "https:///"),
+            stream(url = "https://cdn.example/other", name = "WEB"),
+            stream(url = "https://cdn.example/other-addon", name = "REMUX").copy(addonName = "Other")
+        )
+        assertSame(wanted, SourceFailoverSelection.selectNext(
+            list, 2, key, key, setOf("https://cdn.example/expired"), 1, 2,
+            addonName = "Addon", matchesProfile = { it.name == "REMUX" }
+        ))
+        assertFalse(playable(list[4]))
+    }
+
+    @Test
+    fun skipsAttemptedDebridFileEvenWithADifferentSignedAddress() {
+        val direct = stream(clientResolve = torboxResolve())
+        val alias = direct.copy(url = "https://cdn.example/new-address")
+        val otherFile = direct.copy(clientResolve = torboxResolve().copy(fileIdx = 4))
+        assertSame(otherFile, SourceFailoverSelection.selectNext(
+            listOf(alias, otherFile), -1, key, key, emptySet(), 1, 2,
+            attemptedKeys = setOf(requireNotNull(SourceFailoverSelection.debridKey(direct)))
+        ))
+    }
+
+    @Test
+    fun passiveSpeedBreaksTiesWithoutOverridingResolutionOrUnknownCandidates() {
+        val original = stream(url = "https://cdn.example/current")
+        val first = stream(url = "https://slow.example/film", name = "Movie 1080p WEB-DL")
+        val fast = stream(url = "https://fast.example/film", name = "Movie 1080p WEB-DL")
+        val lowerResolution = stream(url = "https://fast.example/low", name = "Movie 720p WEB-DL")
+        val speeds = mapOf(first to 1_000L, fast to 2_000L, lowerResolution to 9_000L)
+        assertSame(fast, SourceFailoverSelection.selectNext(
+            listOf(original, first, fast, lowerResolution), 0, key, key, emptySet(), 1, 2,
+            knownBytesPerSecond = speeds::get
+        ))
+        assertSame(first, SourceFailoverSelection.selectNext(
+            listOf(original, first, lowerResolution, fast), 0, key, key, emptySet(), 1, 2,
+            knownBytesPerSecond = speeds::get
+        ))
+        assertSame(first, SourceFailoverSelection.selectNext(
+            listOf(original, first, fast), 0, key, key, emptySet(), 1, 2,
+            knownBytesPerSecond = { if (it == first) null else speeds[it] }
+        ))
+    }
+
+    @Test
+    fun deadlineDoesNotRestartAndRecoveryRejectsADifferentProfileEpisodeOrAddon() {
+        val start = 10_000L
+        val window = SourceFailoverWindow(key, 1, "Addon", start)
+        window.attemptedKeys += "first"
+        window.attemptedKeys += "second"
+        assertEquals(SourceFailoverWindow.TIMEOUT_MS - 5, window.remainingMs(start + 5))
+        assertEquals(0L, window.remainingMs(start + SourceFailoverWindow.TIMEOUT_MS))
+        assertTrue(window.matches(key, 1, "Addon"))
+        assertFalse(window.matches(key, 2, "Addon"))
+        assertFalse(window.matches("series|tt1:1:3|1|3", 1, "Addon"))
+        assertFalse(window.matches(key, 1, "Other"))
     }
 
     @Test

@@ -24,6 +24,17 @@ internal fun <T> selectDebridFile(
     }
 
     val episodePattern = buildEpisodePattern(season ?: resolve.season, episode ?: resolve.episode)
+    for (name in names) {
+        val matches = playable.matchingAliasFiles(name, path)
+        if (matches.isEmpty()) continue
+        // Alias matching is weaker than an exact hint. A different explicit episode cannot win.
+        val eligible = if (episodePattern == null) matches else matches.filter {
+            val basename = path(it).normalizedPath().substringAfterLast('/')
+            !episodeMarker.containsMatchIn(basename) || episodePattern.containsMatchIn(basename)
+        }
+        return eligible.singleOrNull()
+    }
+
     if (episodePattern != null) {
         val matches = playable.filter {
             episodePattern.containsMatchIn(path(it).normalizedPath().substringAfterLast('/'))
@@ -60,6 +71,26 @@ private fun <T> List<T>.matchingFiles(name: String, path: (T) -> String): List<T
     }
     return emptyList()
 }
+
+private fun <T> List<T>.matchingAliasFiles(name: String, path: (T) -> String): List<T> {
+    val normalized = name.ampersandAlias()
+    val paths = map { it to path(it).normalizedPath().ampersandAlias() }
+    if ('/' in normalized) {
+        val qualified = paths.filter { (_, candidate) ->
+            candidate == normalized || candidate.endsWith("/$normalized")
+        }
+        if (qualified.isNotEmpty()) return qualified.map { it.first }
+    }
+
+    val basename = normalized.substringAfterLast('/')
+    return paths.filter { (_, candidate) -> candidate.substringAfterLast('/') == basename }.map { it.first }
+}
+
+private fun String.ampersandAlias(): String =
+    lowercase().replace(ampersandConjunction, " and ")
+
+private val ampersandConjunction = Regex("""\s+&\s+""")
+private val episodeMarker = Regex("""(?i)(?<![a-z0-9])(?:s\d+e\d+|\d+x\d+)(?![0-9])""")
 
 private fun buildEpisodePattern(season: Int?, episode: Int?): Regex? {
     if (season == null || episode == null) return null

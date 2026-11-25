@@ -4712,4 +4712,8 @@
     <string name="danplus_qr_backup_hint">Moving to another device or reinstalling DAN+? Restore your profiles and settings.</string>
     <string name="network_estimate_profile_rate">%1$d Mbps</string>
     <string name="collection_highlight_color">Choose color</string>
+    <string name="player_source_recovery_searching">Looking for other sources from this add-on…</string>
+    <string name="player_source_recovery_candidate">Trying %1$s from the same add-on…</string>
+    <string name="player_source_recovery_timeout">Source recovery timed out. Choose another source to continue.</string>
+    <string name="plugin_confirm_local_removal">Review the repository you are about to remove:</string>
 </resources>

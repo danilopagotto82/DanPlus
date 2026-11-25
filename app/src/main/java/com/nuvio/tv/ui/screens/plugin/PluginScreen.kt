@@ -317,7 +317,7 @@ fun PluginScreenContent(
                     repository = repo,
                     repoScrapers = repoScrapers,
                     onRefresh = { viewModel.onEvent(PluginUiEvent.RefreshRepository(repo.id)) },
-                    onRemove = { viewModel.onEvent(PluginUiEvent.RemoveRepository(repo.id)) },
+                    onRemove = { viewModel.onEvent(PluginUiEvent.RequestRepositoryRemoval(repo.id)) },
                     onToggleAll = { enabled ->
                         viewModel.onEvent(PluginUiEvent.ToggleAllScrapersForRepo(repo.id, enabled))
                     },
@@ -367,6 +367,20 @@ fun PluginScreenContent(
         TrustRepoDialog(
             onConfirm = { viewModel.onEvent(PluginUiEvent.ConfirmPendingRepoAdd) },
             onDismiss = { viewModel.onEvent(PluginUiEvent.DismissPendingRepoAdd) }
+        )
+    }
+
+    uiState.pendingRepositoryRemoval?.let { request ->
+        ConfirmRepoChangesDialog(
+            pendingChange = PendingRepoChangeInfo(
+                changeId = request.repository.id,
+                proposedUrls = uiState.repositories.filterNot { it.id == request.repository.id }.map { it.name },
+                addedUrls = emptyList(),
+                removedUrls = listOf(request.repository.name)
+            ),
+            onConfirm = { viewModel.onEvent(PluginUiEvent.ConfirmRepositoryRemoval(request)) },
+            onReject = { viewModel.onEvent(PluginUiEvent.CancelRepositoryRemoval(request)) },
+            subtitle = stringResource(R.string.plugin_confirm_local_removal)
         )
     }
 
@@ -831,7 +845,8 @@ private fun QrCodeOverlay(
 private fun ConfirmRepoChangesDialog(
     pendingChange: PendingRepoChangeInfo,
     onConfirm: () -> Unit,
-    onReject: () -> Unit
+    onReject: () -> Unit,
+    subtitle: String? = null
 ) {
     val focusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
@@ -843,7 +858,7 @@ private fun ConfirmRepoChangesDialog(
     NuvioDialog(
         onDismiss = onReject,
         title = stringResource(R.string.plugin_confirm_title),
-        subtitle = stringResource(R.string.plugin_confirm_subtitle),
+        subtitle = subtitle ?: stringResource(R.string.plugin_confirm_subtitle),
         width = 560.dp
     ) {
         Box(

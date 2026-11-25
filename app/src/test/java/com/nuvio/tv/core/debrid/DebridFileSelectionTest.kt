@@ -143,6 +143,26 @@ class DebridFileSelectionTest(private val provider: String) {
         assertSelected(null, listOf(file(1, "Show.zip")), resolve())
     }
 
+    @Test
+    fun ampersandAliasRespectsQualifiedPathAndCase() {
+        val files = listOf(file(1, "Other/Film and Friends.mkv"), file(2, "Pack/Edition/FILM AND FRIENDS.mkv"))
+        assertSelected(2, files, resolve(filename = "Edition\\Film & Friends.mkv"))
+        assertSelected(null, files, resolve(filename = "Film & Friends.mkv", fileIdx = 0))
+        assertSelected(1, files.take(1), resolve(filename = "Film & Friends.mkv"))
+        assertSelected(1, listOf(file(1, "Film & Friends.mkv")), resolve(filename = "Film and Friends.mkv"))
+    }
+
+    @Test
+    fun aliasNeverOverridesExactHintsOrSelectsAConflictingEpisode() {
+        val files = listOf(file(1, "Movie and Friends.S01E02.mkv"), file(2, "Movie & Friends.S01E02.mkv"))
+        assertSelected(2, files, resolve(filename = "Movie & Friends.S01E02.mkv"))
+        assertSelected(null, files.take(1), resolve(filename = "Movie & Friends.S01E02.mkv"), season = 1, episode = 3)
+        val rawHint = resolve(filename = "Movie & Friends.S01E02.mkv").copy(
+            stream = StreamClientResolveStream(raw = rawFilename("movie-final.mkv"))
+        )
+        assertSelected(3, listOf(files[0], file(3, "movie-final.mkv")), rawHint)
+    }
+
     private fun assertSelected(
         expected: Int?,
         files: List<TorboxTorrentFileDto>,

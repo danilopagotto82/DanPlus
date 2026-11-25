@@ -48,14 +48,21 @@ internal object ReusedLinkRefresh {
         deadKeys: Set<String>,
         season: Int?,
         episode: Int?
-    ): Stream? = streams.asSequence()
-        .filter { SourceFailoverSelection.isAutoFailoverPlayable(it, season, episode) }
-        .mapNotNull { stream ->
-            val key = SourceFailoverSelection.failoverKey(stream) ?: return@mapNotNull null
-            stream.takeIf { key != saved.url && key !in deadKeys && matchesFile(it, saved) }?.let { key to it }
-        }
-        .distinctBy { it.first }
-        .singleOrNull()?.second
+    ): Stream? {
+        val refusedAddresses = (deadKeys + saved.url).mapNotNullTo(HashSet(), SourceFailoverSelection::addressKey)
+        return streams.asSequence()
+            .filter { SourceFailoverSelection.isAutoFailoverPlayable(it, season, episode) }
+            .mapNotNull { stream ->
+                val key = SourceFailoverSelection.failoverKey(stream) ?: return@mapNotNull null
+                val address = SourceFailoverSelection.addressKey(stream.getStreamUrl())
+                if (key in deadKeys || (address != null && address in refusedAddresses) || !matchesFile(stream, saved)) {
+                    return@mapNotNull null
+                }
+                (address ?: key) to stream
+            }
+            .distinctBy { it.first }
+            .singleOrNull()?.second
+    }
 
     private fun matchesFile(stream: Stream, saved: CachedStreamLink): Boolean {
         val hints = stream.behaviorHints
@@ -87,8 +94,10 @@ internal object ReusedLinkRefresh {
     }
 
     /** The reloaded list hands out the refused address again, so waiting for a fresh one is pointless. */
-    fun failedAddressBack(streams: List<Stream>, failedUrl: String): Boolean =
-        streams.any { SourceFailoverSelection.failoverKey(it) == failedUrl }
+    fun failedAddressBack(streams: List<Stream>, failedUrl: String): Boolean {
+        val address = SourceFailoverSelection.addressKey(failedUrl) ?: return false
+        return streams.any { SourceFailoverSelection.addressKey(it.getStreamUrl()) == address }
+    }
 }
 
 /** The link playing now is the saved link played again as is. */
@@ -157,21 +166,22 @@ private fun PlayerRuntimeController.refreshReusedLink(detailedError: String): Bo
 /** [savedKey]: the saved link to forget, when the failed link was one. */
 private fun PlayerRuntimeController.refreshLink(saved: CachedStreamLink, savedKey: String?, detailedError: String): Boolean {
     val requestKey = currentSourceRequestKey() ?: return false
+    if (activeProfileId.value != profileId || isInBackground) return false
     freshLinkForReusedLinkTried = true
     val failedUrl = currentStreamUrl
     deadSourceStreamUrls.add(failedUrl)
     saved.url.takeIf(String::isNotBlank)?.let(deadSourceStreamUrls::add)
     _uiState.update { it.copy(deadSourceStreamUrls = deadSourceStreamUrls.toSet()) }
-    val savedPosition = currentPlaybackPositionMs()?.takeIf { it > 0L } ?: 0L
+    val savedPosition = captureSourceSwitchPosition()
     errorRetryJob?.cancel()
+    val hadPresentedPlayback = hasPresentedPlayback
     errorRetryJob = scope.launch {
         savedKey?.let { streamLinkCacheDataStore.remove(it) }
         _uiState.update {
             it.copy(
                 error = null,
                 showPauseOverlay = false,
-                showLoadingOverlay = it.loadingOverlayEnabled,
-                pendingSeekPosition = if (savedPosition > 0L) savedPosition else it.pendingSeekPosition
+                showLoadingOverlay = it.loadingOverlayEnabled
             )
         }
         loadSourceStreams(forceRefresh = true)
@@ -179,7 +189,9 @@ private fun PlayerRuntimeController.refreshLink(saved: CachedStreamLink, savedKe
         val deadline = SystemClock.elapsedRealtime() + FRESH_LINK_LIST_WAIT_MS
         var fresh: Stream? = null
         while (true) {
-            if (currentSourceRequestKey() != requestKey || currentStreamUrl != failedUrl) return@launch
+            if (currentSourceRequestKey() != requestKey || currentStreamUrl != failedUrl ||
+                activeProfileId.value != profileId || isInBackground
+            ) return@launch
             if (sourceStreamsCacheRequestKey == requestKey) {
                 fresh = ReusedLinkRefresh.sameSource(
                     _uiState.value.sourceAllStreams, saved, deadSourceStreamUrls, request?.season, request?.episode
@@ -193,8 +205,8 @@ private fun PlayerRuntimeController.refreshLink(saved: CachedStreamLink, savedKe
         errorRetryJob = null
         if (fresh != null) {
             Log.i(PlayerRuntimeController.TAG, "Fresh link from the same source: host=${fresh.getStreamUrl()?.safeHost()}")
-            switchToSourceStream(fresh, automatic = true)
-        } else {
+            switchToSourceStream(fresh, automatic = true, carriedPositionMs = savedPosition)
+        } else if (!advanceToNextLiveSource(detailedError, allowAfterFirstFrame = hadPresentedPlayback)) {
             surfaceSourceFailoverError(detailedError)
         }
     }

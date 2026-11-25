@@ -11,17 +11,20 @@ import com.nuvio.tv.core.qr.QrCodeGenerator
 import com.nuvio.tv.core.server.DeviceIpAddress
 import com.nuvio.tv.core.server.RepositoryConfigServer
 import com.nuvio.tv.core.util.readAppLogoBytes
+import com.nuvio.tv.data.local.PluginSyncProfile
 import com.nuvio.tv.domain.model.NewRepoProviders
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -45,6 +48,14 @@ class PluginViewModel @Inject constructor(
 
     init {
         observePluginData()
+        viewModelScope.launch {
+            profileManager.activeProfileId.collect { profileId ->
+                _uiState.update { state ->
+                    if (state.pendingRepositoryRemoval?.profileId == profileId) state
+                    else state.copy(pendingRepositoryRemoval = null)
+                }
+            }
+        }
         viewModelScope.launch {
             pluginManager.lastOutcomes.collect { outcomes -> _uiState.update { it.copy(outcomes = outcomes) } }
         }
@@ -88,7 +99,9 @@ class PluginViewModel @Inject constructor(
     fun onEvent(event: PluginUiEvent) {
         when (event) {
             is PluginUiEvent.AddRepository -> requestAddRepository(event.url)
-            is PluginUiEvent.RemoveRepository -> removeRepository(event.repoId)
+            is PluginUiEvent.RequestRepositoryRemoval -> requestRepositoryRemoval(event.repoId)
+            is PluginUiEvent.ConfirmRepositoryRemoval -> confirmRepositoryRemoval(event.request)
+            is PluginUiEvent.CancelRepositoryRemoval -> cancelRepositoryRemoval(event.request)
             is PluginUiEvent.RefreshRepository -> refreshRepository(event.repoId)
             is PluginUiEvent.ToggleScraper -> toggleScraper(event.scraperId, event.enabled)
             is PluginUiEvent.ToggleAllScrapersForRepo -> toggleAllScrapersForRepo(event.repoId, event.enabled)
@@ -206,15 +219,47 @@ class PluginViewModel @Inject constructor(
         }
     }
 
-    private fun removeRepository(repoId: String) {
+    private fun requestRepositoryRemoval(repoId: String) {
+        val profile = profileManager.activeProfile ?: return
+        if (isReadOnly || _uiState.value.isLoading) return
+        val repository = _uiState.value.repositories.firstOrNull { it.id == repoId } ?: return
+        _uiState.update { it.copy(pendingRepositoryRemoval = PendingRepositoryRemoval(profile.id, repository)) }
+    }
+
+    private fun cancelRepositoryRemoval(request: PendingRepositoryRemoval) {
+        _uiState.update { state ->
+            if (state.pendingRepositoryRemoval === request) state.copy(pendingRepositoryRemoval = null) else state
+        }
+    }
+
+    private fun confirmRepositoryRemoval(request: PendingRepositoryRemoval) {
+        val state = _uiState.value
+        if (state.pendingRepositoryRemoval !== request || state.isLoading) return
+        cancelRepositoryRemoval(request)
+        if (!request.matches(profileManager.activeProfileId.value, isReadOnly, state.repositories)) return
+
+        _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            pluginManager.removeRepository(repoId)
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    successMessage = context.getString(R.string.plugin_repo_removed)
-                )
+            try {
+                val removed = withContext(PluginSyncProfile(request.profileId)) {
+                    val repositories = pluginManager.repositories.first()
+                    if (!request.matches(profileManager.activeProfileId.value, isReadOnly, repositories)) {
+                        return@withContext false
+                    }
+                    pluginManager.removeRepository(request.repository.id)
+                    true
+                }
+                if (removed && profileManager.activeProfileId.value == request.profileId) {
+                    _uiState.update { it.copy(successMessage = context.getString(R.string.plugin_repo_removed)) }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                if (profileManager.activeProfileId.value == request.profileId) {
+                    _uiState.update { it.copy(errorMessage = context.getString(R.string.error_unknown)) }
+                }
+            } finally {
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }

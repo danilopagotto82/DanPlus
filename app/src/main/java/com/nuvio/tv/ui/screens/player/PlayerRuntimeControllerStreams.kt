@@ -219,6 +219,13 @@ internal fun PlayerRuntimeController.currentSourceRequestKey(): String? =
 
 /** Drops the source list of the previous episode so nothing can fail over into it. */
 internal fun PlayerRuntimeController.clearSourceStreams() {
+    finishSourceFailover()
+    debridResolveJob?.cancel()
+    debridResolveJob = null
+    errorRetryJob?.cancel()
+    errorRetryJob = null
+    sourceSwitchStartPositionMs = null
+    deadSourceStreamUrls.clear()
     sourceStreamsScope?.cancel()
     sourceStreamsScope = null
     sourceStreamsJob = null
@@ -235,6 +242,8 @@ internal fun PlayerRuntimeController.clearSourceStreams() {
         it.copy(
             isLoadingSourceStreams = false,
             sourceStreamsError = null,
+            deadSourceStreamUrls = emptySet(),
+            pendingSeekPosition = null,
             sourceAllStreams = emptyList(),
             sourceSelectedAddonFilter = null,
             sourceFilteredStreams = emptyList(),
@@ -1014,112 +1023,100 @@ private fun PlayerRuntimeController.openExternalStreamInBrowser(
     return true
 }
 
+internal fun PlayerRuntimeController.captureSourceSwitchPosition(carriedPositionMs: Long? = null): Long? {
+    val playingPosition = currentPlaybackPositionMs()?.takeIf { hasPresentedPlayback || it > 0L }
+    return SourceFailoverSelection.startPositionMs(
+        explicitSeekMs = _uiState.value.pendingSeekPosition,
+        playingPositionMs = playingPosition,
+        carriedPositionMs = carriedPositionMs ?: sourceSwitchStartPositionMs,
+        durationMs = currentPlaybackDurationMs()
+    )
+}
+
+internal suspend fun PlayerRuntimeController.prepareSourceForFailover(stream: Stream): Stream? {
+    return when {
+        !stream.getStreamUrl().isNullOrBlank() -> stream
+        stream.serverTarget != null -> prepareServerStream(stream, quiet = true)
+        stream.isDirectDebrid() -> resolveDirectDebridStreamIfNeeded(stream, currentSeason, currentEpisode).stream
+        else -> null
+    }
+}
+
 @androidx.annotation.OptIn(UnstableApi::class)
 internal fun PlayerRuntimeController.switchToSourceStream(
     stream: Stream,
     /** Dead-source failover rather than the user's pick; keeps an autoplayed episode marked as autoplayed. */
-    automatic: Boolean = false
+    automatic: Boolean = false,
+    carriedPositionMs: Long? = null,
+    prepared: Boolean = false
 ) {
-    if (!automatic) {
+    if (activeProfileId.value != profileId) return
+    if (!automatic && !prepared) {
         sourceSelectedAutomatically = false
-        _uiState.update { it.copy(sourceFailoverNotice = null) }
-        deadSourceFailoverCount = 0
+        finishSourceFailover()
+        errorRetryJob?.cancel()
+        errorRetryJob = null
         serverDeadAnswerRetried.clear()
     }
+    debridResolveJob?.cancel()
+    debridResolveJob = null
     sourceStreamsScope?.cancel()
     sourceStreamsScope = null
     sourceStreamsJob = null
     streamRepository.setLocalPluginSearchPaused(true)
-    if (openExternalStreamInBrowser(stream = stream, fromEpisodePanel = false)) {
-        return
-    }
+    if (openExternalStreamInBrowser(stream = stream, fromEpisodePanel = false)) return
 
-    if (stream.youTubeIdToResolve() != null) {
-        debridResolveJob?.cancel()
+    val startPosition = captureSourceSwitchPosition(carriedPositionMs)
+    val needsResolution = stream.youTubeIdToResolve() != null ||
+        (stream.getStreamUrl().isNullOrBlank() && (stream.serverTarget != null || stream.isDirectDebrid() || stream.isTorrent()))
+    if (needsResolution && !prepared) {
+        val requestKey = currentSourceRequestKey()
+        val originalUrl = currentStreamUrl
         _uiState.update { it.copy(isLoadingSourceStreams = true, sourceStreamsError = null) }
-        debridResolveJob = scope.launch {
-            val resolved = resolveYouTubeStream(stream)
-            debridResolveJob = null
-            if (resolved != null) {
-                switchToSourceStream(resolved, automatic)
-            } else {
-                _uiState.update {
-                    it.copy(
-                        isLoadingSourceStreams = false,
-                        sourceStreamsError = context.getString(com.nuvio.tv.R.string.youtube_resolution_failed)
-                    )
-                }
+        debridResolveJob = scope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
+            val (resolved, failure) = when {
+                stream.youTubeIdToResolve() != null ->
+                    resolveYouTubeStream(stream) to com.nuvio.tv.R.string.youtube_resolution_failed
+                stream.serverTarget != null -> prepareServerStream(stream, quiet = automatic) to null
+                else -> resolveDirectDebridStreamIfNeeded(stream, currentSeason, currentEpisode).let { it.stream to it.failureRes }
             }
-        }
-        return
-    }
-
-    if (stream.serverTarget != null && stream.getStreamUrl().isNullOrBlank()) {
-        debridResolveJob?.cancel()
-        _uiState.update { it.copy(isLoadingSourceStreams = true, sourceStreamsError = null) }
-        debridResolveJob = scope.launch {
-            val prepared = prepareServerStream(stream, quiet = automatic)
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
             debridResolveJob = null
-            if (prepared != null) {
-                switchToSourceStream(prepared, automatic)
-            } else {
+            if (requestKey != currentSourceRequestKey() || activeProfileId.value != profileId || originalUrl != currentStreamUrl) {
+                resolved?.takeIf { it.serverTarget != null }?.getStreamUrl()?.let { serverPlayback.stop(it) }
+                return@launch
+            }
+            val resolvedAddress = SourceFailoverSelection.addressKey(resolved?.getStreamUrl())
+            if (automatic && (resolvedAddress == null ||
+                    deadSourceStreamUrls.any { SourceFailoverSelection.addressKey(it) == resolvedAddress })
+            ) {
                 _uiState.update { it.copy(isLoadingSourceStreams = false) }
-                if (automatic) skipUnavailableServerSource(stream)
+                val message = context.getString(com.nuvio.tv.R.string.player_stream_error_invalid_url)
+                if (!advanceToNextLiveSource(message, allowAfterFirstFrame = hasPresentedPlayback)) {
+                    surfaceSourceFailoverError(message)
+                }
+                return@launch
             }
-        }
-        return
-    }
-
-    if (stream.isTorrent()) {
-        debridResolveJob?.cancel()
-        _uiState.update { it.copy(isLoadingSourceStreams = true, sourceStreamsError = null) }
-        debridResolveJob = scope.launch {
-            val (resolved, failureRes) = resolveDirectDebridStreamIfNeeded(stream, currentSeason, currentEpisode)
-            debridResolveJob = null
-            if (resolved != null && !resolved.getStreamUrl().isNullOrBlank()) {
-                switchToSourceStream(resolved, automatic)
-            } else if (resolved != null) {
-                switchToTorrentSourceStream(resolved)
-            } else {
-                _uiState.update {
+            when {
+                resolved != null && !resolved.getStreamUrl().isNullOrBlank() ->
+                    switchToSourceStream(resolved, automatic, startPosition, prepared = true)
+                resolved != null && resolved.isTorrent() && !automatic ->
+                    switchToTorrentSourceStream(resolved, captureSourceSwitchPosition(startPosition))
+                else -> _uiState.update {
                     it.copy(
                         isLoadingSourceStreams = false,
-                        sourceStreamsError = context.getString(failureRes ?: com.nuvio.tv.R.string.player_stream_error_invalid_url)
+                        sourceStreamsError = if (failure != null) context.getString(failure) else if (stream.serverTarget != null) null
+                            else context.getString(com.nuvio.tv.R.string.player_stream_error_invalid_url)
                     )
                 }
             }
         }
+        debridResolveJob?.start()
         return
     }
 
-    val url = stream.getStreamUrl()
-    if (url.isNullOrBlank()) {
-        if (stream.isDirectDebrid()) {
-            debridResolveJob?.cancel()
-            _uiState.update { it.copy(isLoadingSourceStreams = true, sourceStreamsError = null) }
-            debridResolveJob = scope.launch {
-                val (resolved, failureRes) = resolveDirectDebridStreamIfNeeded(stream, currentSeason, currentEpisode)
-                if (resolved != null && !resolved.getStreamUrl().isNullOrBlank()) {
-                    debridResolveJob = null
-                    switchToSourceStream(resolved, automatic)
-                } else if (automatic) {
-                    debridResolveJob = null
-                    _uiState.update { it.copy(isLoadingSourceStreams = false) }
-                    SourceFailoverSelection.failoverKey(stream)?.let { deadSourceStreamUrls.add(it) }
-                    val reason = "Next source could not be prepared"
-                    if (!advanceToNextLiveSource(reason)) surfaceSourceFailoverError(reason)
-                } else {
-                    debridResolveJob = null
-                    _uiState.update {
-                        it.copy(
-                            isLoadingSourceStreams = false,
-                            sourceStreamsError = context.getString(failureRes ?: com.nuvio.tv.R.string.player_stream_error_invalid_url)
-                        )
-                    }
-                }
-            }
-            return
-        }
+    val url = stream.getStreamUrl()?.takeIf(String::isNotBlank)
+    if (url == null) {
         _uiState.update { it.copy(sourceStreamsError = context.getString(com.nuvio.tv.R.string.player_stream_error_invalid_url)) }
         return
     }
@@ -1138,6 +1135,19 @@ internal fun PlayerRuntimeController.switchToSourceStream(
 
     resetLoadingOverlayForNewStream()
     releasePlayer(flushPlaybackState = false)
+
+    val carriedStartMs = SourceFailoverSelection.startPositionMs(
+        explicitSeekMs = null,
+        playingPositionMs = null,
+        carriedPositionMs = startPosition,
+        durationMs = stream.durationMs
+    )
+    sourceSwitchStartPositionMs = carriedStartMs
+    if (carriedStartMs != null) {
+        savedProgressDeferred?.cancel()
+        savedProgressDeferred = null
+        pendingResumeProgress = null
+    }
 
     val wasAutoPlayed = currentEpisodeAutoPlayed
     applySelectedStreamState(
@@ -1168,6 +1178,7 @@ internal fun PlayerRuntimeController.switchToSourceStream(
         it.clearFrameRateDetection().copy(
             isBuffering = true,
             error = null,
+            pendingSeekPosition = null,
             currentStreamName = stream.name ?: stream.addonName,
             currentStreamUrl = playbackUrl,
             currentStreamInfoHash = stream.getEffectiveInfoHash(),
@@ -1197,59 +1208,12 @@ internal fun PlayerRuntimeController.switchToSourceStream(
     showStreamSourceIndicator(stream)
     resetPostPlayOverlayState(clearEpisode = false)
 
-    val carriedStartMs = SourceFailoverSelection.startPositionMs(automatic, _uiState.value.pendingSeekPosition)
-    _exoPlayer?.let { player ->
-        scope.launch {
-            try {
-                val playerSettings = playerSettingsDataStore.playerSettings.first()
-                // This branch is ExoPlayer-only (_exoPlayer
-                // scope), so use the cache-only preflight; the new stream's
-                // track format drives the switch on a cache miss.
-                // Bump the generation so an in-flight track-AFR
-                // coroutine from the previous stream stands down.
-                afrTrackGeneration++
-                trackAfrAttemptedForCurrentStream = false
-                afrTrackSwitchInFlight = false
-                afrModeAppliedPreStart = false
-                afrSeededRateRaw = 0f
-                runAfrCachePreflightIfEnabled(
-                    url = playbackUrl,
-                    headers = playbackHeaders,
-                    frameRateMatchingMode = playerSettings.frameRateMatchingMode,
-                    resolutionMatchingEnabled = playerSettings.resolutionMatchingEnabled
-                )
-                noteSpeedupHint(playbackUrl)
-                armStartCushion(playbackUrl)
-                player.setMediaSource(
-                    mediaSourceFactory.createMediaSource(
-                        context = context,
-                        url = playbackUrl,
-                        headers = playbackHeaders,
-                        filename = currentFilename,
-                        responseHeaders = currentStreamResponseHeaders,
-                        mimeTypeOverride = currentStreamMimeType,
-                        audioDelayUsProvider = audioDelayUs::get,
-                        cacheKey = currentStreamCacheKey
-                    )
-                )
-                player.playWhenReady = true
-                player.prepare()
-                recordDistinctPluginPlay(
-                    bingeGroup = stream.behaviorHints?.bingeGroup,
-                    playbackIdentity = stream.getEffectiveInfoHash() ?: playbackUrl
-                )
-            } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: context.getString(com.nuvio.tv.R.string.player_error_play_stream_failed)) }
-            }
-        }
-    } ?: run {
-        initializePlayer(playbackUrl, playbackHeaders, startPositionMs = carriedStartMs)
-        if (playbackUrl.isNotEmpty()) {
-            recordDistinctPluginPlay(
-                bingeGroup = stream.behaviorHints?.bingeGroup,
-                playbackIdentity = stream.getEffectiveInfoHash() ?: playbackUrl
-            )
-        }
+    initializePlayer(playbackUrl, playbackHeaders, startPositionMs = carriedStartMs)
+    if (playbackUrl.isNotEmpty()) {
+        recordDistinctPluginPlay(
+            bingeGroup = stream.behaviorHints?.bingeGroup,
+            playbackIdentity = stream.getEffectiveInfoHash() ?: playbackUrl
+        )
     }
 
     if (carriedStartMs == null) loadSavedProgressFor(currentSeason, currentEpisode)
@@ -1291,7 +1255,8 @@ internal fun PlayerRuntimeController.selectEpisodesSeason(season: Int) {
 
 @androidx.annotation.OptIn(UnstableApi::class)
 private fun PlayerRuntimeController.switchToTorrentSourceStream(
-    stream: Stream
+    stream: Stream,
+    startPositionMs: Long?
 ) {
     val infoHash = stream.getEffectiveInfoHash() ?: return
     sourceStreamsScope?.cancel()
@@ -1303,6 +1268,8 @@ private fun PlayerRuntimeController.switchToTorrentSourceStream(
     flushPlaybackSnapshotForSwitchOrExit()
     resetLoadingOverlayForNewStream()
     releasePlayer(flushPlaybackState = false)
+    sourceSwitchStartPositionMs = startPositionMs
+    if (startPositionMs != null) pendingResumeProgress = null
     hasRetriedCurrentStreamAfter416 = false
     errorRetryCount = 0
     subtitleDisabledByPersistedPreference = false
@@ -1313,6 +1280,7 @@ private fun PlayerRuntimeController.switchToTorrentSourceStream(
         it.clearFrameRateDetection().copy(
             isBuffering = true,
             error = null,
+            pendingSeekPosition = startPositionMs,
             currentStreamName = stream.name ?: stream.addonName,
             currentStreamUrl = "",
             currentStreamInfoHash = stream.getEffectiveInfoHash(),
@@ -1337,7 +1305,7 @@ private fun PlayerRuntimeController.switchToTorrentSourceStream(
     currentFilename = stream.behaviorHints?.filename
     showStreamSourceIndicator(stream)
     resetPostPlayOverlayState(clearEpisode = false)
-    launchTorrentSourceStream(stream, infoHash, loadSavedProgress = true)
+    launchTorrentSourceStream(stream, infoHash, loadSavedProgress = startPositionMs == null)
     persistTorrentStreamForReuse(stream)
 }
 
@@ -1719,9 +1687,14 @@ internal fun PlayerRuntimeController.switchToEpisodeStream(
     forcedTargetVideo: Video? = null,
     isAutoPlay: Boolean = false
 ) {
+    if (activeProfileId.value != profileId) return
     if (openExternalStreamInBrowser(stream = stream, fromEpisodePanel = true)) {
         return
     }
+    finishSourceFailover()
+    errorRetryJob?.cancel()
+    errorRetryJob = null
+
 
     if (stream.youTubeIdToResolve() != null) {
         debridResolveJob?.cancel()
@@ -1766,7 +1739,9 @@ internal fun PlayerRuntimeController.switchToEpisodeStream(
         _uiState.update { it.copy(isLoadingEpisodeStreams = true, episodeStreamsError = null) }
         debridResolveJob = scope.launch {
             val (resolved, failureRes) = resolveDirectDebridStreamIfNeeded(stream, resolveSeason, resolveEpisode)
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
             debridResolveJob = null
+            if (activeProfileId.value != profileId) return@launch
             if (resolved != null && !resolved.getStreamUrl().isNullOrBlank()) {
                 switchToEpisodeStream(resolved, forcedTargetVideo, isAutoPlay)
             } else if (resolved != null) {
@@ -1882,7 +1857,6 @@ internal fun PlayerRuntimeController.switchToEpisodeStream(
     pendingRestoredAddonSubtitle = null
     hasRetriedCurrentStreamAfter416 = false
     resetErrorRetryState()
-    deadSourceFailoverCount = 0
     freshLinkForReusedLinkTried = false
     serverDeadAnswerRetried.clear()
     serverAudioChosenByUser = false
@@ -2033,7 +2007,6 @@ private fun PlayerRuntimeController.switchToEpisodeStreamCommon(
     hasRetriedCurrentStreamAfterUnexpectedNpe = false
     hasRetriedCurrentStreamAfterMediaPeriodHolderCrash = false
     hasRetriedAfterMimeOverrideClear = false
-    deadSourceFailoverCount = 0
     serverDeadAnswerRetried.clear()
     serverAudioChosenByUser = false
     clearSourceStreams()

@@ -4679,4 +4679,8 @@
     <string name="danplus_qr_backup_hint">Mudou de aparelho ou está reinstalando o DAN+? Recupere seus perfis e configurações.</string>
     <string name="network_estimate_profile_rate">%1$d Mbps</string>
     <string name="collection_highlight_color">Escolher cor</string>
+    <string name="player_source_recovery_searching">Buscando outras fontes deste addon…</string>
+    <string name="player_source_recovery_candidate">Tentando %1$s do mesmo addon…</string>
+    <string name="player_source_recovery_timeout">O tempo para recuperar a fonte acabou. Escolha outra fonte para continuar.</string>
+    <string name="plugin_confirm_local_removal">Confira qual repositório será removido:</string>
 </resources>

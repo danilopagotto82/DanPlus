@@ -114,6 +114,7 @@ class PlayerRuntimeController(
     internal val serverPlayback: ServerPlayback,
     internal val serverStreams: ServerStreams,
     internal val profileId: Int,
+    internal val activeProfileId: kotlinx.coroutines.flow.StateFlow<Int>,
     savedStateHandle: SavedStateHandle,
     internal val scope: CoroutineScope
 ) {
@@ -615,6 +616,10 @@ class PlayerRuntimeController(
 
     internal var playbackStartedForParentalGuide = false
     internal var hasRenderedFirstFrame = false
+    internal var tunneledFirstFrameAssumed = false
+    internal val hasPresentedPlayback: Boolean
+        get() = PlayerStartupPlaybackPolicy.hasPresentedPlayback(hasRenderedFirstFrame, tunneledFirstFrameAssumed)
+    internal var sourceSwitchStartPositionMs: Long? = null
         set(value) {
             field = value
             if (!value) filmDecoderKeptNoted = false
@@ -975,7 +980,9 @@ class PlayerRuntimeController(
     // URLs proven dead this session (sniff failure on a non-media body, or HTTP
     // 404/410): auto-failover skips them and the source panel greys them out.
     internal val deadSourceStreamUrls: MutableSet<String> = mutableSetOf()
-    internal var deadSourceFailoverCount: Int = 0
+    internal var sourceFailoverWindow: SourceFailoverWindow? = null
+    internal var sourceFailoverJob: Job? = null
+    internal var sourceFailoverTimeoutJob: Job? = null
     /** A saved link that failed has had its source asked for a fresh link once. */
     internal var freshLinkForReusedLinkTried: Boolean = false
     /** Media server versions already asked again after a 404/410 since this play started. */

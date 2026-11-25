@@ -55,6 +55,10 @@ internal fun PlayerRuntimeController.releasePlayer(
         }
     }
 
+    if (flushPlaybackState && !keepTorrentStream) {
+        finishSourceFailover()
+        sourceSwitchStartPositionMs = null
+    }
     isReleasingPlayer = true
     PlaybackByteCounter.reset()
     PlaybackLanes.clear()

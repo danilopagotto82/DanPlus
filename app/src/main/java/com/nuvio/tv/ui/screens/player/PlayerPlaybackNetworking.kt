@@ -9,7 +9,10 @@ import com.nuvio.tv.core.network.PlaybackSocketFactory
 import com.nuvio.tv.core.network.ServerTrust
 import com.nuvio.tv.core.network.withServerTrust
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.Call
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.SecureRandom
@@ -281,11 +284,39 @@ internal object PlayerPlaybackNetworking {
             .also { logPoolIdentity("datasource", it) }
     }
 
+    fun playbackCallFactory(
+        client: OkHttpClient,
+        transportRetryUrl: String?,
+        requestHeaders: Map<String, String>
+    ): Call.Factory {
+        val url = transportRetryUrl?.toHttpUrlOrNull() ?: return client
+        if (!url.isHttps || ServerTrust.isServerHost(url.host) ||
+            requestHeaders.keys.none { !it.equals("Range", ignoreCase = true) }
+        ) return client
+
+        val http2 = client.newBuilder()
+            .apply { interceptors().remove(playbackSslFallbackInterceptor) }
+            .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .retryOnConnectionFailure(false)
+            .callTimeout(15, TimeUnit.SECONDS)
+            .addNetworkInterceptor { chain ->
+                if (chain.connection()?.protocol() != Protocol.HTTP_2) {
+                    throw IOException("Playback server did not negotiate HTTP/2")
+                }
+                chain.proceed(chain.request())
+            }
+            .build()
+        return PlaybackHttp2RetryCallFactory(client, http2, url)
+    }
+
     @UnstableApi
     fun createHttpDataSourceFactory(
         defaultHeaders: Map<String, String> = emptyMap(),
         useLongReadTimeout: Boolean = false,
-        slowStart: Boolean = false
+        slowStart: Boolean = false,
+        transportRetryUrl: String? = null
     ): DataSource.Factory {
         val requestHeaders = defaultHeaders.mapNotNull { (rawKey, rawValue) ->
             val key = rawKey.trim()
@@ -297,7 +328,8 @@ internal object PlayerPlaybackNetworking {
             }
         }.toMap()
         val client = createHttpClient(requestHeaders, useLongReadTimeout, slowStart)
-        val httpFactory = OkHttpDataSource.Factory(client).apply {
+        val callFactory = playbackCallFactory(client, transportRetryUrl, requestHeaders)
+        val httpFactory = OkHttpDataSource.Factory(callFactory).apply {
             setDefaultRequestProperties(requestHeaders)
             if (requestHeaders.none { it.key.equals("User-Agent", ignoreCase = true) }) {
                 setUserAgent(PlayerMediaSourceFactory.DEFAULT_USER_AGENT)
@@ -310,9 +342,12 @@ internal object PlayerPlaybackNetworking {
     fun createDataSourceFactory(
         context: android.content.Context,
         defaultHeaders: Map<String, String> = emptyMap(),
-        slowStart: Boolean = false
+        slowStart: Boolean = false,
+        transportRetryUrl: String? = null
     ): DataSource.Factory {
-        return DefaultDataSource.Factory(context, createHttpDataSourceFactory(defaultHeaders, slowStart = slowStart))
+        return DefaultDataSource.Factory(
+            context, createHttpDataSourceFactory(defaultHeaders, slowStart = slowStart, transportRetryUrl = transportRetryUrl)
+        )
     }
 
     fun openConnection(

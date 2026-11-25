@@ -656,7 +656,10 @@ internal fun PlayerRuntimeController.initializePlayer(
                     // happens here, in this coroutine, before entry.
                     awaitSavedProgressLoad()
                     if (initializationGeneration != playbackRecoveryGate.generation) return@launch
-                    initializeMpvPlayer(url = url, headers = headers, allowEngineFailover = allowEngineFailover)
+                    initializeMpvPlayer(
+                        url = url, headers = headers, allowEngineFailover = allowEngineFailover,
+                        startPositionMs = startPositionMs
+                    )
                     fetchAddonSubtitles()
                 } finally {
                     mpvInitializationInProgress = false
@@ -1838,12 +1841,12 @@ internal fun PlayerRuntimeController.initializePlayer(
                 // resume position is resolved. Runway to here is the whole
                 // player build; SAVED_PROGRESS_AWAIT prices the residual.
                 awaitSavedProgressLoad()
-                val carriedOver = _uiState.value.pendingSeekPosition?.takeIf { it > 0L && startPositionMs == null }
+                val carriedOver = _uiState.value.pendingSeekPosition
                 if (carriedOver != null) {
                     pendingResumeProgress = null
                     _uiState.update { it.copy(pendingSeekPosition = null) }
                 }
-                val initialResumePosition = PlayerStartPosition.choose(startPositionMs, carriedOver) {
+                val initialResumePosition = PlayerStartPosition.choose(carriedOver ?: startPositionMs, null) {
                     resolvePendingInitialResumePosition()
                 }
                 playbackAnalyticsDiagnostics.setStartupStartPosition(initialResumePosition)
@@ -1871,7 +1874,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                     cacheKey = currentStreamCacheKey
                 )
 
-                if (initialResumePosition > 0L) {
+                if (initialResumePosition > 0L || startPositionMs != null || carriedOver != null) {
                     setMediaSource(initialMediaSource, initialResumePosition)
                     clearPendingInitialResumePosition()
                     updatePlaybackTimeline(currentPosition = initialResumePosition)
@@ -2088,6 +2091,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                             shouldEnforceAutoplayOnFirstReady =
                                 readyTransition.nextState.shouldEnforceAutoplayOnFirstReady
                             if (readyTransition.nextState.hasRenderedFirstFrame && tunneledNow) {
+                                if (!hasRenderedFirstFrame) tunneledFirstFrameAssumed = true
                                 hasRenderedFirstFrame = true
                                 cancelStartupWatchdog()
                                 retractStartupTimeoutErrorAfterFirstFrame()
@@ -2273,6 +2277,10 @@ internal fun PlayerRuntimeController.initializePlayer(
                     }
 
                     override fun onRenderedFirstFrame() {
+                        if (isReleasingPlayer || _exoPlayer !== this@apply) return
+                        tunneledFirstFrameAssumed = false
+                        sourceSwitchStartPositionMs = null
+                        finishSourceFailover()
                         val isFirstFrame = !hasRenderedFirstFrame  // capture BEFORE flipping
                         hasRenderedFirstFrame = true
                         if (com.nuvio.tv.core.formatcheck.FormatCheckSession.active) {
@@ -2334,7 +2342,9 @@ internal fun PlayerRuntimeController.initializePlayer(
                     }
 
                     override fun onPlayerError(error: PlaybackException) {
-                        if (isReleasingPlayer && error.errorCode == PlaybackException.ERROR_CODE_TIMEOUT) return
+                        if (isReleasingPlayer || _exoPlayer !== this@apply ||
+                            sourceFailoverJob?.isActive == true || debridResolveJob?.isActive == true
+                        ) return
                         cancelFirstFrameWatchdog()
                         cancelTunnelAvSyncWatchdog()
                         val detailedError = error.toDisplayMessage(context)
@@ -2623,16 +2633,14 @@ internal fun PlayerRuntimeController.initializePlayer(
                         // cue-seeks to the same position and re-hits the same corruption.
                         // Fail over to the next source immediately, exactly like the HTTP
                         // dead-source arm above (media3's Loader has already retried
-                        // before this point). Bounded by MAX_DEAD_SOURCE_FAILOVERS;
-                        // returns false (=> auto-retry, then the error screen) only when
-                        // no live source remains.
+                        // before this point). The same-addon recovery window bounds the search.
                         // A 2000 caused by the network is a lost connection, not a broken file: it
                         // takes the same-link retry below instead of moving to another source.
-                        val midPlayCorruption = isMidPlayCorruption(error.errorCode, hasRenderedFirstFrame) &&
+                        val midPlayCorruption = isMidPlayCorruption(error.errorCode, hasPresentedPlayback) &&
                             !(error.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED &&
                                 PlaybackNetworkFailure.hasNetworkCause(error))
                         val serverDirectPlay = isServerDirectPlay
-                        if (midPlayCorruption && !serverDirectPlay && advanceToNextLiveSource(detailedError)) {
+                        if (midPlayCorruption && !serverDirectPlay && advanceToNextLiveSource(detailedError, allowAfterFirstFrame = true)) {
                             return
                         }
 
@@ -2642,7 +2650,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                         if (tryServerFallback(error)) {
                             return
                         }
-                        if (midPlayCorruption && serverDirectPlay && advanceToNextLiveSource(detailedError)) {
+                        if (midPlayCorruption && serverDirectPlay && advanceToNextLiveSource(detailedError, allowAfterFirstFrame = true)) {
                             return
                         }
 
@@ -2653,7 +2661,9 @@ internal fun PlayerRuntimeController.initializePlayer(
                             return
                         }
 
-                        } // end auto-recovery budget gate
+                        } else if (attemptStartupExhaustedSourceFailover(detailedError)) {
+                            return
+                        }
 
                         if (rebufferStartedAtMs != 0L) {
                             val lastRebufferMs = (SystemClock.elapsedRealtime() - rebufferStartedAtMs).coerceAtLeast(0L)
@@ -3354,6 +3364,7 @@ internal fun PlayerRuntimeController.resetLoadingOverlayForNewStream() {
         progress = null
     )
     hasRenderedFirstFrame = false
+    tunneledFirstFrameAssumed = false
     playerSession.streamStarting()
     endDetectionArmed = false
     mpvEofSeenClear = false

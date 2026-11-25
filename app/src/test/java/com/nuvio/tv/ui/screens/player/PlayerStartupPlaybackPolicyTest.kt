@@ -44,6 +44,15 @@ class PlayerStartupPlaybackPolicyTest {
     }
 
     @Test
+    fun tunneledReadyAloneDoesNotEndDecoderStartupRecovery() {
+        val ready = PlayerStartupPlaybackPolicy.onStateReady(baseState(isTunneledPlayback = true))
+        val firstFrameMarked = ready.nextState.hasRenderedFirstFrame
+        assertFalse(PlayerStartupPlaybackPolicy.hasPresentedPlayback(firstFrameMarked, tunneledFrameAssumed = true))
+        assertTrue(PlayerStartupPlaybackPolicy.hasPresentedPlayback(firstFrameMarked, tunneledFrameAssumed = false))
+        assertFalse(PlayerStartupPlaybackPolicy.hasPresentedPlayback(false, tunneledFrameAssumed = false))
+    }
+
+    @Test
     fun firstReadyStartPausedDoesNothing() {
         val transition = PlayerStartupPlaybackPolicy.onStateReady(
             baseState(startPaused = true)

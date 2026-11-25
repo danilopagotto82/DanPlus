@@ -37,7 +37,13 @@ internal fun PlayerRuntimeController.attachMpvView(view: NuvioMpvSurfaceView?) {
         view.applyHardwareDecodeMode(mpvHardwareDecodeModeSetting)
         view.ensureInitialized()
         registerMpvEventRelay(view)
-        view.setMedia(currentStreamUrl, currentHeaders)
+        val switchPosition = sourceSwitchStartPositionMs?.let { _uiState.value.pendingSeekPosition ?: it }
+        view.setMedia(currentStreamUrl, currentHeaders, switchPosition ?: 0L)
+        if (switchPosition != null) {
+            clearPendingInitialResumePosition()
+            _uiState.update { it.copy(pendingSeekPosition = null) }
+            updatePlaybackTimeline(currentPosition = switchPosition)
+        }
         val playerInitLine =
             "PLAYER_INIT: engine=MPV host=${currentStreamUrl.safeMpvTraceHost()} " +
                 "playbackSpeed=${_uiState.value.playbackSpeed} surface=attached"
@@ -61,6 +67,7 @@ internal fun PlayerRuntimeController.attachMpvView(view: NuvioMpvSurfaceView?) {
         applyPendingMpvSeekIfNeeded(view)
         installMpvMediaSession()
         hasRenderedFirstFrame = false
+        tunneledFirstFrameAssumed = false
         endDetectionArmed = false
         mpvEofSeenClear = false
         exoEndOverrunHandled = false
@@ -92,7 +99,8 @@ internal fun PlayerRuntimeController.onMpvSurfaceCreationFailed(error: Throwable
 internal fun PlayerRuntimeController.initializeMpvPlayer(
     url: String,
     headers: Map<String, String>,
-    allowEngineFailover: Boolean = true
+    allowEngineFailover: Boolean = true,
+    startPositionMs: Long? = null
 ) {
     mpvMediaLoadPrepared = true
     prefetchAutoSyncIndex(url, headers) // AutoSync hook
@@ -110,6 +118,9 @@ internal fun PlayerRuntimeController.initializeMpvPlayer(
 
     val view = mpvView
     if (view == null) {
+        if (startPositionMs != null) {
+            _uiState.update { it.copy(pendingSeekPosition = it.pendingSeekPosition ?: startPositionMs) }
+        }
         mpvSurfaceCreationFailure?.let { error ->
             handleMpvInitializationFailure(error, com.nuvio.tv.R.string.player_error_mpv_surface_failed, allowEngineFailover)
             return
@@ -141,9 +152,10 @@ internal fun PlayerRuntimeController.initializeMpvPlayer(
         view.applyHardwareDecodeMode(mpvHardwareDecodeModeSetting)
         view.ensureInitialized()
         registerMpvEventRelay(view)
-        val initialResumePosition = resolvePendingInitialResumePosition()
-            .takeIf { it > 0L }
-            ?: (_uiState.value.pendingSeekPosition?.coerceAtLeast(0L) ?: 0L)
+        val pendingSeek = _uiState.value.pendingSeekPosition
+        val initialResumePosition = PlayerStartPosition.choose(pendingSeek ?: startPositionMs, null) {
+            resolvePendingInitialResumePosition()
+        }
         playbackAnalyticsDiagnostics.setStartupStartPosition(initialResumePosition)
         view.setMedia(url, headers, initialResumePosition)
         com.nuvio.tv.core.player.PlaybackMemoryFacts.onMpvStarted(mpvHardwareDecodeModeSetting.name.lowercase())
@@ -152,7 +164,7 @@ internal fun PlayerRuntimeController.initializeMpvPlayer(
                 "playbackSpeed=${_uiState.value.playbackSpeed} resumePositionMs=$initialResumePosition"
         playbackAnalyticsDiagnostics.recordRawEventLine(playerInitLine)
         TtffTrace.mirror(playerInitLine)
-        if (initialResumePosition > 0L) {
+        if (initialResumePosition > 0L || pendingSeek != null || startPositionMs != null) {
             clearPendingInitialResumePosition()
             _uiState.update { it.copy(pendingSeekPosition = null) }
             updatePlaybackTimeline(currentPosition = initialResumePosition)
@@ -176,6 +188,7 @@ internal fun PlayerRuntimeController.initializeMpvPlayer(
         installMpvMediaSession()
 
         hasRenderedFirstFrame = false
+        tunneledFirstFrameAssumed = false
         endDetectionArmed = false
         mpvEofSeenClear = false
         exoEndOverrunHandled = false
@@ -243,6 +256,7 @@ private fun String.safeMpvTraceHost(): String {
 internal fun PlayerRuntimeController.pauseForLifecycle() {
     // Mark we're in background so onPlayerError can defer recovery to onResume.
     isInBackground = true
+    if (sourceFailoverWindow != null) finishSourceFailover()
 
     // Release the session while backgrounded so Bluetooth controls cannot resume playback.
     releaseMediaSession()
