@@ -27,6 +27,23 @@ class TrailerLifecycleBindingTest {
         assertEquals(4, events.size)
     }
 
+    @Test fun pauseKeepsMediaUntilStopAndDestroyDoesNotStopTwice() {
+        val owner = Owner()
+        val events = mutableListOf<String>()
+        val binding = TrailerLifecycleBinding(
+            owner.lifecycle,
+            resume = { events += "resume" },
+            pause = { events += "pause" },
+            stopped = { events += "clear media" }
+        )
+        owner.lifecycle.currentState = Lifecycle.State.RESUMED
+        owner.lifecycle.currentState = Lifecycle.State.STARTED
+        owner.lifecycle.currentState = Lifecycle.State.RESUMED
+        owner.lifecycle.currentState = Lifecycle.State.DESTROYED
+        assertEquals(listOf("resume", "pause", "resume", "pause", "clear media"), events)
+        binding.close()
+    }
+
     @Test fun `binding to an already resumed screen acquires immediately and disposal is idempotent`() {
         val owner = Owner()
         owner.lifecycle.currentState = Lifecycle.State.RESUMED

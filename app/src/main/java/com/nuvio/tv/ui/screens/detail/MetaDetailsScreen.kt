@@ -499,8 +499,10 @@ fun MetaDetailsScreen(
         .collectAsStateWithLifecycle(initialValue = viewModel.uiState.value.parentalGuidePending)
     val secondaryReady by viewModel.secondaryReady.collectAsStateWithLifecycle()
     var scrolledPastHero by remember(viewModel) { mutableStateOf(false) }
+    val childOverlayVisible = LocalDetailChildOverlayVisible.current
     var isBackgroundTrailerRendered by remember(
-        viewModel, uiState.isTrailerPlaying || uiState.isBackgroundTrailerPlaying, uiState.trailerUrl
+        viewModel, uiState.isTrailerPlaying || uiState.isBackgroundTrailerPlaying,
+        uiState.trailerUrl, uiState.trailerAudioUrl, childOverlayVisible, uiState.isSharedTrailerOverlayVisible
     ) { mutableStateOf(false) }
     var drawnHeroToken by remember(viewModel) { mutableIntStateOf(0) }
     var settledBackdropUrl by remember(viewModel) { mutableStateOf<String?>(null) }
@@ -550,7 +552,6 @@ fun MetaDetailsScreen(
         finishedListener = { playOnLoadReturnContentRevealed = it == 1f }
     )
 
-    val childOverlayVisible = LocalDetailChildOverlayVisible.current
     val focusManager = LocalFocusManager.current
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     BackHandler(enabled = !childOverlayVisible) {
@@ -1043,7 +1044,7 @@ fun MetaDetailsScreen(
                     pauseBackgroundTrailerOnScroll = uiState.pauseBackgroundTrailerOnScroll,
                     isBackgroundTrailerRendered = isBackgroundTrailerRendered,
                     onBackgroundTrailerRendered = { isBackgroundTrailerRendered = true },
-                    isTrailerPaused = isTrailerPaused,
+                    isTrailerPaused = isTrailerPaused || selectedComment != null,
                     showTrailerControls = uiState.showTrailerControls,
                     hideLogoDuringTrailer = uiState.hideLogoDuringTrailer,
                     trailerButtonEnabled = uiState.trailerButtonEnabled,
@@ -2375,16 +2376,17 @@ private fun MetaDetailsContent(
             .fillMaxSize()
             .onPreviewKeyEvent { randomEpisodePlaybackPending }
     ) {
-        // Sticky background — backdrop or trailer
+        // An overlaid child or shared preview gets its own surface from the same pool.
+        val trailerCovered = childOverlayVisible || isSharedTrailerOverlayVisible
         BackdropLayer(
-            trailerUrl = trailerUrl,
-            trailerAudioUrl = trailerAudioUrl,
-            isTrailerPlaying = isTrailerPlaying,
-            isBackgroundTrailerPlaying = isBackgroundTrailerPlaying,
+            trailerUrl = trailerUrl.takeUnless { trailerCovered },
+            trailerAudioUrl = trailerAudioUrl.takeUnless { trailerCovered },
+            isTrailerPlaying = isTrailerPlaying && !trailerCovered,
+            isBackgroundTrailerPlaying = isBackgroundTrailerPlaying && !trailerCovered,
             pauseBackgroundTrailerOnScroll = pauseBackgroundTrailerOnScroll,
             isBackgroundTrailerRendered = isBackgroundTrailerRendered,
             onBackgroundTrailerRendered = onBackgroundTrailerRendered,
-            isTrailerPaused = isTrailerPaused,
+            isTrailerPaused = isTrailerPaused || showHeroPlayOptionsDialog,
             showTrailerControls = showTrailerControls,
             trailerSeekToken = trailerSeekToken,
             trailerSeekDeltaMs = trailerSeekDeltaMs,

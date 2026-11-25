@@ -512,6 +512,9 @@ open class MainActivity : ComponentActivity() {
             }
 
             val activeProfileId by profileManager.activeProfileId.collectAsState()
+            LaunchedEffect(trailerPlayerPool) {
+                profileManager.profileSelectionRevision.collect { trailerPlayerPool.stopStaleProfile() }
+            }
             val profiles by profileManager.profiles.collectAsState()
             val hasEverSelectedProfile by profileManager.hasEverSelectedProfile.collectAsState()
             val rememberLastProfileEnabled by profileManager.rememberLastProfileEnabled.collectAsState()

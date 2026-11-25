@@ -10,7 +10,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -25,19 +27,16 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.C
-import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.exoplayer.source.MergingMediaSource
 import com.nuvio.tv.core.player.LetterboxDetector
 import com.nuvio.tv.core.player.LetterboxSampler
 import com.nuvio.tv.core.player.LetterboxTracker
 import com.nuvio.tv.core.player.LocalTrailerPlayerPool
 import com.nuvio.tv.core.player.TrailerPlayerPool
 import com.nuvio.tv.data.trailer.TrailerPlaybackFailures
-import com.nuvio.tv.data.trailer.YoutubeChunkedDataSourceFactory
+import com.nuvio.tv.data.trailer.TrailerPlaybackSource
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import android.view.LayoutInflater
@@ -81,8 +80,17 @@ fun TrailerPlayer(
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
-    val playbackActive = isPlaying && lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
-    val playerOwner = remember { Any() }
+    val resolvedPool = trailerPlayerPool ?: LocalTrailerPlayerPool.current
+    val ownerRevision = remember(resolvedPool) { resolvedPool?.selectionRevision?.value ?: 0L }
+    val selectionRevision = resolvedPool?.selectionRevision?.collectAsState()?.value ?: ownerRevision
+    val sameProfile = ownerRevision == selectionRevision
+    val playbackActive = sameProfile && isPlaying && lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
+    val playerOwner = remember(resolvedPool) { Any() }
+    val ownsPlayer = resolvedPool?.activeOwner?.collectAsState()?.value === playerOwner
+    val source = remember(trailerUrl, trailerAudioUrl) {
+        trailerUrl?.takeIf { it.isNotBlank() }?.let { TrailerPlaybackSource(it, trailerAudioUrl) }
+    }
+    val currentSource by rememberUpdatedState(source)
     val currentIsPaused by rememberUpdatedState(isPaused)
     val currentOnEnded by rememberUpdatedState(onEnded)
     val currentIsPlaying by rememberUpdatedState(isPlaying)
@@ -91,15 +99,17 @@ fun TrailerPlayer(
     val currentOnProgressChanged by rememberUpdatedState(onProgressChanged)
     val currentOnRemoteKey by rememberUpdatedState(onRemoteKey)
     val currentOnVideoAspectRatioChanged by rememberUpdatedState(onVideoAspectRatioChanged)
-    var hasRenderedFirstFrame by remember(trailerUrl) { mutableStateOf(false) }
+    val firstFrameState = remember(source) { mutableStateOf(false) }
+    var hasRenderedFirstFrame by firstFrameState
+    val currentFirstFrameState by rememberUpdatedState(firstFrameState)
     val popupBackdrop = com.nuvio.tv.ui.v2.components.LocalPopupGlassBackdrop.current
-    val rendersLiveFrames = playbackActive && !isPaused && hasRenderedFirstFrame
+    val rendersLiveFrames = playbackActive && ownsPlayer && !isPaused && hasRenderedFirstFrame
     DisposableEffect(popupBackdrop, rendersLiveFrames) {
         if (rendersLiveFrames) popupBackdrop?.attachTrailer()
         onDispose { if (rendersLiveFrames) popupBackdrop?.detachTrailer() }
     }
     val playerAlphaState = animateFloatAsState(
-        targetValue = if (isPlaying && hasRenderedFirstFrame) 1f else 0f,
+        targetValue = if (playbackActive && ownsPlayer && hasRenderedFirstFrame) 1f else 0f,
         animationSpec = tween(durationMillis = 300),
         label = "trailerFirstFrameAlpha"
     )
@@ -111,12 +121,9 @@ fun TrailerPlayer(
         label = "trailerLetterboxZoom"
     )
 
-    // Resolve pool: explicit parameter > CompositionLocal
-    val resolvedPool = trailerPlayerPool ?: LocalTrailerPlayerPool.current
-
-    LaunchedEffect(resolvedPool, trailerUrl, trailerAudioUrl, isPlaying, lifecycleState) {
-        if (!isPlaying && lifecycleState.isAtLeast(Lifecycle.State.RESUMED) && !trailerUrl.isNullOrBlank()) {
-            resolvedPool?.preload(com.nuvio.tv.data.trailer.TrailerPlaybackSource(trailerUrl, trailerAudioUrl))
+    LaunchedEffect(resolvedPool, source, isPlaying, lifecycleState, sameProfile) {
+        if (sameProfile && !isPlaying && lifecycleState.isAtLeast(Lifecycle.State.RESUMED) && source != null) {
+            resolvedPool?.preload(source)
         }
     }
 
@@ -125,20 +132,23 @@ fun TrailerPlayer(
     var trailerPlayer by remember(resolvedPool) { mutableStateOf<ExoPlayer?>(null) }
     var playbackGeneration by remember { mutableIntStateOf(0) }
     var prepareStartedAtMs by remember { androidx.compose.runtime.mutableLongStateOf(0L) }
-    var loadedTrailerUrl by remember { mutableStateOf<String?>(null) }
-    val hasTrailer = !trailerUrl.isNullOrBlank()
-    DisposableEffect(resolvedPool, lifecycleOwner, isPlaying, hasTrailer) {
+    val hasTrailer = source != null
+    DisposableEffect(resolvedPool, lifecycleOwner, isPlaying, hasTrailer, sameProfile) {
         val binding = com.nuvio.tv.core.player.TrailerLifecycleBinding(
             lifecycleOwner.lifecycle,
             resume = {
-                if (isPlaying && hasTrailer) {
-                    trailerPlayer = resolvedPool?.acquire(playerOwner)
+                if (sameProfile && isPlaying && hasTrailer) {
+                    trailerPlayer = resolvedPool?.acquire(playerOwner, ownerRevision)
                     playbackGeneration++
                 }
             },
-            pause = { resolvedPool?.stop(playerOwner) }
+            pause = { resolvedPool?.pause(playerOwner) },
+            stopped = { resolvedPool?.stop(playerOwner) }
         )
-        onDispose { binding.close() }
+        onDispose {
+            binding.close()
+            resolvedPool?.stop(playerOwner)
+        }
     }
 
     // Configure player settings when acquired
@@ -153,32 +163,23 @@ fun TrailerPlayer(
         }
     }
 
-    // Keep the player consistent with the effect key when acquisition triggers recomposition.
-    val acquiredPlayer = trailerPlayer
-    LaunchedEffect(playbackActive, playbackGeneration, trailerUrl, trailerAudioUrl, acquiredPlayer) {
-        hasRenderedFirstFrame = false
-        val player = acquiredPlayer ?: return@LaunchedEffect
-        if (resolvedPool?.isOwner(playerOwner) != true) return@LaunchedEffect
-        if (playbackActive && trailerUrl != null) {
-            if (!trailerAudioUrl.isNullOrBlank()) {
-                val mediaSourceFactory = DefaultMediaSourceFactory(YoutubeChunkedDataSourceFactory())
-                val videoSource = mediaSourceFactory.createMediaSource(MediaItem.fromUri(trailerUrl))
-                val audioSource = mediaSourceFactory.createMediaSource(MediaItem.fromUri(trailerAudioUrl))
-                player.setMediaSource(MergingMediaSource(videoSource, audioSource))
-            } else {
-                player.setMediaItem(MediaItem.fromUri(trailerUrl))
-            }
-            loadedTrailerUrl = trailerUrl
+    LaunchedEffect(playbackActive, playbackGeneration, source, trailerPlayer) {
+        val player = trailerPlayer ?: return@LaunchedEffect
+        val pool = resolvedPool ?: return@LaunchedEffect
+        if (!playbackActive || source == null || !pool.isOwner(playerOwner)) return@LaunchedEffect
+        if (pool.prepare(playerOwner, source)) {
+            hasRenderedFirstFrame = false
             prepareStartedAtMs = android.os.SystemClock.elapsedRealtime()
-            android.util.Log.d("TrailerPlayback", "prepare provider=${if (trailerUrl.contains(".media-imdb.com")) "imdb" else "other"} separateAudio=${!trailerAudioUrl.isNullOrBlank()}")
-            player.prepare()
-            player.playWhenReady = !currentIsPaused
         }
+        playerViewRef.value?.let { pool.attach(playerOwner, it) }
+        player.playWhenReady = !currentIsPaused
     }
 
-    LaunchedEffect(isPaused, playbackActive, playbackGeneration, trailerPlayer) {
+    LaunchedEffect(isPaused, playbackActive, playbackGeneration, source, trailerPlayer) {
         val player = trailerPlayer ?: return@LaunchedEffect
-        if (!playbackActive || resolvedPool?.isOwner(playerOwner) != true) return@LaunchedEffect
+        if (!playbackActive || source == null || resolvedPool?.isPrepared(playerOwner, source) != true) {
+            return@LaunchedEffect
+        }
         player.playWhenReady = !isPaused
     }
 
@@ -189,8 +190,9 @@ fun TrailerPlayer(
         val tracker = LetterboxTracker()
         val sampler = LetterboxSampler()
         try {
-            while (true) {
+            while (resolvedPool?.isOwner(playerOwner) == true) {
                 delay(LetterboxDetector.SAMPLE_INTERVAL_MS)
+                if (!resolvedPool.isOwner(playerOwner)) break
                 if (LetterboxDetector.isSampleWindowOver(player.currentPosition, player.duration)) break
                 if (!player.isPlaying) continue
                 val textureView = playerViewRef.value?.videoSurfaceView as? TextureView ?: continue
@@ -212,28 +214,31 @@ fun TrailerPlayer(
         player.seekTo(target)
     }
 
-    LaunchedEffect(trailerPlayer, playbackActive, playbackGeneration) {
+    LaunchedEffect(trailerPlayer, playbackActive, playbackGeneration, source) {
         val player = trailerPlayer ?: return@LaunchedEffect
-        while (playbackActive && resolvedPool?.isOwner(playerOwner) == true) {
+        while (playbackActive && source != null && resolvedPool?.isPrepared(playerOwner, source) == true) {
             val position = player.currentPosition.coerceAtLeast(0L)
             val duration = player.duration.takeIf { it > 0 } ?: 0L
             currentOnProgressChanged(position, duration)
             delay(250)
         }
-        currentOnProgressChanged(0L, 0L)
+        if (resolvedPool?.isOwner(playerOwner) == true) currentOnProgressChanged(0L, 0L)
     }
 
-    DisposableEffect(trailerPlayer) {
+    DisposableEffect(resolvedPool, trailerPlayer, playerOwner) {
         val player = trailerPlayer ?: return@DisposableEffect onDispose {}
+        fun currentMedia(): TrailerPlaybackSource? =
+            currentSource?.takeIf { resolvedPool?.isPrepared(playerOwner, it) == true }
+
         val listener = object : Player.Listener {
             override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
-                if (resolvedPool?.isOwner(playerOwner) == true && videoSize.width > 0 && videoSize.height > 0) {
+                if (currentMedia() != null && videoSize.width > 0 && videoSize.height > 0) {
                     currentOnVideoAspectRatioChanged(videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height)
                 }
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (resolvedPool?.isOwner(playerOwner) == true &&
+                if (currentMedia() != null &&
                     playbackState == Player.STATE_ENDED &&
                     currentIsPlaying &&
                     player.playWhenReady
@@ -243,17 +248,15 @@ fun TrailerPlayer(
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                if (resolvedPool?.isOwner(playerOwner) != true) return
-                val failedUrl = loadedTrailerUrl
-                loadedTrailerUrl = null
-                failedUrl?.let(TrailerPlaybackFailures::report)
+                val failed = currentMedia() ?: return
+                TrailerPlaybackFailures.report(failed.videoUrl)
                 if (currentIsPlaying) currentOnError()
             }
 
             override fun onRenderedFirstFrame() {
-                if (resolvedPool?.isOwner(playerOwner) != true) return
+                if (currentMedia() == null || playerViewRef.value?.player !== player) return
                 onVideoSizeChanged(player.videoSize)
-                hasRenderedFirstFrame = true
+                currentFirstFrameState.value = true
                 // A seek renders a first frame again: only the one after prepare is the start time.
                 if (prepareStartedAtMs != 0L) {
                     android.util.Log.d("TrailerPlayback", "firstFrameAfterPrepareMs=${android.os.SystemClock.elapsedRealtime() - prepareStartedAtMs} resolution=${player.videoSize.width}x${player.videoSize.height}")
@@ -271,63 +274,64 @@ fun TrailerPlayer(
 
     if (trailerPlayer != null) {
         AnimatedVisibility(
-            visible = playbackActive && hasTrailer,
+            visible = playbackActive && hasTrailer && ownsPlayer,
             enter = enter,
             exit = exit
         ) {
-            AndroidView(
-                factory = { ctx ->
-                    (LayoutInflater.from(ctx).inflate(R.layout.trailer_player_view, null) as PlayerView).apply {
-                        playerViewRef.value = this
-                        if (transparentVideoBackground) {
-                            setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                            setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
-                            (videoSurfaceView as? android.view.TextureView)?.isOpaque = false
+            key(source) {
+                AndroidView(
+                    factory = { ctx ->
+                        (LayoutInflater.from(ctx).inflate(R.layout.trailer_player_view, null) as PlayerView).apply {
+                            firstFrameState.value = false
+                            playerViewRef.value = this
+                            if (transparentVideoBackground) {
+                                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+                                (videoSurfaceView as? android.view.TextureView)?.isOpaque = false
+                            }
+                            isFocusable = false
+                            isFocusableInTouchMode = false
+                            setOnKeyListener { _, keyCode, event ->
+                                currentOnRemoteKey(keyCode, event.action, event.repeatCount)
+                            }
+                            keepScreenOn = true
+                            resizeMode = if (cropToFill) {
+                                AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                            } else {
+                                AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            }
                         }
-                        player = trailerPlayer
-                        isFocusable = false
-                        isFocusableInTouchMode = false
-                        setOnKeyListener { _, keyCode, event ->
-                            currentOnRemoteKey(keyCode, event.action, event.repeatCount)
+                    },
+                    update = { view ->
+                        // A layout preference can change without replacing this AndroidView.
+                        (view.videoSurfaceView as? android.view.TextureView)?.let { texture ->
+                            if (texture.isOpaque == transparentVideoBackground) {
+                                texture.isOpaque = !transparentVideoBackground
+                            }
                         }
-                        keepScreenOn = true
-                        resizeMode = if (cropToFill) {
+                        if (playbackActive && source != null && resolvedPool?.isPrepared(playerOwner, source) == true) {
+                            resolvedPool.attach(playerOwner, view)
+                        }
+                        view.resizeMode = if (cropToFill) {
                             AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                         } else {
                             AspectRatioFrameLayout.RESIZE_MODE_FIT
                         }
-                    }
-                },
-                update = { view ->
-                    // A layout preference can change without replacing this AndroidView.
-                    (view.videoSurfaceView as? android.view.TextureView)?.let { texture ->
-                        if (texture.isOpaque == transparentVideoBackground) {
-                            texture.isOpaque = !transparentVideoBackground
+                    },
+                    onRelease = { view ->
+                        if (playerViewRef.value === view) playerViewRef.value = null
+                        resolvedPool?.detach(playerOwner, view)
+                        view.keepScreenOn = false
+                    },
+                    modifier = modifier
+                        .clipToBounds()
+                        .graphicsLayer {
+                            alpha = playerAlphaState.value
+                            scaleX = overscanZoom * letterboxZoomState.value
+                            scaleY = overscanZoom * letterboxZoomState.value
                         }
-                    }
-                    // Re-attach player in case it was reclaimed after yield
-                    if (view.player !== trailerPlayer) {
-                        view.player = trailerPlayer
-                    }
-                    view.resizeMode = if (cropToFill) {
-                        AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                    } else {
-                        AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    }
-                },
-                onRelease = { view ->
-                    playerViewRef.value = null
-                    view.player = null
-                    view.keepScreenOn = false
-                },
-                modifier = modifier
-                    .clipToBounds()
-                    .graphicsLayer {
-                        alpha = playerAlphaState.value
-                        scaleX = overscanZoom * letterboxZoomState.value
-                        scaleY = overscanZoom * letterboxZoomState.value
-                    }
-            )
+                )
+            }
         }
     }
 }

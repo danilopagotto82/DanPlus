@@ -7,6 +7,7 @@ import com.nuvio.tv.data.local.TrailerSettings
 import com.nuvio.tv.data.local.TrailerSettingsDataStore
 import com.nuvio.tv.data.local.TrailerSource
 import com.nuvio.tv.data.remote.api.TmdbApi
+import com.nuvio.tv.data.remote.api.TmdbDetailsResponse
 import com.nuvio.tv.data.remote.api.TmdbVideoResult
 import com.nuvio.tv.data.remote.api.TmdbVideosResponse
 import com.nuvio.tv.domain.model.TmdbSettings
@@ -258,6 +259,8 @@ class TrailerLinkExpiryTest {
 
     private fun newService(clock: Clock, source: TrailerSource): Harness {
         val tmdbApi = mockk<TmdbApi>(relaxed = true)
+        coEvery { tmdbApi.getMovieDetails(123, any(), any()) } returns
+            Response.success(TmdbDetailsResponse(id = 123, originalLanguage = "en"))
         val extractor = mockk<InAppYouTubeExtractor>(relaxed = true)
         val tmdbService = mockk<TmdbService>(relaxed = true) {
             every { apiKey() } returns "tmdb-key"

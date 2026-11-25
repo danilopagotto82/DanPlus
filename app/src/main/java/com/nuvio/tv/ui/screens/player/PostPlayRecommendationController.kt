@@ -164,6 +164,7 @@ internal class PostPlayRecommendationController(
     private var currentContentIds = emptySet<String>()
     private var recommendationJob: Job? = null
     private var recommendationSelectionJob: Job? = null
+    private var recommendationTrailerJob: Job? = null
     private var postEndCountdownJob: Job? = null
     private var returnToPlayerAnimationJob: Job? = null
     private var recommendationCandidates = emptyList<MetaPreview>()
@@ -172,6 +173,7 @@ internal class PostPlayRecommendationController(
     private val recommendationDetailJobs = mutableMapOf<Int, Job>()
     private val recommendationCache = mutableMapOf<Int, PostPlayRecommendation>()
     private val completedRecommendationDetails = mutableSetOf<Int>()
+    private val checkedRecommendationTrailers = mutableSetOf<Int>()
     private var pipelineRevision = 0L
     private var detailRevision = 0L
     private var selectedCandidateIndex = 0
@@ -403,6 +405,9 @@ internal class PostPlayRecommendationController(
         detailRevision++
         selectedCandidateIndex = 0
         completedRecommendationDetails.clear()
+        checkedRecommendationTrailers.clear()
+        recommendationTrailerJob?.cancel()
+        recommendationTrailerJob = null
         recommendationSelectionJob?.cancel()
         recommendationSelectionJob = null
         candidateResolutionJobs.values.forEach { it.cancel() }
@@ -417,6 +422,11 @@ internal class PostPlayRecommendationController(
     }
 
     private fun evaluate(snapshot: PlaybackSnapshot) {
+        if (!snapshot.playbackEnded && recommendationTrailerJob != null) {
+            recommendationTrailerJob?.cancel()
+            recommendationTrailerJob = null
+            _uiState.update { it.copy(isLoadingTrailer = false) }
+        }
         // Preferences/history may only be used by the profile owning this playback session.
         if (snapshot.identity.activeProfileId != playbackController.profileId ||
             profileManager.activeProfileId.value != playbackController.profileId) return
@@ -521,6 +531,7 @@ internal class PostPlayRecommendationController(
             }
         }
 
+        if (snapshot.playbackEnded) loadSelectedTrailerAfterPlayback()
         if (state.isTrailerPlaying || state.hasAutoPlayedTrailer || !recommendation.hasTrailer) return
         if (!autoPlayTrailerEnabled) {
             if (state.countdownSeconds != null) {
@@ -594,7 +605,7 @@ internal class PostPlayRecommendationController(
                         recommendationIndex = 0,
                         recommendationCount = candidates.size,
                         isLoadingRecommendation = false,
-                        isLoadingTrailer = postPlayTrailerPlaybackEnabled
+                        isLoadingTrailer = false
                     ) else it
                 }
                 lastSnapshot?.let(::evaluate)
@@ -649,6 +660,8 @@ internal class PostPlayRecommendationController(
         val selectionRevision = ++detailRevision
         selectedCandidateIndex = targetIndex
         retireOffscreenWork(targetIndex)
+        recommendationTrailerJob?.cancel()
+        recommendationTrailerJob = null
         postEndCountdownJob?.cancel()
         postEndCountdownJob = null
         if (state.isTrailerPlaying) trailerPlayerPool.stop()
@@ -673,10 +686,11 @@ internal class PostPlayRecommendationController(
                         recommendation = recommendation,
                         recommendationIndex = targetIndex,
                         isChangingRecommendation = false,
-                        isLoadingTrailer = postPlayTrailerPlaybackEnabled && !detailsComplete
+                        isLoadingTrailer = false
                     ) else it
                 }
                 if (resolved != null) loadRecommendationDetails(targetIndex, resolved, preferences, token, selectionRevision)
+                lastSnapshot?.let(::evaluate)
             } finally {
                 if (recommendationSelectionJob === currentCoroutineContext()[Job]) recommendationSelectionJob = null
             }
@@ -698,44 +712,63 @@ internal class PostPlayRecommendationController(
         val job = scope.launch(start = CoroutineStart.LAZY) {
             try {
                 ensureSelected(token, index, selectionRevision)
-                val ratingsJob = launch {
-                    val ratings = loadRatings(candidate, resolved.meta, preferences.isMdbListActive)
-                    ensureSelected(token, index, selectionRevision)
-                    updateCachedRecommendation(index, token, selectionRevision) { it.copy(mdbListRatings = ratings) }
-                }
-                val trailerJob = launch {
-                    if (!postPlayTrailerPlaybackEnabled) return@launch
-                    val recommendation = recommendationCache[index] ?: return@launch
-                    val trailerSource = try {
-                        withTimeoutOrNull(15_000L) {
-                            trailerService.getTrailerPlaybackSource(
-                                title = recommendation.title, year = recommendation.releaseInfo,
-                                tmdbId = recommendation.tmdbId, type = recommendation.contentType,
-                                ignoreUseTrailersGate = true
-                            )
-                        }
-                    } catch (cancelled: CancellationException) {
-                        throw cancelled
-                    } catch (_: Exception) {
-                        null
-                    }
-                    ensureSelected(token, index, selectionRevision)
-                    updateCachedRecommendation(index, token, selectionRevision) {
-                        it.copy(trailerVideoUrl = trailerSource?.videoUrl, trailerAudioUrl = trailerSource?.audioUrl)
-                    }
-                    _uiState.update { if (isSelected(token, index, selectionRevision)) it.copy(isLoadingTrailer = false) else it }
-                    if (isSelected(token, index, selectionRevision)) lastSnapshot?.let(::evaluate)
-                }
-                ratingsJob.join()
-                trailerJob.join()
+                val ratings = loadRatings(candidate, resolved.meta, preferences.isMdbListActive)
                 ensureSelected(token, index, selectionRevision)
+                updateCachedRecommendation(index, token, selectionRevision) { it.copy(mdbListRatings = ratings) }
                 completedRecommendationDetails.add(index)
-                _uiState.update { if (isSelected(token, index, selectionRevision)) it.copy(isLoadingTrailer = false) else it }
             } finally {
                 if (recommendationDetailJobs[index] === currentCoroutineContext()[Job]) recommendationDetailJobs.remove(index)
             }
         }
         recommendationDetailJobs[index] = job
+        job.start()
+    }
+
+    private fun loadSelectedTrailerAfterPlayback() {
+        if (!postPlayTrailerPlaybackEnabled || lastSnapshot?.playbackEnded != true ||
+            recommendationTrailerJob?.isActive == true
+        ) return
+        val token = currentToken() ?: return
+        val index = selectedCandidateIndex
+        val revision = detailRevision
+        val state = _uiState.value
+        if (!isSelected(token, index, revision) || state.isChangingRecommendation ||
+            state.recommendationIndex != index || index in checkedRecommendationTrailers
+        ) return
+        val recommendation = recommendationCache[index] ?: return
+        val job = scope.launch(start = CoroutineStart.LAZY) {
+            try {
+                ensureSelected(token, index, revision)
+                if (lastSnapshot?.playbackEnded != true) return@launch
+                _uiState.update { it.copy(isLoadingTrailer = true, countdownSeconds = null) }
+                val source = try {
+                    withTimeoutOrNull(15_000L) {
+                        trailerService.getTrailerPlaybackSource(
+                            title = recommendation.title, year = recommendation.releaseInfo,
+                            tmdbId = recommendation.tmdbId, type = recommendation.contentType,
+                            ignoreUseTrailersGate = true
+                        )
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                }
+                ensureSelected(token, index, revision)
+                if (lastSnapshot?.playbackEnded != true) return@launch
+                checkedRecommendationTrailers.add(index)
+                updateCachedRecommendation(index, token, revision) {
+                    it.copy(trailerVideoUrl = source?.videoUrl, trailerAudioUrl = source?.audioUrl)
+                }
+                _uiState.update { it.copy(isLoadingTrailer = false) }
+                lastSnapshot?.let(::evaluate)
+            } finally {
+                if (recommendationTrailerJob === currentCoroutineContext()[Job]) {
+                    recommendationTrailerJob = null
+                }
+            }
+        }
+        recommendationTrailerJob = job
         job.start()
     }
 
@@ -1000,6 +1033,7 @@ internal class PostPlayRecommendationController(
     }
 
     private fun startTrailer() {
+        if (lastSnapshot?.playbackEnded != true) return
         val token = currentToken() ?: return
         if (!isCurrent(token)) return
         val state = _uiState.value

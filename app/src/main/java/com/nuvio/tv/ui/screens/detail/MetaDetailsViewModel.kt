@@ -27,6 +27,7 @@ import com.nuvio.tv.data.local.TmdbSettingsDataStore
 import com.nuvio.tv.data.repository.rankedEntries
 import com.nuvio.tv.data.repository.ImdbEpisodeRatingsRepository
 import com.nuvio.tv.data.trailer.TrailerPlaybackFailures
+import com.nuvio.tv.data.trailer.lookupTrailerPreview
 import com.nuvio.tv.data.trailer.YouTubeUnplayableReason
 import com.nuvio.tv.data.trailer.shouldRetryTrailerPreviewAfterFailure
 import com.nuvio.tv.data.repository.MDBListRepository
@@ -77,6 +78,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -435,6 +437,7 @@ class MetaDetailsViewModel @Inject constructor(
 
     private var idleTimerJob: Job? = null
     private var trailerFetchJob: Job? = null
+    private var trailerLookupInterrupted = false
     private var moreLikeThisJob: Job? = null
     private var collectionJob: Job? = null
 
@@ -3241,7 +3244,13 @@ class MetaDetailsViewModel @Inject constructor(
     private fun fetchTrailerUrl() {
         if (isServerItem) return
         val meta = _uiState.value.meta ?: return
-        trailerLookupKey = trailerLookupKey(meta)
+        if (!detailsResumed.value) {
+            trailerLookupInterrupted = true
+            return
+        }
+        val requestedTrailerKey = trailerLookupKey(meta)
+        trailerLookupKey = requestedTrailerKey
+        val profileRevision = profileManager.profileSelectionRevision.value
 
         trailerFetchJob?.cancel()
         trailerFetchJob = viewModelScope.launch {
@@ -3254,29 +3263,37 @@ class MetaDetailsViewModel @Inject constructor(
                 else Regex("""\b(19|20)\d{2}\b""").find(info)?.value
             }
 
-            val tmdbId = try {
-                tmdbService.ensureTmdbId(meta.id, meta.apiType, fallbackImdbId = meta.imdbId)
-            } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
+            val source = if (!tmdbSettingsDataStore.settings.first().useTrailers) {
                 null
-            }
-
-            val source = if (AppFeaturePolicy.inAppTrailerPlaybackEnabled) {
-                trailerService.getTrailerPlaybackSourceFromTmdbId(
-                    tmdbId = tmdbId,
-                    type = meta.apiType,
+            } else if (AppFeaturePolicy.inAppTrailerPlaybackEnabled) {
+                lookupTrailerPreview(
+                    trailerService = trailerService,
+                    tmdbService = tmdbService,
+                    itemId = meta.id,
+                    apiType = meta.apiType,
                     title = meta.name,
                     year = year,
-                    brazilianPortugueseOnly = true
-                )
+                    imdbId = meta.imdbId,
+                    ytIds = meta.trailerYtIds
+                ).source
             } else if (AppFeaturePolicy.externalTrailerPlaybackEnabled) {
+                val tmdbId = try {
+                    tmdbService.ensureTmdbId(meta.id, meta.apiType, fallbackImdbId = meta.imdbId)
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                }
                 trailerService.getExternalTrailerUrl(
                     tmdbId = tmdbId,
                     type = meta.apiType,
-                    brazilianPortugueseOnly = true
+                    preferBrazilian = true
                 )?.let { com.nuvio.tv.data.trailer.TrailerPlaybackSource(videoUrl = it) }
             } else null
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+            if (profileManager.profileSelectionRevision.value != profileRevision ||
+                _uiState.value.meta?.let(::trailerLookupKey) != requestedTrailerKey
+            ) return@launch
             val url = source?.videoUrl
             val audioUrl = source?.audioUrl
 
@@ -3393,6 +3410,11 @@ class MetaDetailsViewModel @Inject constructor(
 
     private fun handleLifecyclePause() {
         detailsResumed.value = false
+        if (trailerFetchJob?.isActive == true) {
+            trailerLookupInterrupted = true
+            trailerFetchJob?.cancel()
+            _uiState.update { it.copy(isTrailerLoading = false) }
+        }
         streamPrefetchJob?.cancel()
         com.nuvio.tv.core.stream.StreamPrefetchCache.cancelPending()
         lastStreamPrefetchKey = null
@@ -3421,6 +3443,10 @@ class MetaDetailsViewModel @Inject constructor(
      */
     private fun handleLifecycleResume() {
         detailsResumed.value = true
+        if (trailerLookupInterrupted) {
+            trailerLookupInterrupted = false
+            fetchTrailerUrl()
+        }
         viewModelScope.launch {
             trackingProgressRefreshCoordinator.refreshConnected(TrackingRefreshIntent.INVALIDATED)
         }

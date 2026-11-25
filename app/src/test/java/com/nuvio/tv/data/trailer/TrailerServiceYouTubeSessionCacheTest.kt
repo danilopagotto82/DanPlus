@@ -81,6 +81,8 @@ class TrailerServiceYouTubeSessionCacheTest {
             null,
             TrailerPlaybackSource(videoUrl = "https://cdn.example/video-after-retry.mp4")
         )
+        every { extractor.unplayableReason(any()) } returns null
+        every { extractor.isRateLimited() } returns false
         coEvery { trailerApi.getTrailer(any(), any(), any()) } returns Response.success(TrailerResponse(url = null))
 
         val first = service.getTrailerPlaybackSourceFromYouTubeUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
@@ -118,7 +120,11 @@ class TrailerServiceYouTubeSessionCacheTest {
         val tmdbService = mockk<TmdbService>()
         every { tmdbSettingsDataStore.settings } returns MutableStateFlow(TmdbSettings(language = "en"))
         every { tmdbService.apiKey() } returns "tmdb-key"
-        val service = TrailerService(trailerApi, mockk(), extractor, tmdbSettingsDataStore, tmdbService, mockk(relaxed = true), mockk(relaxed = true))
+        val service = TrailerService(
+            trailerApi, mockk(), extractor, tmdbSettingsDataStore, tmdbService,
+            mockk(relaxed = true), mockk(relaxed = true), java.time.Clock.systemUTC(),
+            backendConfigured = true
+        )
         val refused = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         val playable = "https://www.youtube.com/watch?v=aaaaaaaaaaa"
         coEvery { extractor.extractPlaybackSource(refused) } returns null
@@ -134,5 +140,6 @@ class TrailerServiceYouTubeSessionCacheTest {
         assertEquals(YouTubeUnplayableReason.AGE_RESTRICTED, miss.unplayable)
         assertEquals("https://cdn.example/video.mp4", hit.source?.videoUrl)
         assertNull(hit.unplayable)
+        coVerify(exactly = 0) { trailerApi.getTrailer(any(), any(), any()) }
     }
 }

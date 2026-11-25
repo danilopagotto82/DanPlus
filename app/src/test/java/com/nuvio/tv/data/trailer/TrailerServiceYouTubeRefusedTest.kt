@@ -134,14 +134,17 @@ class TrailerServiceYouTubeRefusedTest {
     }
 
     @Test
-    fun `a title YouTube removed does not switch the others to IMDb`() = runTest {
+    fun `a removed YouTube video can fall back only for its own title`() = runTest {
         coEvery { extractor.extractPlaybackSource(any()) } returns null
         every { extractor.unplayableReason(any()) } returns YouTubeUnplayableReason.UNAVAILABLE
 
-        assertNull(lookup("101").source)
+        coEvery { imdb.resolveFromDataService("tt0000101") } returns
+            TrailerPlaybackSource("https://cdn.example/imdb-101.mp4")
 
-        coVerify(exactly = 0) { imdb.resolveFromDataService(any()) }
+        assertEquals("https://cdn.example/imdb-101.mp4", lookup("101").source?.videoUrl)
         youTubeAnswers()
         assertEquals("https://cdn.example/yt.mp4", lookup("102").source?.videoUrl)
+        coVerify(exactly = 1) { imdb.resolveFromDataService("tt0000101") }
+        coVerify(exactly = 0) { imdb.resolveFromDataService("tt0000102") }
     }
 }

@@ -1544,6 +1544,12 @@ class FolderDetailViewModel @Inject constructor(
         }
     }
 
+    internal fun cancelTrailerPreview() {
+        trailerPreviewJob?.cancel()
+        trailerPreviewRequestVersion++
+        trailerPreviewLoadingIds.clear()
+    }
+
     fun requestTrailerPreview(
         itemId: String,
         title: String,

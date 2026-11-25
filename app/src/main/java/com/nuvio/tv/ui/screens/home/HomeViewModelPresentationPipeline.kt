@@ -571,6 +571,7 @@ internal fun HomeViewModel.requestTrailerPreviewPipeline(
             val trailerSource = lookup.source
 
             withContext(Dispatchers.Main) {
+                if (!trailerPreviewActive || trailerPreviewRequestVersion != requestVersion) return@withContext
                 if (trailerSource == null) {
                     // A miss during a YouTube rate-limit pause is not remembered, so the trailer
                     // comes back on a later focus once the pause is over.
@@ -597,7 +598,9 @@ internal fun HomeViewModel.requestTrailerPreviewPipeline(
                     }
                 }
             }
-            trailerSource?.let { trailerService.preload(it) }
+            if (trailerPreviewActive && trailerPreviewRequestVersion == requestVersion) {
+                trailerSource?.let { trailerService.preload(it) }
+            }
         } finally {
             if (trailerPreviewRequestVersion == requestVersion) trailerPreviewLoadingIds.remove(itemId)
         }

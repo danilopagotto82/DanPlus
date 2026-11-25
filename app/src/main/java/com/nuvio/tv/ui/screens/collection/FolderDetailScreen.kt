@@ -65,6 +65,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.withFrameNanos
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
@@ -117,6 +118,9 @@ fun FolderDetailScreen(
     val followLayoutFocusState by viewModel.followLayoutFocusState.collectAsStateWithLifecycle()
     val tabFocusStates by viewModel.tabFocusStates.collectAsStateWithLifecycle()
     val folder = uiState.folder
+    LifecycleResumeEffect(viewModel) {
+        onPauseOrDispose { viewModel.cancelTrailerPreview() }
+    }
 
     if (uiState.isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

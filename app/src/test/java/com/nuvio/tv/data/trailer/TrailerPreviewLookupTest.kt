@@ -69,6 +69,18 @@ class TrailerPreviewLookupTest {
     }
 
     @Test
+    fun optedOutLookupNeverTriesAnAddonId() = runTest {
+        coEvery { trailerService.lookupTrailer(any(), any(), any(), any(), any()) } returns
+            TrailerLookupResult.DEFINITE_MISS.copy(allowItemIds = false)
+
+        val result = lookup(imdbId = "tt0181689", ytIds = listOf("aaaaaaaaaaa"))
+
+        assertNull(result.source)
+        assertTrue(result.rememberMiss)
+        coVerify(exactly = 0) { trailerService.lookupYouTubeTrailer(any(), any(), any()) }
+    }
+
+    @Test
     fun `only a definite miss with nothing left to try is remembered`() = runTest {
         coEvery { tmdbService.ensureTmdbId(any(), any(), any()) } returns "550"
         coEvery { trailerService.lookupYouTubeTrailer(any(), any(), any()) } returns YouTubeTrailerLookup(null)

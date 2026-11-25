@@ -72,8 +72,12 @@ internal suspend fun lookupTrailerPreview(
     if (!lookup.source?.videoUrl.isNullOrBlank()) return TrailerPreviewLookup(lookup.source)
 
     var ownIdsRefused = true
-    val ownIds = if (trailerService.isYouTubeResting()) emptyList() else ytIds
+    val ownIds = if (lookup.allowItemIds) trailerPreviewYtIds(ytIds) else emptyList()
     val fallbackSource = ownIds.firstNotNullOfOrNull { ytId ->
+        if (trailerService.isYouTubeResting() || trailerService.isRateLimited()) {
+            ownIdsRefused = false
+            return@firstNotNullOfOrNull null
+        }
         val own = trailerService.lookupYouTubeTrailer(
             youtubeUrl = "https://www.youtube.com/watch?v=$ytId",
             title = title,
@@ -82,9 +86,9 @@ internal suspend fun lookupTrailerPreview(
         if (own.unplayable == null) ownIdsRefused = false
         own.source?.takeIf { it.videoUrl.isNotBlank() }
     }
-    val nothingToTry = lookup.definiteMiss && ytIds.isEmpty()
+    val nothingToTry = lookup.definiteMiss && ownIds.isEmpty()
     val allRefused = (lookup.refused || lookup.definiteMiss) && ownIdsRefused &&
-        (lookup.refused || ytIds.isNotEmpty())
+        (lookup.refused || ownIds.isNotEmpty())
     return TrailerPreviewLookup(
         source = fallbackSource,
         rememberMiss = fallbackSource == null && (nothingToTry || allRefused)
