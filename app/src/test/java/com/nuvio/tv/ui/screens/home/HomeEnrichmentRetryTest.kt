@@ -4,6 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.domain.model.CatalogRow
 import com.nuvio.tv.domain.model.ContentType
+import com.nuvio.tv.domain.model.HomeLayout
 import com.nuvio.tv.domain.model.Meta
 import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.domain.model.PosterShape
@@ -41,9 +42,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * takes is a relaxed mock. Its init block suspends on profileManager.activeProfileReady, which a
  * relaxed mock never completes, so nothing beyond the pipeline under test runs.
  *
- * Uses runBlocking and polling rather than virtual time: onItemFocusPipeline launches on
- * Dispatchers.IO and debounces for 220ms, so the assertions wait for a monotonic call count
- * instead of advancing a scheduler the pipeline does not use.
+ * Focus uses Dispatchers.IO. Await the committed focus job before checking published state;
+ * the repository call counter alone does not mean both enrichment sources have completed.
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class HomeEnrichmentRetryTest {
@@ -147,8 +147,8 @@ class HomeEnrichmentRetryTest {
         viewModel.currentTmdbSettings = TmdbSettings(enabled = true, modernHomeEnabled = true)
         viewModel.seedCatalog(item(itemId))
 
-        viewModel.onItemFocusPipeline(item(itemId))
-        awaitCalls(calls, 1, "TMDB succeeding should not stop the external fetch being attempted")
+        focusAndSettle(viewModel, item(itemId))
+        assertEquals("TMDB succeeding should not stop the external fetch being attempted", 1, calls.get())
 
         // The state the second gate reads: TMDB resolved and is cached, external failed and is not.
         assertTrue("TMDB should be cached after it resolved", itemId in viewModel.prefetchedTmdbIds)
@@ -185,10 +185,16 @@ class HomeEnrichmentRetryTest {
         val viewModel = newViewModel(repository)
         viewModel.seedCatalog(item(itemId))
 
-        // Claim the id, then move on before the debounce elapses so the fetch never runs.
+        // Classic has the fixed focus debounce. Modern may start the initial request immediately.
+        viewModel._uiState.value = viewModel._uiState.value.copy(homeLayout = HomeLayout.CLASSIC)
         viewModel.onItemFocusPipeline(item(itemId))
+        val abandoned = requireNotNull(viewModel.tmdbEnrichFocusJob)
         viewModel.onItemFocusPipeline(item(otherId))
-        delay(HomeViewModel.EXTERNAL_META_PREFETCH_FOCUS_DEBOUNCE_MS + 400)
+        withTimeout(5_000) {
+            abandoned.join()
+            viewModel.tmdbEnrichFocusJob?.join()
+        }
+        assertTrue("moving focus must cancel the debounced job", abandoned.isCancelled)
         assertEquals("the cancelled focus should not have fetched", 0, calls.get())
 
         focusAndSettle(viewModel, item(itemId))
@@ -321,8 +327,7 @@ class HomeEnrichmentRetryTest {
 
     private suspend fun focusAndSettle(viewModel: HomeViewModel, item: MetaPreview) {
         viewModel.onItemFocusPipeline(item)
-        // A settled focus rests long enough for the details pre-fetch, plus the fetch itself.
-        delay(maxOf(HomeViewModel.EXTERNAL_META_PREFETCH_FOCUS_DEBOUNCE_MS, DetailsPrefetchRest.AFTER_SETTLE_MS) + 400)
+        withTimeout(5_000) { viewModel.tmdbEnrichFocusJob?.join() }
     }
 
     /**

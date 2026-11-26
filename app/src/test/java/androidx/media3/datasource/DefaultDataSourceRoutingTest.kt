@@ -13,8 +13,10 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.net.ServerSocket
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
 class DefaultDataSourceRoutingTest {
@@ -52,17 +54,25 @@ class DefaultDataSourceRoutingTest {
                 "Connection: close\r\n" +
                 "\r\n"
 
-        var connectionAccepted = false
+        val requestLine = AtomicReference<String>()
+        val serverFailure = AtomicReference<Exception>()
         val serverThread = thread {
             try {
-                val client = serverSocket.accept()
-                connectionAccepted = true
-                val out = client.getOutputStream()
-                out.write(responseHeaders.toByteArray())
-                out.flush()
-                client.close()
-            } catch (e: Exception) {
-                // Ignore
+                serverSocket.accept().use { client ->
+                    client.soTimeout = 3_000
+                    val reader = client.getInputStream().bufferedReader()
+                    requestLine.set(reader.readLine())
+                    // Closing with unread request bytes may reset the connection on Windows.
+                    while (reader.readLine()?.isNotEmpty() == true) {
+                        // Drain through the header terminator before replying.
+                    }
+                    client.getOutputStream().apply {
+                        write(responseHeaders.toByteArray())
+                        flush()
+                    }
+                }
+            } catch (error: Exception) {
+                serverFailure.set(error)
             }
         }
 
@@ -90,7 +100,9 @@ class DefaultDataSourceRoutingTest {
             // If it routed to LocalhostZeroCopyDataSource, it connected to the socket
             // and parsed Content-Length from headers.
             assertEquals(expectedDataLength, openedLength)
-            assertTrue(connectionAccepted)
+            assertTrue("The loopback server must finish", !serverThread.isAlive)
+            assertNull(serverFailure.get())
+            assertEquals("GET /stream.mp4 HTTP/1.1", requestLine.get())
         } finally {
             defaultDataSource.close()
             serverSocket.close()
