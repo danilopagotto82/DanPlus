@@ -39,9 +39,9 @@ class AndroidTvChannelSyncServiceTest {
     private val recommendations: TvRecommendationManager = mockk(relaxed = true)
     private val metaRepository: MetaRepository = mockk(relaxed = true)
 
-    private val activeProfile = MutableStateFlow(7)
+    private val activeProfileFlow = MutableStateFlow(7)
     private val profileManager: ProfileManager = mockk {
-        every { activeProfileId } returns activeProfile
+        every { activeProfileId } returns activeProfileFlow
     }
     private var playerSession: PlayerSessionTracker.Session? = null
     private lateinit var service: AndroidTvChannelSyncService
@@ -99,7 +99,7 @@ class AndroidTvChannelSyncServiceTest {
 
         val reconciliation = async { service.reconcileFromCache() }
         readStarted.await()
-        activeProfile.value = 8
+        activeProfileFlow.value = 8
         resumeRead.complete(Unit)
         reconciliation.await()
 
@@ -119,7 +119,7 @@ class AndroidTvChannelSyncServiceTest {
 
     @Test
     fun profileSwitchDuringChannelWriteSkipsWatchNext() = runTest {
-        coEvery { manager.reconcile(any(), any()) } coAnswers { activeProfile.value = 8 }
+        coEvery { manager.reconcile(any(), any()) } coAnswers { activeProfileFlow.value = 8 }
 
         service.reconcileFromCache()
 
