@@ -32,6 +32,7 @@ class ProfileSnapshotLifecycleTest {
             every { context.getSharedPreferences(any(),any()) } returns prefs
             every { prefs.edit() } returns editor
             every { editor.remove(any()) } returns editor
+            every { editor.commit() } returns true
             val data=mockk<ProfileDataStore>(relaxed=true);val factory=mockk<ProfileDataStoreFactory>(relaxed=true)
             val credentials=mockk<ProfileScopedCredentialStore>(relaxed=true)
             val entries=MutableStateFlow(listOf(profile(1),profile(2),profile(3)))

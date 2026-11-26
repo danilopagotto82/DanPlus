@@ -7,6 +7,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -265,6 +266,7 @@ internal object CopyFirst {
  * The top copy's link, opened at the stream pick while the player opens the film, so the copy pass starts on it. One
  * per title; a link the pass does not take is given back ([CopyLink.done]: a TorBox copy added for it is removed).
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 internal class CopyHeadStart(
     val identity: String,
     pickedAtMs: Long = SystemClock.elapsedRealtime(),
@@ -288,8 +290,7 @@ internal class CopyHeadStart(
     @Volatile var listed: CopyOffers? = null
         private set
     /** The link opened: [openedAtMs] is set and a link came back. */
-    @Volatile var opened = false
-        private set
+    val opened: Boolean get() = link.isCompleted && !link.isCancelled && link.getCompleted() != null
     /** The next copy, another file, opened beside this one so the pass has it ready when this one is not used. */
     @Volatile var backup: CopyHeadStart? = null
         private set
@@ -420,7 +421,6 @@ internal class CopyHeadStart(
         }
         val l = got
         openedAtMs = SystemClock.elapsedRealtime()
-        opened = l != null
         Log.i(TAG, if (l != null) "copy first: link of ${top.label} open ${at()} via ${l.via}"
             else "copy first: no link for ${top.label} (${at()})")
         if (l != null && !released.get()) l.preread = scope.async(Dispatchers.IO) {

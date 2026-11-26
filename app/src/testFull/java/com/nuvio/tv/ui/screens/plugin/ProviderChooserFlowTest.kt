@@ -52,7 +52,10 @@ class ProviderChooserFlowTest {
         }
         coEvery { addRepository("https://example.org/csx.json", NewRepoProviders.OFF_IF_SEVERAL) } returns Result.success(existing)
     }
-    private val profiles = mockk<ProfileManager>(relaxed = true) { every { activeProfile } returns null }
+    private val profiles = mockk<ProfileManager>(relaxed = true) {
+        every { activeProfile } returns null
+        every { activeProfileId } returns MutableStateFlow(1)
+    }
     private val context = mockk<Context>(relaxed = true) {
         every { getString(any()) } returns ""
         every { getString(any(), *anyVararg()) } returns ""

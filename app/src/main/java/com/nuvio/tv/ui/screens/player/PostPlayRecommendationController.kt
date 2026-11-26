@@ -886,9 +886,9 @@ internal class PostPlayRecommendationController(
 
         ensureCurrent(token)
         val hideUnreleased = preferences.hideUnreleased
-        watchedCandidateKeys = candidates.asSequence()
-            .filterNot { it.id.normalizedId() in currentIds || it.imdbId?.normalizedId()?.let(currentIds::contains) == true }
-            .filterNot { hideUnreleased && it.isUnreleased(LocalDate.now()) }
+        val today = LocalDate.now()
+        val eligible = candidates.filterNot { it.id.normalizedId() in currentIds || (hideUnreleased && it.isUnreleased(today)) }
+        watchedCandidateKeys = eligible.asSequence()
             .mapNotNull { candidate ->
                 resolvePostPlayContentType(candidate.apiType, candidate.type)?.let { type ->
                     WatchedCandidateKey(type, candidate.id, candidate.imdbId)
@@ -899,9 +899,7 @@ internal class PostPlayRecommendationController(
             watchedSeriesStateHolder.fullyWatchedSeriesIds
         ) { movieIds, seriesIds -> movieIds to seriesIds }.first()
         ensureCurrent(token)
-        val filtered = candidates
-            .asSequence()
-            .filterNot { it.id.normalizedId() in currentIds }
+        val filtered = eligible.asSequence()
             .filterNot { candidate ->
                 isPostPlayCandidateWatched(
                     candidate = candidate,
@@ -909,7 +907,6 @@ internal class PostPlayRecommendationController(
                     watchedSeriesIds = watchedIds.second
                 )
             }
-            .filterNot { hideUnreleased && it.isUnreleased(LocalDate.now()) }
             .toList()
             .distinctPostPlayTitles()
         val first = filtered.firstOrNull { !it.backdropUrl.isNullOrBlank() }

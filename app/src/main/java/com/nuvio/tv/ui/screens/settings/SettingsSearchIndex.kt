@@ -3,6 +3,7 @@ package com.nuvio.tv.ui.screens.settings
 import com.nuvio.tv.R
 
 internal val SETTINGS_SEARCH_ENTRIES: List<SettingsSearchEntry> = listOf(
+    SettingsSearchEntry(R.string.report_account_title, 0, SettingsCategory.REPORT),
     SettingsSearchEntry(R.string.report_row_playback, R.string.report_row_playback_hint, SettingsCategory.REPORT),
     SettingsSearchEntry(R.string.report_row_bug, R.string.report_row_bug_hint, SettingsCategory.REPORT),
     SettingsSearchEntry(R.string.report_row_idea, R.string.report_row_idea_hint, SettingsCategory.REPORT),
@@ -19,6 +20,9 @@ internal val SETTINGS_SEARCH_ENTRIES: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(R.string.ambient_mode_catalogs, R.string.ambient_mode_catalogs_subtitle, SettingsCategory.APPEARANCE),
     SettingsSearchEntry(R.string.animeskip_enable_title, R.string.animeskip_enable_subtitle, SettingsCategory.INTEGRATION, integration = IntegrationSettingsSection.AnimeSkip),
     SettingsSearchEntry(R.string.animeskip_client_id_title, R.string.animeskip_client_id_subtitle, SettingsCategory.INTEGRATION, integration = IntegrationSettingsSection.AnimeSkip),
+    SettingsSearchEntry(R.string.e05_ass_title, R.string.e05_ass_subtitle, SettingsCategory.PLAYBACK, playback = PlaybackSection.SUBTITLES, modes = SettingsSearchModes.ADVANCED, keywords = listOf("ASS", "SSA")),
+    SettingsSearchEntry(R.string.e05_ass_mpv, R.string.e05_ass_subtitle, SettingsCategory.PLAYBACK, playback = PlaybackSection.SUBTITLES, modes = SettingsSearchModes.ADVANCED),
+    SettingsSearchEntry(R.string.subtitle_import_manage, 0, SettingsCategory.PLAYBACK, playback = PlaybackSection.SUBTITLES, modes = SettingsSearchModes.ADVANCED),
     SettingsSearchEntry(R.string.autosync_setting_title, R.string.autosync_setting_description, SettingsCategory.PLAYBACK, playback = PlaybackSection.SUBTITLES, modes = SettingsSearchModes.ADVANCED),
     SettingsSearchEntry(R.string.autosync_thorough_title, R.string.autosync_thorough_description, SettingsCategory.PLAYBACK, playback = PlaybackSection.SUBTITLES, modes = SettingsSearchModes.ADVANCED),
     SettingsSearchEntry(R.string.calendar_setting_coming_up, R.string.calendar_setting_coming_up_sub, SettingsCategory.LAYOUT, layout = LayoutSection.HOME_CONTENT, modes = SettingsSearchModes.ADVANCED),
@@ -121,7 +125,7 @@ internal val SETTINGS_SEARCH_ENTRIES: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(R.string.experience_mode_switch_to_essential, R.string.experience_mode_switch_to_essential_subtitle, SettingsCategory.ADVANCED, modes = SettingsSearchModes.ADVANCED),
     SettingsSearchEntry(R.string.advanced_fast_horizontal_navigation, R.string.advanced_fast_horizontal_navigation_subtitle, SettingsCategory.ADVANCED, modes = SettingsSearchModes.ADVANCED),
     SettingsSearchEntry(R.string.advanced_nuvio_focus_scroll, R.string.advanced_nuvio_focus_scroll_subtitle, SettingsCategory.ADVANCED, modes = SettingsSearchModes.ADVANCED),
-    SettingsSearchEntry(0, 0, SettingsCategory.ADVANCED, modes = SettingsSearchModes.ADVANCED, literalTitle = "Add-on health indicators"),
+    SettingsSearchEntry(R.string.addon_health_setting, R.string.addon_health_setting_description, SettingsCategory.ADVANCED, modes = SettingsSearchModes.ADVANCED),
     SettingsSearchEntry(R.string.advanced_remember_last_profile, R.string.advanced_remember_last_profile_subtitle, SettingsCategory.ADVANCED, modes = SettingsSearchModes.ADVANCED),
     SettingsSearchEntry(R.string.advanced_confirm_exit, R.string.advanced_confirm_exit_subtitle, SettingsCategory.ADVANCED, modes = SettingsSearchModes.ADVANCED),
     SettingsSearchEntry(R.string.advanced_playback_issue_reports, R.string.advanced_playback_issue_reports_subtitle, SettingsCategory.ADVANCED, modes = SettingsSearchModes.ADVANCED),
@@ -237,6 +241,7 @@ internal val SETTINGS_SEARCH_ENTRIES: List<SettingsSearchEntry> = listOf(
     SettingsSearchEntry(R.string.audio_mpv_hwdec_title, 0, SettingsCategory.PLAYBACK, playback = PlaybackSection.VIDEO, modes = SettingsSearchModes.ADVANCED),
     SettingsSearchEntry(R.string.audio_mpv_hi10p_gnext_sw_title, R.string.audio_mpv_hi10p_gnext_sw_subtitle, SettingsCategory.PLAYBACK, playback = PlaybackSection.VIDEO, modes = SettingsSearchModes.ADVANCED),
     SettingsSearchEntry(R.string.profile_manage_button, 0, SettingsCategory.PROFILES, keywords = listOf("pin", "kids")),
+    SettingsSearchEntry(R.string.scout_show_in_menu, 0, SettingsCategory.SCOUT),
     SettingsSearchEntry(R.string.scout_your_taste, R.string.scout_your_taste_sub, SettingsCategory.SCOUT),
     SettingsSearchEntry(R.string.scout_settings_show_watched, R.string.scout_settings_show_watched_sub, SettingsCategory.SCOUT),
     SettingsSearchEntry(R.string.scout_settings_list_emojis, R.string.scout_settings_list_emojis_sub, SettingsCategory.SCOUT),

@@ -8,6 +8,9 @@ import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.ui.screens.player.NuvioExoPlayerPerformanceHelper
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
+import com.nuvio.tv.core.player.BufferSizing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,11 +54,14 @@ class BufferPresetDefaultsTest {
 
     @After
     fun restore() {
+        unmockkObject(BufferSizing)
         setSdkInt(0)
         NuvioExoPlayerPerformanceHelper.clearCache()
     }
 
     private fun withStore(ramBytes: Long, block: suspend (PlayerSettingsDataStore) -> Unit) = runBlocking {
+        mockkObject(BufferSizing)
+        every { BufferSizing.is64BitPlaybackProcess } returns true
         setSdkInt(30)
         setBoxRam(ramBytes)
         val memory = MemoryStore()

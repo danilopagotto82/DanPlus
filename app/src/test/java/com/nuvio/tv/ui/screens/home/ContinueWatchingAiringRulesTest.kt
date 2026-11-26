@@ -8,7 +8,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 import java.time.ZoneOffset
 
 /**
@@ -165,8 +164,10 @@ class ContinueWatchingAiringRulesTest {
     @Test
     fun `watchableEpisodes excludes future mid-season episodes so checkmark can apply`() {
         // Documents a58809 behavior: only aired eps count → caught-up checkmark possible.
-        val tomorrow = LocalDate.now(ZoneId.systemDefault()).plusDays(1).toString()
-        val yesterday = LocalDate.now(ZoneId.systemDefault()).minusDays(1).toString()
+        // Date-only releases begin at midnight UTC, even when the viewer is still on the previous day.
+        val utcToday = LocalDate.now(ZoneOffset.UTC)
+        val tomorrow = utcToday.plusDays(1).toString()
+        val yesterday = utcToday.minusDays(1).toString()
         val meta = CwMetaSummary(
             id = "tt-airing",
             name = "Airing",

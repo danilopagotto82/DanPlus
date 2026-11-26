@@ -1,9 +1,13 @@
 package com.nuvio.tv.ui.screens.player
 
 import android.content.Context
+import com.nuvio.tv.core.player.BufferSizing
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import io.mockk.spyk
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -15,7 +19,12 @@ class NuvioExoPlayerPerformanceHelperTest {
     @Before
     fun setUp() {
         NuvioExoPlayerPerformanceHelper.clearCache()
+        mockkObject(BufferSizing)
+        every { BufferSizing.is64BitPlaybackProcess } returns true
     }
+
+    @After
+    fun tearDown() = unmockkObject(BufferSizing)
 
     @Test
     fun `test default fallback values when RAM is zero or unknown`() {

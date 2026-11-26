@@ -76,7 +76,11 @@ class ArcStartHandoffTest {
         assertEquals(16, splashIcons.size)
         assertEquals(splashIcons.keys, windowArt.keys)
         for ((name, icon) in splashIcons) {
-            assertEquals(name, icon.replace("arc_launcher_foreground", "start_window"), windowArt[name])
+            val expectedWindow = if (icon == "danplus_splash_icon") "danplus_start_window"
+            else icon.replace("arc_launcher_foreground", "start_window")
+            assertEquals(name, expectedWindow, windowArt[name])
+            val directory = if (icon == "danplus_splash_icon") "drawable" else "drawable-v26"
+            assertTrue(name, resDir(directory).resolve("$expectedWindow.xml").isFile)
         }
     }
 

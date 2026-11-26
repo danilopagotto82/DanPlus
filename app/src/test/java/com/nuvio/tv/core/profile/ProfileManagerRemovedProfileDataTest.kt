@@ -1,6 +1,7 @@
 package com.nuvio.tv.core.profile
 
 import android.content.Context
+import android.content.SharedPreferences
 import com.nuvio.tv.data.local.ProfileDataStore
 import com.nuvio.tv.data.local.ProfileDataStoreFactory
 import com.nuvio.tv.domain.model.UserProfile
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -27,13 +29,31 @@ class ProfileManagerRemovedProfileDataTest {
     private lateinit var factory: ProfileDataStoreFactory
     private lateinit var credentialStore: ProfileScopedCredentialStore
     private lateinit var manager: ProfileManager
+    private val legacyBindings = mutableMapOf("2:sender" to "legacy2", "3:sender" to "legacy3")
     private val storedProfiles = MutableStateFlow(listOf(profile(1), profile(2), profile(3)))
 
     @Before
     fun setUp() {
         tempDir = Files.createTempDirectory("profile_manager_test").toFile()
+        val pendingRemovals = mutableSetOf<String>()
+        val editor = mockk<SharedPreferences.Editor> {
+            every { remove(any()) } answers {
+                pendingRemovals.add(firstArg())
+                self as SharedPreferences.Editor
+            }
+            every { commit() } answers {
+                legacyBindings.keys.removeAll(pendingRemovals)
+                pendingRemovals.clear()
+                true
+            }
+        }
+        val preferences = mockk<SharedPreferences> {
+            every { all } answers { legacyBindings.toMap() }
+            every { edit() } returns editor
+        }
         val context = mockk<Context>(relaxed = true) {
             every { filesDir } returns tempDir
+            every { getSharedPreferences("danplus_indications_bindings", Context.MODE_PRIVATE) } returns preferences
         }
         val profileDataStore = mockk<ProfileDataStore>(relaxed = true) {
             every { profilesList } returns storedProfiles
@@ -69,6 +89,7 @@ class ProfileManagerRemovedProfileDataTest {
         verify(exactly = 1) { credentialStore.removeProfile(2) }
         verify(exactly = 0) { credentialStore.removeProfile(3) }
         coVerify(exactly = 1) { factory.clearProfile(2) }
+        assertEquals(mapOf("3:sender" to "legacy3"), legacyBindings)
     }
 
     @Test
@@ -91,6 +112,7 @@ class ProfileManagerRemovedProfileDataTest {
         removed.forEach { assertFalse("${it.path} should be deleted", it.exists()) }
         kept.forEach { assertTrue("${it.path} should be kept", it.exists()) }
         verify(exactly = 1) { credentialStore.removeProfile(2) }
+        assertEquals(mapOf("3:sender" to "legacy3"), legacyBindings)
     }
 
     private fun profileFiles(id: Int) = listOf(

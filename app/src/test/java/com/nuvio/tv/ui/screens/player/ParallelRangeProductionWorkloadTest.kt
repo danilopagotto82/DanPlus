@@ -107,7 +107,17 @@ class ParallelRangeProductionWorkloadTest {
                         bodyHold=holds.remove(chunk)
                         bodyHold?.let { hold ->
                             hold.entered.countDown()
-                            if(!hold.release.await(10,TimeUnit.SECONDS)) throw IOException("controlled transport hold expired")
+                            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+                            while (true) {
+                                try {
+                                    if (!hold.release.await(deadline - System.nanoTime(), TimeUnit.NANOSECONDS)) {
+                                        throw IOException("controlled transport hold expired")
+                                    }
+                                    break
+                                } catch (error: InterruptedException) {
+                                    if (!hold.ignoreClose) throw error
+                                }
+                            }
                         }
                     }
                     if(closed && bodyHold?.ignoreClose!=true) throw IOException("controlled response closed")
@@ -253,7 +263,7 @@ class ParallelRangeProductionWorkloadTest {
             // Admit each controlled body before the next so cancelled/blocked
             // transports actually occupy the normal worker, not an imagined slot.
             val holds=(1L..32L).map { chunk ->
-                f.hold(chunk).also { hold ->
+                f.hold(chunk, ignoreClose = true).also { hold ->
                     invoke(ds,"ensureChunkScheduled",chunk)
                     assertTrue("actual body $chunk entered",hold.entered.await(5,TimeUnit.SECONDS))
                 }
@@ -345,9 +355,13 @@ class ParallelRangeProductionWorkloadTest {
         manualClock.set(1000)
         Fixture().use { f ->
             val ds=f.source();f.bootstrap(ds)
+            val concurrentRequests = CyclicBarrier(3)
             f.beforeWorkerOpen={ _,attempt,spec ->
-                if(attempt==1) throw HttpDataSource.InvalidResponseCodeException(
-                    429,"fixture limiter",null,emptyMap(),spec,byteArrayOf())
+                if (attempt == 1) {
+                    concurrentRequests.await(5, TimeUnit.SECONDS)
+                    throw HttpDataSource.InvalidResponseCodeException(
+                        429, "fixture limiter", null, emptyMap(), spec, byteArrayOf())
+                }
             }
             ds.open(f.spec(1))
             for(chunk in 1L..3L) invoke(ds,"ensureChunkScheduled",chunk)

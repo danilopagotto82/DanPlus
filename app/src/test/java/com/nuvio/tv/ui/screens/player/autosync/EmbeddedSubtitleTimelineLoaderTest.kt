@@ -84,10 +84,11 @@ class EmbeddedSubtitleTimelineLoaderTest {
     fun cancellationDoesNotPublishANegativeResultForTheNextLoad() = runBlocking {
         MockWebServer().use { server ->
             server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
-            server.enqueue(MockResponse().setBody("fixture"))
+            // An unambiguous HTTP failure avoids triggering normal container probing.
+            server.enqueue(MockResponse().setResponseCode(404))
             val url = server.url("/cancel.mkv").toString()
             val running = launch(start = CoroutineStart.UNDISPATCHED) { EmbeddedSubtitleTimelineLoader.load(url) }
-            assertNotNull(server.takeRequest(5, TimeUnit.SECONDS))
+            assertNotNull(withContext(Dispatchers.IO) { server.takeRequest(5, TimeUnit.SECONDS) })
             running.cancelAndJoin()
             assertNull(EmbeddedSubtitleTimelineLoader.load(url))
             assertEquals(2, server.requestCount)

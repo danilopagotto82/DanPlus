@@ -98,6 +98,7 @@ class ScoutMixViewModelTest {
         coEvery { suggestions.forMix(any()) } returns listOf(offer)
         val profiles = mockk<ProfileManager>(relaxed = true)
         every { profiles.activeProfileId } returns profileFlow
+        every { profiles.profileSelectionRevision } returns MutableStateFlow(0L)
         val settings = mockk<PlayerSettingsDataStore>(relaxed = true)
         every { settings.playerSettings } returns flowOf(PlayerSettings(stillWatchingEnabled = false))
         val layout = mockk<LayoutPreferenceDataStore>(relaxed = true)

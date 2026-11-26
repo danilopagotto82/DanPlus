@@ -4,7 +4,6 @@ import android.content.Context
 import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.data.local.LayoutPreferenceDataStore
 import com.nuvio.tv.data.local.SearchHistoryDataStore
-import com.nuvio.tv.data.local.WatchedSeriesStateHolder
 import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.CatalogDescriptor
 import com.nuvio.tv.domain.model.CatalogExtra
@@ -215,8 +214,7 @@ class SearchViewModelPaginationTest {
         val watchProgress = mockk<WatchProgressRepository>()
         every { watchProgress.observeWatchedMovieIds() } returns flowOf(emptySet())
 
-        val watchedSeries = mockk<WatchedSeriesStateHolder>()
-        every { watchedSeries.fullyWatchedSeriesIds } returns MutableStateFlow(emptySet())
+        val watchedSeries = searchWatchedSeriesFixture()
 
         return SearchViewModel(
             addonRepository = SingleAddonRepository(addon),

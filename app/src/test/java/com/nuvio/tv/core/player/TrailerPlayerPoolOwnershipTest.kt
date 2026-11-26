@@ -33,6 +33,7 @@ class TrailerPlayerPoolOwnershipTest {
     private fun pool(player: ExoPlayer): TrailerPlayerPool {
         val settings = mockk<PlayerSettingsDataStore>(relaxed = true) {
             every { nuvioPerformanceModeEnabled } returns flowOf(false)
+            every { playerSettings } returns flowOf(com.nuvio.tv.data.local.PlayerSettings())
         }
         val profiles = mockk<ProfileManager> {
             every { profileSelectionRevision } returns revision
@@ -59,6 +60,7 @@ class TrailerPlayerPoolOwnershipTest {
     @Test fun overlappingSurfacesAndResumeReusePreparedMedia() {
         val player = mockk<ExoPlayer>(relaxed = true)
         every { player.playbackState } returns Player.STATE_READY
+        every { player.playerError } returns null
         val pool = pool(player)
         val home = Any()
         val detail = Any()
@@ -81,6 +83,7 @@ class TrailerPlayerPoolOwnershipTest {
         val player = mockk<ExoPlayer>(relaxed = true)
         every { player.playbackState } returns Player.STATE_READY
         every { player.currentPosition } returns 12_500L
+        every { player.playerError } returns null
         val pool = pool(player)
         val home = Any()
         val detail = Any()

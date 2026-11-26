@@ -117,7 +117,12 @@ class PresentationPreferencePreservationTest {
 
     @Test fun `every calendar setting is synced and kept when a snapshot lacks it`() {
         val synced = com.nuvio.tv.core.calendar.CalendarSettingsKeys.names
-        assertEquals(13, synced.size)
+        assertEquals(setOf(
+            "calendar_menu_visible", "calendar_include_personal_lists", "calendar_follow_other_services",
+            "calendar_window_days", "calendar_zone_override", "calendar_corner_message", "calendar_coming_up_row",
+            "calendar_hidden_titles", "calendar_bell_on", "calendar_hidden_names", "calendar_coming_up_hidden",
+            "calendar_coming_up_hidden_names", "calendar_view_mode", "calendar_brazil_movie_releases"
+        ), synced)
         synced.forEach { assertFalse(it, shouldExcludePreferenceFromProfileSettingsSync("calendar_settings", it)) }
         val local = mutablePreferencesOf()
         synced.forEach { local[stringPreferencesKey(it)] = "x" }

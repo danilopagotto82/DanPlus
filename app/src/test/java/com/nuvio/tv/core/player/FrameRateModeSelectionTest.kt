@@ -200,7 +200,7 @@ class FrameRateModeSelectionTest {
         val original = modes.first().modeId
         val selected = requireNotNull(pick(modes, film, 1920, 1080, resolutionMatching = true))
         assertEquals(4, selected)
-        assertEquals(2, pick(modes, film, 1920, 1080, resolutionMatching = false))
+        assertEquals(2, pick(modes, film, 1920, 1080, resolutionMatching = false, activeId = original))
         assertTrue(FrameRateUtils.restoreNeedsWrite(original, requestedModeId = selected, targetModeId = original))
         assertTrue(FrameRateUtils.restoreNeedsWrite(selected, requestedModeId = selected, targetModeId = original))
         assertFalse(FrameRateUtils.restoreNeedsWrite(original, requestedModeId = original, targetModeId = original))

@@ -21,18 +21,21 @@ class IconPackTest {
         if (start < 0) null else part.substring(start)
     }
 
-    private fun appfilterEntries(): Map<String, String> =
+    private val packages = setOf("com.danplus.shield", "com.danexus.tv.fire.debug")
+
+    private fun appfilterEntries(): List<Triple<String, String, String>> =
         Regex("<item component=\"ComponentInfo\\{([^/]+)/([^}]+)\\}\" drawable=\"([a-z_]+)\" />")
             .findAll(appfilter)
-            .associate { match ->
-                assertEquals("com.nuvio.tv.test", match.groupValues[1])
-                match.groupValues[2] to match.groupValues[3]
-            }
+            .map { match -> Triple(match.groupValues[1], match.groupValues[2], match.groupValues[3]) }
+            .toList()
 
     @Test
     fun releasePackageMatchesTheAppfilter() {
-        val gradle = listOf(File("build.gradle.kts"), File("app/build.gradle.kts")).first { it.isFile }.readText()
-        assertTrue(gradle.contains("applicationId = \"com.nuvio.tv.test\""))
+        val gradle = File(main.parentFile.parentFile, "build.gradle.kts").readText()
+        val applicationIds = Regex("""applicationId = "([^"]+)"""").findAll(gradle)
+            .map { it.groupValues[1] }.toSet()
+        assertEquals(packages, applicationIds)
+        assertEquals(applicationIds, appfilterEntries().map { it.first }.toSet())
     }
 
     @Test
@@ -42,12 +45,16 @@ class IconPackTest {
             .filter { it.contains("android.intent.category.LEANBACK_LAUNCHER") || it.contains("android.intent.category.LAUNCHER") }
             .map { "com.nuvio.tv" + Regex("android:name=\"([^\"]+)\"").find(it)!!.groupValues[1] }
         assertEquals(AppIconChoice.all.size, launcherNames.size)
-        assertEquals(launcherNames.toSet(), entries.keys)
-        AppIconChoice.all.forEach { choice ->
-            val drawable = entries.getValue(launcherClassName(choice))
-            assertEquals(iconPackDrawableName(choice), drawable)
-            val expectedLook = if (choice.look == AppIconLook.CARD) "card" else "lettering"
-            assertEquals("arc_${expectedLook}_clear_${choice.colour.key}", drawable)
+        assertEquals(launcherNames.size * packages.size, entries.size)
+        packages.forEach { packageName ->
+            val launchers = entries.filter { it.first == packageName }.associate { it.second to it.third }
+            assertEquals(launcherNames.toSet(), launchers.keys)
+            AppIconChoice.all.forEach { choice ->
+                val drawable = launchers.getValue(launcherClassName(choice))
+                assertEquals(iconPackDrawableName(choice), drawable)
+                val expectedLook = if (choice.look == AppIconLook.CARD) "card" else "lettering"
+                assertEquals("arc_${expectedLook}_clear_${choice.colour.key}", drawable)
+            }
         }
     }
 

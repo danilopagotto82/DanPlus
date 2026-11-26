@@ -69,10 +69,15 @@ class PlayerControlVisualEditorStateTest {
         val restored = moved.cancelMove(); assertSame(prior.draft, restored.draft); assertSame(prior.draft.snapshot, restored.draft.snapshot)
         assertFalse(restored.moving)
     }
-    @Test fun `hidden controls move without becoming visible and all sixteen remain editable`() {
+    @Test fun `hidden controls move without becoming visible and all actions remain editable`() {
         var s = original().select(info).beginMove()
-        repeat(12) { s = s.step(-1) }
-        assertEquals(PlayerControlGroup.CENTRE, group(s, info)); assertFalse(s.draft.preview.entries.single { it.action == info }.visible)
+        val right = s.draft.preview.entries.filter { it.group == PlayerControlGroup.RIGHT }.map { it.action }
+        assertTrue(right.indexOf(info) > 0)
+        repeat(right.indexOf(info)) { s = s.step(-1) }
+        assertEquals(info, s.draft.preview.entries.first { it.group == PlayerControlGroup.RIGHT }.action)
+        s = s.step(-1)
+        assertEquals(PlayerControlGroup.CENTRE, group(s, info))
+        assertFalse(s.draft.preview.entries.single { it.action == info }.visible)
         assertEquals(PlayerControlAction.entries.toSet(), s.draft.preview.entries.map { it.action }.toSet())
     }
     @Test fun `switching an unavailable action off and on moves it between the hidden row and its real place`() {
