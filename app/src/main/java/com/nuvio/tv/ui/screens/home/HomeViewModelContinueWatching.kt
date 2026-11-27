@@ -3356,31 +3356,15 @@ internal fun HomeViewModel.removeContinueWatchingPipeline(
         }
         return
     }
+    val profileId = profileManager.activeProfileId.value
+    val revision = profileManager.profileSelectionRevision.value
+    val selected = (_uiState.value.continueWatchingItems + _uiState.value.upcomingItems)
+        .filterIsInstance<ContinueWatchingItem.InProgress>()
+        .firstOrNull { it.progress.contentId == contentId && it.progress.season == season && it.progress.episode == episode }
+        ?: return
     viewModelScope.launch {
-        // Optimistic UI: remove the item from the CW list immediately
-        // so the user sees instant feedback while the DataStore write propagates.
-        _uiState.update { state ->
-            state.copy(
-                continueWatchingItems = state.continueWatchingItems.filterNot { item ->
-                    when (item) {
-                        is ContinueWatchingItem.InProgress -> item.progress.contentId == contentId
-                        is ContinueWatchingItem.NextUp -> item.info.contentId == contentId
-                    }
-                },
-                upcomingItems = state.upcomingItems.filterNot { item ->
-                    when (item) {
-                        is ContinueWatchingItem.InProgress -> item.progress.contentId == contentId
-                        is ContinueWatchingItem.NextUp -> item.info.contentId == contentId
-                    }
-                }
-            )
-        }
-        val targetSeason = if (isNextUp) season else null
-        val targetEpisode = if (isNextUp) episode else null
-        watchProgressRepository.removeProgress(
-            contentId = contentId,
-            season = targetSeason,
-            episode = targetEpisode
-        )
+        if (profileManager.activeProfileId.value != profileId ||
+            profileManager.profileSelectionRevision.value != revision) return@launch
+        watchProgressRepository.removePartialProgress(selected.progress, profileId)
     }
 }

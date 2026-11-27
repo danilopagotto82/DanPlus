@@ -953,6 +953,33 @@ class WatchProgressRepositoryImpl @Inject constructor(
         triggerRemoteSync(profileId = profileId)
     }
 
+    override suspend fun removePartialProgress(progress: WatchProgress, profileId: Int) {
+        if (!progress.isInProgress()) return
+        if (!progress.contentType.equals("movie", true) && (progress.season == null || progress.episode == null)) return
+        val revision = profileManager.profileSelectionRevision.value
+        val generation = profileManager.profileHistoryGenerationChanges.value
+        fun isCurrent() = profileManager.activeProfileId.value == profileId &&
+            profileManager.profileSelectionRevision.value == revision &&
+            profileManager.profileHistoryGenerationChanges.value == generation
+        if (!isCurrent()) return
+        val keys = watchProgressPreferences.removeExactPartialProgress(progress, profileId, ::isCurrent)
+        if (keys.isNotEmpty()) mutationStore.queueProgressDeletes(keys, profileId)
+        for (provider in connectedProgressProviders()) {
+            if (!isCurrent()) break
+            try {
+                provider.removeMatchingPartialProgress(progress, ::isCurrent)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w(TAG, "Partial progress removal failed for " + provider.providerId.storageId, error)
+            }
+        }
+        if (keys.isNotEmpty() && isCurrent() && authManager.isAuthenticated) {
+            watchProgressSyncService.deleteFromRemote(keys, profileId)
+        }
+        if (isCurrent()) triggerRemoteSync(profileId = profileId)
+    }
+
     override suspend fun removeFromHistory(
         contentId: String,
         videoId: String?,
@@ -1063,12 +1090,30 @@ class WatchProgressRepositoryImpl @Inject constructor(
         profileId: Int,
         broadcastTrackingHistory: Boolean
     ) {
+        completeProgress(progress, profileId, broadcastTrackingHistory, System.currentTimeMillis())
+    }
+
+    override suspend fun markAsCompletedAt(progress: WatchProgress, profileId: Int, watchedAt: Long) {
+        if (profileManager.activeProfileId.value != profileId || watchedAt !in 1..System.currentTimeMillis()) return
+        val previous = watchedItemsPreferences.getAllItems(profileId).filter {
+            it.contentId == progress.contentId && it.season == progress.season && it.episode == progress.episode
+        }.maxOfOrNull { it.watchedAt }
+        if (previous != null && previous >= watchedAt) return
+        if (profileManager.activeProfileId.value != profileId) return
+        completeProgress(progress, profileId, true, watchedAt)
+    }
+
+    private suspend fun completeProgress(
+        progress: WatchProgress,
+        profileId: Int,
+        broadcastTrackingHistory: Boolean,
+        watchedAt: Long
+    ) {
         val watchedGeneration = watchedItemsPreferences.captureGeneration(profileId)
         if (progress.contentType.equals("series", ignoreCase = true) ||
             progress.contentType.equals("tv", ignoreCase = true)) {
             traktSettingsDataStore.removeDismissedNextUpKeysForContent(progress.contentId, profileId)
         }
-        val now = System.currentTimeMillis()
         val progressKey = progressKey(progress)
         val duration = progress.duration.takeIf { it > 1L }
             ?: watchProgressPreferences.getAllRawEntries(profileId)[progressKey]
@@ -1079,7 +1124,7 @@ class WatchProgressRepositoryImpl @Inject constructor(
             position = duration,
             duration = duration,
             progressPercent = 100f,
-            lastWatched = now
+            lastWatched = watchedAt
         )
         mutationStore.queueProgressUpserts(mapOf(progressKey to completed), profileId)
         if (profileManager.activeProfileId.value == profileId) {
@@ -1087,11 +1132,11 @@ class WatchProgressRepositoryImpl @Inject constructor(
             activeProgressProvider()?.applyOptimisticProgress(completed, quiet = false)
         }
         watchProgressPreferences.saveProgress(completed, profileId = profileId)
-        val watchedItem = completed.toWatchedItem(watchedAt = now)
+        val watchedItem = completed.toWatchedItem(watchedAt = watchedAt)
         watchedItemsPreferences.markAsWatched(watchedItem, profileId = profileId, generation = watchedGeneration)
         mutationStore.queueWatchedUpserts(listOf(watchedItem), profileId)
         if (broadcastTrackingHistory) {
-            broadcastHistoryAdd(profileId, listOf(completed.toTrackingHistoryItem(now)))
+            broadcastHistoryAdd(profileId, listOf(completed.toTrackingHistoryItem(watchedAt)))
             syncServerWatched(listOf(completed.toServerWatchMark()), played = true, profileId = profileId)
         }
         triggerRemoteSync(profileId = profileId)

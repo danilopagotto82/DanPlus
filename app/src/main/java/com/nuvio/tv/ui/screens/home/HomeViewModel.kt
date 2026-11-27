@@ -1069,11 +1069,34 @@ class HomeViewModel @Inject constructor(
         isNextUp = isNextUp
     )
 
+    private val _watchDate = MutableStateFlow<WatchDateRequest?>(null)
+    internal val watchDate = _watchDate.asStateFlow()
+
     private fun markContinueWatchingWatched(item: ContinueWatchingItem) {
         if (!item.canMarkWatched()) return
+        _watchDate.value = WatchDateRequest(
+            item, profileManager.activeProfileId.value,
+            profileManager.profileSelectionRevision.value, profileManager.profileHistoryGenerationChanges.value
+        )
+    }
+
+    internal fun closeWatchDate() {
+        _watchDate.value = null
+    }
+
+    internal fun confirmWatchDate(request: WatchDateRequest, watchedAt: Long) {
+        if (!_watchDate.compareAndSet(request, null)) return
         viewModelScope.launch {
-            runCatching { watchProgressRepository.markAsCompleted(item.toCompletedProgress()) }
-                .onFailure { error -> Log.w(TAG, "Failed to mark continue watching item as watched", error) }
+            if (profileManager.activeProfileId.value != request.profileId ||
+                profileManager.profileSelectionRevision.value != request.revision ||
+                profileManager.profileHistoryGenerationChanges.value != request.generation) return@launch
+            try {
+                watchProgressRepository.markAsCompletedAt(request.item.toCompletedProgress(watchedAt), request.profileId, watchedAt)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w(TAG, "Failed to mark continue watching item as watched", error)
+            }
         }
     }
 

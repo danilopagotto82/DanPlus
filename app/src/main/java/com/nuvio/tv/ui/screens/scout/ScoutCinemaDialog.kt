@@ -62,12 +62,14 @@ internal fun ScoutCinemaDialog(
     saveGenre: suspend (Int?) -> Unit,
     loadTrailer: suspend (ScoutPick) -> ScoutCinemaTrailer?,
     onDismiss: () -> Unit,
-    onPlay: (ScoutCinemaChoice) -> Unit
+    attendanceAvailable: Boolean,
+    onPlay: (ScoutCinemaChoice, Boolean, Boolean) -> Unit
 ) {
     var step by remember { mutableStateOf(CinemaStep.MENU) }
     val scope = rememberCoroutineScope()
     var favoriteGenre by remember { mutableStateOf<Int?>(null) }
     var loadingGenre by remember { mutableStateOf(false) }
+    var askAttendance by remember { mutableStateOf(false) }
     var guest by remember { mutableStateOf<ScoutCinemaGuest?>(null) }
     var allowRewatch by remember { mutableStateOf(false) }
     var configured by remember { mutableStateOf(false) }
@@ -320,10 +322,17 @@ internal fun ScoutCinemaDialog(
                         ) else stringResource(R.string.cinema_filter_reason)
                     )
                 }
+                if (attendanceAvailable || (configured && guest != null)) {
+                    ScoutChip(
+                        stringResource(R.string.close_attendance_opt_in),
+                        onClick = { askAttendance = !askAttendance },
+                        on = askAttendance
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     ScoutChip(
                         stringResource(R.string.hero_play),
-                        onClick = { onPlay(result) },
+                        onClick = { onPlay(result, askAttendance, configured && guest != null) },
                         modifier = Modifier.focusRequester(first),
                         primary = true
                     )

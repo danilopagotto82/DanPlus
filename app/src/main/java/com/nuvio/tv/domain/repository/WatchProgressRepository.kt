@@ -167,6 +167,12 @@ interface WatchProgressRepository {
         broadcastTrackingHistory: Boolean = true
     ) = markAsCompleted(progress, broadcastTrackingHistory)
 
+    suspend fun markAsCompletedAt(progress: WatchProgress, profileId: Int, watchedAt: Long) {
+        markAsCompleted(progress.copy(lastWatched = watchedAt), profileId)
+    }
+
+    suspend fun removePartialProgress(progress: WatchProgress, profileId: Int) = Unit
+
     /**
      * Mark multiple episodes as completed in a single batch operation.
      * More efficient than calling [markAsCompleted] in a loop.

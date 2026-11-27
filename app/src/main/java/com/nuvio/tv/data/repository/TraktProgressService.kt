@@ -1020,6 +1020,38 @@ class TraktProgressService @Inject constructor(
             || (videoCanonicalKey != null && watchedMovies.contains(videoCanonicalKey))
     }
 
+    suspend fun removeMatchingPartialProgress(progress: WatchProgress, isCurrent: () -> Boolean) {
+        val movie = progress.contentType.equals("movie", true)
+        if (!movie && (progress.season == null || progress.episode == null)) return
+        val profileId = profileManager.activeProfileId.value
+        val auth = traktAuthDataStore.getCurrentState(profileId)
+        if (!auth.isAuthenticated || !isCurrent()) return
+        suspend fun accountIsCurrent(): Boolean {
+            val current = traktAuthDataStore.getCurrentState(profileId)
+            return isCurrent() && profileManager.activeProfileId.value == profileId && current.isAuthenticated &&
+                current.authorizationGeneration == auth.authorizationGeneration && current.userSlug == auth.userSlug
+        }
+        val rows = getPlayback(if (movie) "movies" else "episodes", force = true).orEmpty()
+        val target = rows.firstOrNull { row ->
+            val timestamp = parseIsoToMillis(row.pausedAt)
+            val sameContent = normalizeContentId(if (movie) row.movie?.ids else row.show?.ids) == progress.contentId
+            val sameEpisode = movie || (row.episode?.season == progress.season && row.episode?.number == progress.episode)
+            sameContent && sameEpisode && timestamp in 1..progress.lastWatched &&
+                (progress.traktPlaybackId == null || row.id == progress.traktPlaybackId) &&
+                row.progress?.let { it > 0f && it < 90f } == true
+        }
+        val id = target?.id ?: return
+        if (!accountIsCurrent()) return
+        val response = traktAuthService.executeAuthorizedWriteRequest { authHeader ->
+            if (!accountIsCurrent()) throw kotlinx.coroutines.CancellationException("Playback ownership changed")
+            traktApi.deletePlayback(authHeader, id)
+        }
+        if (response?.isSuccessful == true && accountIsCurrent()) {
+            applyOptimisticRemoval(progress.contentId, progress.season, progress.episode)
+            refreshNow()
+        }
+    }
+
     suspend fun removeProgress(contentId: String, season: Int?, episode: Int?) {
         Log.d(
             TAG,

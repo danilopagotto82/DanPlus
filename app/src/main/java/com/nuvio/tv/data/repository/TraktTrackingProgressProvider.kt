@@ -67,6 +67,9 @@ class TraktTrackingProgressProvider @Inject constructor(
 
     override suspend fun refresh(intent: TrackingRefreshIntent) = service.refreshNow()
 
+    override suspend fun removeMatchingPartialProgress(progress: WatchProgress, isCurrent: () -> Boolean) =
+        service.removeMatchingPartialProgress(progress, isCurrent)
+
     override suspend fun removeProgress(contentId: String, season: Int?, episode: Int?) =
         service.removeProgress(contentId, season, episode)
 

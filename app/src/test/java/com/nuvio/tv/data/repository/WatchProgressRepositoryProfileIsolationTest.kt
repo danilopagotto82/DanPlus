@@ -199,10 +199,29 @@ class WatchProgressRepositoryProfileIsolationTest {
         assertEquals(emptySet<String>(), harness.repository.observeWatchedMovieIds().first())
     }
 
+    @Test
+    fun retroactiveCompletionKeepsItsTimestampAndCannotRedirectToASecondProfile() = runTest {
+        val harness = harness(activeProfileId = 1)
+        coEvery { harness.watchedPreferences.getAllItems(1) } returns emptyList()
+        val partial = progress("item", 2_000L, 10_000L)
+        harness.repository.markAsCompletedAt(partial, 1, 500L)
+        harness.activeProfile.value = 2
+        harness.repository.markAsCompletedAt(partial, 1, 600L)
+        coVerify(exactly = 1) {
+            harness.mutationStore.queueProgressUpserts(match { it["item"]?.lastWatched == 500L }, 1)
+        }
+        coVerify(exactly = 1) {
+            harness.watchedPreferences.markAsWatched(match { it.watchedAt == 500L }, 1, any())
+        }
+        coVerify(exactly = 0) { harness.watchedPreferences.markAsWatched(any(), 2, any()) }
+    }
+
     private fun harness(activeProfileId: Int, watched: WatchedItemsPreferences? = null): Harness {
         val activeProfile = MutableStateFlow(activeProfileId)
         val profileManager = mockk<ProfileManager>()
         every { profileManager.activeProfileId } returns activeProfile
+        every { profileManager.profileSelectionRevision } returns MutableStateFlow(0L)
+        every { profileManager.profileHistoryGenerationChanges } returns MutableStateFlow(0L)
 
         val progressPreferences = mockk<WatchProgressPreferences>(relaxed = true)
         coEvery { progressPreferences.getAllRawEntries(any()) } returns emptyMap()

@@ -4,6 +4,7 @@ import com.nuvio.tv.domain.model.WatchProgress
 import com.nuvio.tv.domain.model.WatchedItem
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
@@ -37,6 +38,16 @@ interface TrackingProgressProvider {
     fun isWatchedByVideoId(videoId: String, episode: Int): Boolean? = null
     suspend fun refresh(intent: TrackingRefreshIntent)
     suspend fun removeProgress(contentId: String, season: Int?, episode: Int?)
+    suspend fun removeMatchingPartialProgress(progress: WatchProgress, isCurrent: () -> Boolean) {
+        val match = allProgress.first().any { candidate ->
+            candidate.contentId == progress.contentId && candidate.season == progress.season &&
+                candidate.episode == progress.episode && candidate.lastWatched <= progress.lastWatched &&
+                candidate.isInProgress()
+        }
+        if (!match || !isCurrent()) return
+        applyOptimisticRemoval(progress.contentId, progress.season, progress.episode)
+        removeProgress(progress.contentId, progress.season, progress.episode)
+    }
     fun applyOptimisticProgress(progress: WatchProgress, quiet: Boolean)
     fun applyOptimisticRemoval(contentId: String, season: Int?, episode: Int?)
     fun clearOptimistic()

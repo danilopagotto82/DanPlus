@@ -16,9 +16,11 @@ import com.nuvio.tv.data.remote.dto.trakt.TraktMovieDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktPlaybackItemDto
 import com.nuvio.tv.domain.repository.MetaRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
@@ -39,6 +41,9 @@ class TraktProgressServiceRefreshTest {
     private val playbackCalls = AtomicInteger()
     private val watchedMoviesCalls = AtomicInteger()
     private val watchedShowsCalls = AtomicInteger()
+
+    private val authorizationGeneration = AtomicLong()
+    @Volatile private var reconnectOnPlaybackLookup = false
 
     @Volatile
     private var episodesWatchedAt = "2026-01-01T00:00:00.000Z"
@@ -120,6 +125,22 @@ class TraktProgressServiceRefreshTest {
         assertEquals(2, playbackCalls.get())
     }
 
+    @Test
+    fun reconnectedTraktDeletesOnlyTheSelectedPausedEntryAndKeepsNewerRewatch() = runBlocking {
+        val service = loadedService()
+        val selected = service.observeAllProgress().first().first { it.contentId == MOVIE_ID }
+        coEvery { traktApi.deletePlayback(any(), 1L) } returns Response.success(null)
+        service.removeMatchingPartialProgress(selected.copy(lastWatched = selected.lastWatched - 1)) { true }
+        service.removeMatchingPartialProgress(selected.copy(traktPlaybackId = 5)) { true }
+        service.removeMatchingPartialProgress(selected) { false }
+        reconnectOnPlaybackLookup = true
+        service.removeMatchingPartialProgress(selected) { true }
+        coVerify(exactly = 0) { traktApi.deletePlayback(any(), any()) }
+
+        service.removeMatchingPartialProgress(selected) { true }
+        coVerify(exactly = 1) { traktApi.deletePlayback(any(), 1L) }
+    }
+
     private suspend fun loadedService(): TraktProgressService {
         val service = createService()
         withTimeout(TIMEOUT_MS) {
@@ -157,6 +178,10 @@ class TraktProgressServiceRefreshTest {
         coEvery { traktApi.getPlayback(any(), any(), any(), any()) } coAnswers {
             playbackCalls.incrementAndGet()
             if (playbackHangs) awaitCancellation()
+            if (reconnectOnPlaybackLookup) {
+                reconnectOnPlaybackLookup = false
+                authorizationGeneration.incrementAndGet()
+            }
             if (secondArg<String>() == "movies") {
                 Response.success(
                     listOf(
@@ -190,6 +215,10 @@ class TraktProgressServiceRefreshTest {
             firstArg<suspend (String) -> Response<Any?>>().invoke("Bearer test")
         }
 
+        coEvery { authService.executeAuthorizedWriteRequest<Any?>(any()) } coAnswers {
+            firstArg<suspend (String) -> Response<Any?>>().invoke("Bearer test")
+        }
+
         val metaRepository = mockk<MetaRepository>()
         every { metaRepository.getMetaFromAllAddons(any(), any(), any()) } returns emptyFlow()
         val settings = mockk<TraktSettingsDataStore>()
@@ -215,7 +244,9 @@ class TraktProgressServiceRefreshTest {
             watchedSeriesStateHolder = watchedSeries,
             traktAuthDataStore = mockk<TraktAuthDataStore>(relaxed = true) {
                 every { state } returns MutableStateFlow(TraktAuthState(accessToken = "access", refreshToken = "refresh"))
-                coEvery { getCurrentState(any<Int>()) } returns TraktAuthState(accessToken = "access", refreshToken = "refresh")
+                coEvery { getCurrentState(any<Int>()) } answers {
+                    TraktAuthState(accessToken = "access", refreshToken = "refresh", authorizationGeneration = authorizationGeneration.get())
+                }
             },
             savedWatchedMovies = TraktSavedWatchedMovies(FakeTraktWatchedMoviesStorage()),
             appVisibility = com.nuvio.tv.core.calendar.CalendarAppVisibility(),

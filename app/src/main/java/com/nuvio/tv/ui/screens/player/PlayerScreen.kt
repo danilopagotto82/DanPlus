@@ -332,6 +332,16 @@ fun PlayerScreen(
 
     val scoutRatings: com.nuvio.tv.ui.scout.ScoutRatingViewModel? =
         if (com.nuvio.tv.domain.model.ScoutFeature.available) hiltViewModel() else null
+    val cinemaContent = viewModel.scoutContentId
+    var cinemaTicket by remember(viewModel, cinemaContent) {
+        mutableStateOf<com.nuvio.tv.core.scout.CinemaPresenceTicket?>(null)
+    }
+    LaunchedEffect(scoutRatings, cinemaContent) {
+        cinemaTicket = cinemaContent?.let { scoutRatings?.enterCinemaPlayback(it) }
+    }
+    DisposableEffect(scoutRatings, cinemaContent) {
+        onDispose { scoutRatings?.finishCinemaPlayback(cinemaTicket, cinemaContent, completed = false) }
+    }
     val exitPlayer: () -> Unit = exitPlayer@{
         if (exitDispatched) return@exitPlayer
         if (uiState.discExtraId != null) {
@@ -345,6 +355,10 @@ fun PlayerScreen(
             (!timeline.isLive &&
                 timeline.duration > 0L &&
                 (timeline.currentPosition.toFloat() / timeline.duration.toFloat()) >= WatchProgress.COMPLETED_THRESHOLD)
+        scoutRatings?.finishCinemaPlayback(
+            cinemaTicket, cinemaContent,
+            completed && !timeline.isLive && !externalHandoffInProgress && uiState.contentType.equals("movie", true)
+        )
         scoutRatings?.offerAsk(
             com.nuvio.tv.domain.model.scoutAskTargetFor(
                 completed = completed,
@@ -577,6 +591,10 @@ fun PlayerScreen(
                 viewModel.consumePendingExitReason()
             }
             shouldDispatchNatural -> {
+                scoutRatings?.finishCinemaPlayback(
+                    cinemaTicket, cinemaContent,
+                    !viewModel.playbackTimeline.value.isLive && !externalHandoffInProgress && uiState.contentType.equals("movie", true)
+                )
                 viewModel.stopAndRelease()
                 val next = uiState.nextEpisode?.takeIf {
                     it.mixName == null && it.hasAired && !(it.released.isNullOrBlank() && it.available == false)

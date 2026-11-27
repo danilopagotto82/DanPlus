@@ -39,6 +39,8 @@ private const val SENT_PREFIX = "sent:"
 private const val PULLED_PREFIX = "pulled:"
 private const val OUT_FIELD = '\u001F'
 
+internal data class ScoutCompanionDetails(val relation: String?, val ageBand: String?, val wasOffered: Boolean)
+
 @Singleton
 class ScoutStore @Inject constructor(
     private val factory: ProfileDataStoreFactory,
@@ -51,6 +53,12 @@ class ScoutStore @Inject constructor(
     private val becauseRow = booleanPreferencesKey("because_row")
     private val gemsRow = booleanPreferencesKey("gems_row")
     private val tilesRow = booleanPreferencesKey("tiles_row_chosen")
+    internal val cinemaPresence = com.nuvio.tv.core.scout.ScoutCinemaPresence()
+    private val cinemaPrivateFeature = "scout_cinema_private"
+    private val cinemaAttendance = stringPreferencesKey("cinema_last_attendance_v1")
+    private val cinemaOnboarding = booleanPreferencesKey("cinema_onboarding_seen_v1")
+    private val cinemaRelation = stringPreferencesKey("cinema_relation_v1")
+    private val cinemaAgeBand = stringPreferencesKey("cinema_age_band_v1")
     private val cinemaGenre = stringPreferencesKey("cinema_favorite_genre_v1")
     private val showWatched = booleanPreferencesKey("show_watched")
     private val showInMenu = booleanPreferencesKey("show_in_menu")
@@ -88,6 +96,44 @@ class ScoutStore @Inject constructor(
 
     private fun decodeDiscovery(raw: String?): ScoutDiscoveryHistory =
         raw?.let { runCatching { discoveryAdapter.fromJson(it) }.getOrNull() } ?: ScoutDiscoveryHistory()
+
+    internal suspend fun recordCinemaAttendance(
+        ticket: com.nuvio.tv.core.scout.CinemaPresenceTicket,
+        selected: Set<Int>,
+        guestPresent: Boolean,
+        isCurrent: () -> Boolean
+    ) {
+        factory.get(ticket.owner.profileId, cinemaPrivateFeature).edit { values ->
+            if (!isCurrent()) return@edit
+            val present = ticket.companions.map { it.first }.filter { it in selected && it != ticket.owner.profileId }
+            val guest = guestPresent && ticket.guest
+            if (present.isNotEmpty() || guest) {
+                values[cinemaAttendance] = listOf(ticket.contentId, present.joinToString(","), guest.toString()).joinToString("|")
+            }
+        }
+    }
+
+    internal suspend fun readCinemaCompanion(profileId: Int): ScoutCompanionDetails {
+        val values = factory.get(profileId, cinemaPrivateFeature).data.first()
+        return ScoutCompanionDetails(values[cinemaRelation], values[cinemaAgeBand], values[cinemaOnboarding] == true)
+    }
+
+    internal suspend fun skipCinemaOnboarding(profileId: Int, isCurrent: () -> Boolean) {
+        factory.get(profileId, cinemaPrivateFeature).edit { values ->
+            if (isCurrent()) values[cinemaOnboarding] = true
+        }
+    }
+
+    internal suspend fun saveCinemaCompanion(
+        profileId: Int, relation: String?, ageBand: String?, isCurrent: () -> Boolean
+    ) {
+        factory.get(profileId, cinemaPrivateFeature).edit { values ->
+            if (!isCurrent()) return@edit
+            values[cinemaOnboarding] = true
+            if (relation == null) values.remove(cinemaRelation) else values[cinemaRelation] = relation
+            if (ageBand == null) values.remove(cinemaAgeBand) else values[cinemaAgeBand] = ageBand
+        }
+    }
 
     internal fun observeCinemaGenre(profileId: Int): Flow<Int?> =
         factory.get(profileId, FEATURE).data.map { it[cinemaGenre]?.toIntOrNull() }.distinctUntilChanged()

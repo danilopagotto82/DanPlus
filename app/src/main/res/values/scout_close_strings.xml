@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="close_watch_date_title">When did you watch it?</string>
+    <string name="close_watch_date_now">Mark watched now</string>
+    <string name="close_save">Save</string>
+    <string name="close_skip">Skip</string>
+    <string name="close_companion_edit">Cinema profile for %1$s</string>
+    <string name="close_companion_relation">Relationship (optional)</string>
+    <string name="close_companion_age">Age group (optional)</string>
+    <string name="close_relation_family">Family</string>
+    <string name="close_relation_partner">Partner</string>
+    <string name="close_relation_friend">Friend</string>
+    <string name="close_age_child">Child</string>
+    <string name="close_age_teen">Teen</string>
+    <string name="close_age_adult">Adult</string>
+    <string name="close_attendance_opt_in">Ask who watched after the film</string>
+    <string name="close_attendance_title">Who watched with you?</string>
+    <string name="close_attendance_private">Save on this profile only. Other watch histories stay unchanged.</string>
+    <string name="close_attendance_confirm">Confirm attendance</string>
+</resources>

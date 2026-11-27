@@ -685,6 +685,47 @@ class ScoutViewModel @Inject constructor(
         loadRow(0)
     }
 
+    internal fun cinemaCompanionCanEdit(profileId: Int): Boolean {
+        val owner = profileOwner()
+        return owner == sessionOwner && _state.value.pinFor == null &&
+            (owner.profileId == profileId || profileId in _state.value.others)
+    }
+
+    internal suspend fun cinemaCompanion(profileId: Int): com.nuvio.tv.data.local.ScoutCompanionDetails? {
+        if (!cinemaCompanionCanEdit(profileId)) return null
+        return store.readCinemaCompanion(profileId).takeIf { cinemaCompanionCanEdit(profileId) }
+    }
+
+    internal suspend fun skipCinemaOnboarding(profileId: Int) {
+        val owner = profileOwner()
+        if (!cinemaCompanionCanEdit(profileId)) return
+        store.skipCinemaOnboarding(profileId) { owner == profileOwner() && cinemaCompanionCanEdit(profileId) }
+    }
+
+    internal suspend fun saveCinemaCompanion(profileId: Int, relation: String?, ageBand: String?) {
+        val owner = profileOwner()
+        if (!cinemaCompanionCanEdit(profileId)) return
+        if (relation != null && relation !in setOf("family", "partner", "friend")) return
+        if (ageBand != null && ageBand !in setOf("child", "teen", "adult")) return
+        store.saveCinemaCompanion(profileId, relation, ageBand) {
+            owner == profileOwner() && cinemaCompanionCanEdit(profileId)
+        }
+    }
+
+    internal fun cancelUnstartedCinemaAttendance() = store.cinemaPresence.cancelUnstarted()
+
+    internal fun armCinemaAttendance(audience: ScoutAudience, pick: ScoutPick, enabled: Boolean, guest: Boolean) {
+        val companions = profiles.value.filter { it.id in audience.others }.map { it.id to it.name }
+        store.cinemaPresence.arm(
+            if (enabled && isCurrent(audience) && (companions.isNotEmpty() || guest)) {
+                com.nuvio.tv.core.scout.CinemaPresenceTicket(
+                    audience.owner, profileManager.profileHistoryGenerationChanges.value, "tmdb:" + pick.tmdbId, companions, guest,
+                    android.os.SystemClock.elapsedRealtime() + 120_000L
+                )
+            } else null
+        )
+    }
+
     internal suspend fun cinemaGenre(audience: ScoutAudience): Int? =
         if (isCurrent(audience)) store.observeCinemaGenre(audience.owner.profileId).first().takeIf { isCurrent(audience) }
         else null
@@ -712,6 +753,15 @@ class ScoutViewModel @Inject constructor(
             time = if (configuredSession) ScoutTime.ANY else snapshot.answers.time,
             family = snapshot.answers.family || guest?.familyLimit == true
         )
+        val ageBands = (audience.others + audience.owner.profileId).mapNotNull { profileId ->
+            if (!isCurrent(audience) || !cinemaCompanionCanEdit(profileId)) return null
+            store.readCinemaCompanion(profileId).ageBand
+        }
+        val companionLimit = when {
+            "child" in ageBands -> RatingLimit.YOUNG
+            "teen" in ageBands -> RatingLimit.TEEN
+            else -> null
+        }
         val filters = answers.slice().movie ?: return null
         val today = java.time.LocalDate.now()
         val display = watchedDisplay.first { it.profileId == audience.owner.profileId && it.loaded }
@@ -743,8 +793,9 @@ class ScoutViewModel @Inject constructor(
             val allowed = restrictRecommendations(candidates.filterNot { pick ->
                 exclusions.blocks(pick) || others.any { it.exclusions.blocks(pick) }
             }, audience)
-            val guestSafe = if (guest?.familyLimit == true) {
-                ratingLimits.keepFitting(RatingLimit.PG, allowed) { "tmdb:${it.tmdbId}" to "movie" }
+            val extraLimit = listOfNotNull(companionLimit, RatingLimit.PG.takeIf { guest?.familyLimit == true }).minByOrNull { it.highest }
+            val guestSafe = if (extraLimit != null) {
+                ratingLimits.keepFitting(extraLimit, allowed) { "tmdb:${it.tmdbId}" to "movie" }
             } else allowed
             val preferredGenre = guest?.genre ?: profileGenre
             val ordered = withContext(Dispatchers.Default) {
@@ -754,7 +805,7 @@ class ScoutViewModel @Inject constructor(
             val reviewed = linkedMapOf<ScoutPick, ScoutPickDetail>()
             val shortlistSize = if (cachedAi.any { key -> ordered.take(3).any { it.key == key } }) 3 else 1
             for (pick in ordered) {
-                val detail = finder.detail(pick, withRating = audience.limit != null || guest?.familyLimit == true) ?: continue
+                val detail = finder.detail(pick, withRating = audience.limit != null || extraLimit != null) ?: continue
                 if (!cinemaRuntimeFits(detail.minutes, filters.withRuntimeGte, filters.withRuntimeLte, maxMinutes)) continue
                 reviewed[pick] = detail
                 if (reviewed.size == shortlistSize) break

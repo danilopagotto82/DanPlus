@@ -412,6 +412,21 @@ class WatchProgressPreferences @Inject constructor(
     /**
      * Remove watch progress for a specific item
      */
+    internal suspend fun removeExactPartialProgress(
+        target: WatchProgress,
+        profileId: Int,
+        isCurrent: () -> Boolean
+    ): List<String> = storageMutex.withLock {
+        if (!isCurrent()) return@withLock emptyList()
+        ensureStorageLocked(profileId)
+        val current = readBucketsLocked(profileId)
+        val keys = partialProgressKeys(current.archive + current.recent, target)
+        if (keys.isEmpty() || !isCurrent()) return@withLock emptyList()
+        val updated = WatchProgressBuckets(current.recent - keys.toSet(), current.archive - keys.toSet())
+        writeBucketsLocked(profileId, current, updated)
+        keys
+    }
+
     suspend fun removeProgress(
         contentId: String,
         season: Int? = null,
@@ -1015,4 +1030,13 @@ class WatchProgressPreferences @Inject constructor(
         return null
     }
 
+}
+
+
+internal fun partialProgressKeys(entries: Map<String, WatchProgress>, target: WatchProgress): List<String> {
+    if (!target.isInProgress()) return emptyList()
+    return entries.filter { (_, stored) ->
+        stored.contentId == target.contentId && stored.season == target.season && stored.episode == target.episode &&
+            stored.lastWatched <= target.lastWatched && stored.isInProgress()
+    }.keys.toList()
 }

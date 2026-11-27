@@ -209,6 +209,7 @@ fun ScoutScreen(
     posterOptions: PosterOptionsViewModel = hiltViewModel(),
     ratings: ScoutRatingViewModel = hiltViewModel()
 ) {
+    LaunchedEffect(viewModel) { viewModel.cancelUnstartedCinemaAttendance() }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val saved by viewModel.savedRows.collectAsStateWithLifecycle()
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
@@ -514,9 +515,11 @@ fun ScoutScreen(
             saveGenre = { genre -> viewModel.saveCinemaGenre(audience, genre) },
             loadTrailer = { pick -> viewModel.cinemaTrailer(audience, pick) },
             onDismiss = { cinema = null },
-            onPlay = { choice ->
+            attendanceAvailable = audience.others.isNotEmpty(),
+            onPlay = { choice, askAttendance, guest ->
                 if (viewModel.cinemaAudienceIsCurrent(audience)) {
                     val pick = choice.shown.pick
+                    viewModel.armCinemaAttendance(audience, pick, askAttendance, guest)
                     cinema = null
                     viewModel.focusPending = "cinema"
                     onPlayTitle("tmdb:${pick.tmdbId}", "movie", pick.backdrop, choice.logo)
@@ -525,7 +528,7 @@ fun ScoutScreen(
         )
     }
 
-    if (state.pinFor == null) when (choosing) {
+    if (state.pinFor == null || choosing == CHOOSING_WHO) when (choosing) {
         CHOOSING_LENGTH -> ScoutLengthDialog(state.answers, onChoose = {
             viewModel.pressTime(it)
             choosing = null
@@ -718,10 +721,28 @@ private fun ScoutWhoDialog(
     viewModel: ScoutViewModel,
     onDismiss: () -> Unit
 ) {
+    var editing by remember { mutableStateOf<UserProfile?>(null) }
+    var previousOthers by remember { mutableStateOf(state.others) }
+    LaunchedEffect(state.others) {
+        val added = (state.others - previousOthers).singleOrNull()
+        previousOthers = state.others
+        val details = added?.let { com.nuvio.tv.core.scout.scoutReadPolicy { viewModel.cinemaCompanion(it) } }
+        if (details != null && !details.wasOffered) {
+            editing = profiles.firstOrNull { it.id == added }
+        }
+    }
+    if (state.pinFor != null) return
+    editing?.takeIf { viewModel.cinemaCompanionCanEdit(it.id) }?.let { profile ->
+        ScoutCompanionForm(profile, viewModel, onDismiss = { editing = null })
+        return
+    }
     val first = remember { FocusRequester() }
     NuvioDialog(onDismiss = onDismiss, title = stringResource(R.string.scout_q_who),
         subtitle = stringResource(R.string.scout_who_hint), cinematicPageSurface = true) {
-        Column(verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)) {
+        Column(
+            Modifier.verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)
+        ) {
             profiles.sortedBy { it.id != activeId }.forEachIndexed { index, profile ->
                 val own = profile.id == activeId
                 ScoutOptionRow(
@@ -732,6 +753,12 @@ private fun ScoutWhoDialog(
                     note = if (own) stringResource(R.string.scout_who_you) else null,
                     leading = { NuvioAvatar(AvatarModel(profile.id.toString(), profile.name, profile.avatarColorHex, pictures[profile.id]), NuvioTheme.spacing.xxl) }
                 )
+                if (viewModel.cinemaCompanionCanEdit(profile.id)) {
+                    ScoutChip(
+                        label = stringResource(R.string.close_companion_edit, profile.name),
+                        onClick = { editing = profile }
+                    )
+                }
             }
             ScoutOptionRow(
                 label = stringResource(R.string.scout_family_night),

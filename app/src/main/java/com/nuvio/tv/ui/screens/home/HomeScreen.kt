@@ -498,6 +498,8 @@ fun HomeScreen(
         SupporterThanksNote(enabled = !showHomeLoader, modifier = Modifier.align(Alignment.TopEnd))
     }
 
+    HomeWatchDateDialog(viewModel)
+
     val selectedPoster = posterOptionsTarget
     if (selectedPoster != null) {
         val item = selectedPoster.item

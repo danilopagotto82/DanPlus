@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="close_watch_date_title">Quando você assistiu?</string>
+    <string name="close_watch_date_now">Marcar como assistido agora</string>
+    <string name="close_save">Salvar</string>
+    <string name="close_skip">Pular</string>
+    <string name="close_companion_edit">Perfil de cinema de %1$s</string>
+    <string name="close_companion_relation">Vínculo (opcional)</string>
+    <string name="close_companion_age">Faixa etária (opcional)</string>
+    <string name="close_relation_family">Família</string>
+    <string name="close_relation_partner">Parceiro(a)</string>
+    <string name="close_relation_friend">Amigo(a)</string>
+    <string name="close_age_child">Criança</string>
+    <string name="close_age_teen">Adolescente</string>
+    <string name="close_age_adult">Adulto</string>
+    <string name="close_attendance_opt_in">Perguntar quem assistiu ao fim do filme</string>
+    <string name="close_attendance_title">Quem assistiu com você?</string>
+    <string name="close_attendance_private">Salvar apenas neste perfil, sem alterar o histórico das outras pessoas.</string>
+    <string name="close_attendance_confirm">Confirmar presença</string>
+</resources>
