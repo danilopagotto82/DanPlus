@@ -13,5 +13,6 @@
 "Client ID WeTrakr","BuildConfig.WETRAKR_CLIENT_ID","Ambiente privado de compilação","Vedado","Vedado"
 "Player, decoder, passthrough, resolução, frequência, HDR e buffers","BackupPart.DEVICE","Dispositivo","Excluído dos novos backups portáteis","Vedado"
 "Atraso de áudio e avaliação do dispositivo","audio_delay_route_preference e armazenamento técnico local","Dispositivo","Excluído dos novos backups portáteis","Vedado"
-"show_in_menu","ScoutStore (scout)","DanPlus local por perfil","Sim","Candidato ML07 v2, teste simulado, desativado"
-"list_emojis","ScoutStore (scout)","DanPlus local por perfil","Sim","Candidato ML07 v2, teste simulado, desativado"
+"show_in_menu","ScoutStore (scout)","DanPlus local por perfil","Sim","Candidato ML07 v3, teste simulado, desativado"
+"list_emojis","ScoutStore (scout)","DanPlus local por perfil","Sim","Candidato ML07 v3, teste simulado, desativado"
+"show_watched","ScoutStore (scout)","DanPlus local por perfil","Sim","Candidato ML07 v3, teste simulado, desativado"
