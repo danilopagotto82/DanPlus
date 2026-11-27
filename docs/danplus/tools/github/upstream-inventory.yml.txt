@@ -1,0 +1,33 @@
+name: Upstream inventory
+on:
+  workflow_dispatch:
+    inputs:
+      include_reseq:
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: danplus-upstream-inventory
+  cancel-in-progress: false
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INCLUDE_RESEQ: ${{ inputs.include_reseq }}
+        run: |
+          args=()
+          if [[ "$INCLUDE_RESEQ" == true ]]; then args+=(--include-reseq); fi
+          python3 docs/danplus/tools/github/upstream_inventory.py docs/danplus/tools/github/upstream-reviewed.json "${args[@]}" > candidate.json
+          {
+            echo '~~~json'
+            cat candidate.json
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
