@@ -84,3 +84,10 @@ Aguardar revisão do coordenador e a janela autorizada para comparação do cand
 - API e SDK Seekr 0.2.0, RC4/RC4.1 do ReSeq e comparação RC1 com beta 10.12 foram auditados. A comparação de memória do RC1 inclui testes de alocador nativo e alterações no AAR do Exo. Esta rodada limitou a mudança de memória aos ciclos de vida reproduzíveis das miniaturas e capítulos. [Seekr SDK](https://github.com/AKhalil609/seekr-android-sdk/blob/v0.2.0/seekr-android/src/main/kotlin/tv/seekr/previews/android/SeekrTrack.kt) · [RC4.1](https://github.com/abbaskip/Nuvio-ReSeq/releases/tag/v1.0.0-rc.4.1) · [Comparação beta 10.12 a RC1](https://github.com/abbaskip/Nuvio-ReSeq/compare/v0.1.0-beta.10.12...v1.0.0-rc.1)
 - Shield e Fire TV permanecem pendentes para reprodução, DPAD, retomada, medições de memória e proteção do REMUX. Nenhum APK, instalação, publicação ou operação com conta real foi executado.
 - O próximo megalote oficial é ML05, Histórico, trailers e Descubra-me (RS-25, RS-26, RS-28, RS-34 e RS-35). ML05 permanece por iniciar.
+
+## ML05-S — Surpreenda-me
+
+- Subentrega parcial na cópia gravável `danplus-ml05`, com base `37591d3` e implementação `6b921c6`. A worktree oficial permanece no checkpoint `5cb4f2d`.
+- [Matriz ML05-S](MATRIZ_COMPLEMENTAR_ML05_S.csv) e [arquitetura, evidências e pendências](ML05_S_SURPREENDA_ME.md). Os 34 IDs da matriz principal foram preservados.
+- Kotlin/Compose focal, 229 XMLs AAPT2 e 48 JUnit sem falhas na execução final. Gradle completo e AndroidTest não executados. Homologação visual e física em Shield e Fire TV **NÃO TESTADO**.
+- Concluir as pendências de ML05/ML05-S. ML06 — OTA, organização e manutenção — permanece por iniciar.
