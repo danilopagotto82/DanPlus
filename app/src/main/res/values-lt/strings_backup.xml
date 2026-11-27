@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">Profiliai</string>
     <string name="backup_part_profiles_sub">Vardai ir paveikslėliai</string>
     <string name="backup_part_settings">„Arc“ nustatymai</string>
-    <string name="backup_part_settings_sub">Scout, miniatiūros, DNS, pultelio mygtukai ir kt.</string>
+    <string name="backup_part_settings_sub">DanPlus, miniatiūros, DNS, pultelio mygtukai ir kt.</string>
     <string name="backup_part_history">Biblioteka ir žiūrėjimo istorija</string>
     <string name="backup_part_history_sub">Išsaugoti pavadinimai, „Tęsti žiūrėjimą“ ir peržiūros žymės</string>
     <string name="backup_part_history_signed_in">Jūsų „Nuvio“ paskyra tai jau saugo. Atkuriama tik neprisijungusiame įrenginyje.</string>

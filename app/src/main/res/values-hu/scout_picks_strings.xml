@@ -11,7 +11,7 @@
     <string name="scout_picks_row_new">Újdonság neked</string>
     <string name="scout_picks_row_trending">Felkapott neked</string>
     <string name="scout_picks_quick_title">Válassz ötöt, amit imádsz</string>
-    <string name="scout_picks_quick_sub">Így a Scout előnnyel indul. Bármikor módosíthatod Az ízlésed részben.</string>
+    <string name="scout_picks_quick_sub">Így a DanPlus előnnyel indul. Bármikor módosíthatod Az ízlésed részben.</string>
     <string name="scout_picks_quick_row_sub">Gyors mód megmutatni a Scoutnak, mit szeretsz</string>
     <string name="scout_picks_quick_count">%1$d / %2$d</string>
     <string name="scout_picks_quick_done">Kész</string>
@@ -25,10 +25,10 @@
     <string name="scout_picks_words_writing">Írás…</string>
     <string name="scout_picks_words_remove">Eltávolítás</string>
     <string name="scout_picks_sort_title">Az AI rendezze az ajánlataimat</string>
-    <string name="scout_picks_sort_sub">Nagyjából hetente egyszer, a kulcsoddal. A Scout saját ajánlataihoz nem kell AI.</string>
+    <string name="scout_picks_sort_sub">Nagyjából hetente egyszer, a kulcsoddal. A DanPlus saját ajánlataihoz nem kell AI.</string>
     <string name="scout_picks_on">Be</string>
     <string name="scout_picks_off">Ki</string>
-    <string name="scout_picks_sent">Az AI-szolgáltatásodnak megy el a kulcsoddal: kb. 100 cím, amit a Scout talált neked, az ízlésed szavakban, a tetszett és nem tetszett címek, valamint a kihagyott műfajok. A teljes előzményed nem jut el hozzá.</string>
+    <string name="scout_picks_sent">Az AI-szolgáltatásodnak megy el a kulcsoddal: kb. 100 cím, amit a DanPlus talált neked, az ízlésed szavakban, a tetszett és nem tetszett címek, valamint a kihagyott műfajok. A teljes előzményed nem jut el hozzá.</string>
     <string name="scout_picks_refine_violent">Kevésbé erőszakos</string>
     <string name="scout_picks_refine_older">Régebbi</string>
     <string name="scout_picks_refine_newer">Újabb</string>

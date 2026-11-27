@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">回答を読み取れませんでした。もう一度お試しください。</string>
     <string name="scout_question_error_nothing">一致する作品が返ってきませんでした。別の聞き方をお試しください。</string>
     <string name="scout_question_error_rejected">サービスがリクエストを拒否しました。スマホのページで設定を確認してください。</string>
-    <string name="scout_web_title">Scout: 質問とAIキー</string>
+    <string name="scout_web_title">DanPlus: 質問とAIキー</string>
     <string name="scout_web_question_title">質問</string>
     <string name="scout_web_question_placeholder">何を観たい気分ですか?</string>
     <string name="scout_web_question_send">テレビで質問</string>

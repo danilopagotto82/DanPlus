@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">Προφίλ</string>
     <string name="backup_part_profiles_sub">Ονόματα και εικόνες</string>
     <string name="backup_part_settings">Ρυθμίσεις Arc</string>
-    <string name="backup_part_settings_sub">Scout, μικρογραφίες, DNS, κουμπιά τηλεχειριστηρίου και άλλα</string>
+    <string name="backup_part_settings_sub">DanPlus, μικρογραφίες, DNS, κουμπιά τηλεχειριστηρίου και άλλα</string>
     <string name="backup_part_history">Βιβλιοθήκη και ιστορικό προβολής</string>
     <string name="backup_part_history_sub">Αποθηκευμένοι τίτλοι, Συνέχεια παρακολούθησης και σημάνσεις προβολής</string>
     <string name="backup_part_history_signed_in">Ο λογαριασμός σας Nuvio τα κρατά ήδη. Επαναφέρονται μόνο σε συσκευή χωρίς συνδεδεμένο λογαριασμό.</string>

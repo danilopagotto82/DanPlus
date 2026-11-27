@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Neobvezno. Uporablja vaš lasten ključ UI: Claude, OpenAI, Gemini ali Groq</string>
     <string name="scout_question_settings_none">Ni nastavljeno</string>
     <string name="scout_question_settings_on">Vklopljeno</string>
-    <string name="scout_question_search_line">Vprašaj Scout</string>
+    <string name="scout_question_search_line">Vprašaj DanPlus</string>
     <string name="scout_question_mic_listening">Poslušam…</string>
     <string name="scout_question_type_prompt">Vnesite vprašanje</string>
     <string name="scout_question_example_1">\"Filmi, kot je Inception, a brez sanjanja\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Odgovora ni bilo mogoče prebrati. Poskusite znova.</string>
     <string name="scout_question_error_nothing">Ni bilo ustreznih naslovov. Poskusite vprašati drugače.</string>
     <string name="scout_question_error_rejected">Storitev je zahtevo zavrnila. Preverite nastavitve na strani v telefonu.</string>
-    <string name="scout_web_title">Scout: vprašanja in ključ UI</string>
+    <string name="scout_web_title">DanPlus: vprašanja in ključ UI</string>
     <string name="scout_web_question_title">Vprašaj</string>
     <string name="scout_web_question_placeholder">Kaj bi radi gledali?</string>
     <string name="scout_web_question_send">Vprašaj na TV</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Zelo hiter, za začetek brezplačno</string>
     <string name="scout_ai_chatgpt_line">GPT. Plačilo po porabi, zelo poceni</string>
     <string name="scout_ai_claude_line">Anthropic. Plačilo po porabi, najboljši predlogi</string>
-    <string name="scout_ai_stored_lead">Scout uporablja vaš lasten ključ. V tej napravi ostane šifriran in se ne sinhronizira z vašim računom.</string>
+    <string name="scout_ai_stored_lead">DanPlus uporablja vaš lasten ključ. V tej napravi ostane šifriran in se ne sinhronizira z vašim računom.</string>
     <string name="scout_ai_add_title">Dodajte ali spremenite ključ za %1$s</string>
     <string name="scout_ai_step_1">Skenirajte s telefonom</string>
     <string name="scout_ai_step_2">Odprite povezavo, da dobite ključ</string>

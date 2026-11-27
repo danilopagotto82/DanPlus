@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Tuhaf, zekice ve hiçbir şeye benzemeyen.</string>
     <string name="scout_premix_why_world">Oranın komedileri, suç dizileri ve daha fazlası, sizin için seçildi.</string>
 
-    <string name="scout_premix_own_sub">Birkaç şey seçin. Dizileri Scout seçer.</string>
+    <string name="scout_premix_own_sub">Birkaç şey seçin. Dizileri DanPlus seçer.</string>
     <string name="scout_premix_own_decade">On yıl</string>
     <string name="scout_premix_own_kind">Tür</string>
     <string name="scout_premix_own_mood">Ruh hali</string>
@@ -93,11 +93,11 @@
     <plurals name="scout_premix_goes_in">
         <item quantity="other">Karışımda %d dizi var</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Yalnızca birkaç dizi uyuyor, bu yüzden Scout komşu on yılları da ekledi.</string>
-    <string name="scout_premix_widened_votes">Yalnızca birkaç dizi uyuyor, bu yüzden Scout daha az bilinenleri de ekledi.</string>
-    <string name="scout_premix_widened_mood">Yalnızca birkaç dizi uyuyor, bu yüzden Scout ruh halini dışarıda bıraktı.</string>
+    <string name="scout_premix_widened_decade">Yalnızca birkaç dizi uyuyor, bu yüzden DanPlus komşu on yılları da ekledi.</string>
+    <string name="scout_premix_widened_votes">Yalnızca birkaç dizi uyuyor, bu yüzden DanPlus daha az bilinenleri de ekledi.</string>
+    <string name="scout_premix_widened_mood">Yalnızca birkaç dizi uyuyor, bu yüzden DanPlus ruh halini dışarıda bıraktı.</string>
     <string name="scout_premix_too_few">Yalnızca birkaç dizi uyuyor. Başka bir on yıl deneyin.</string>
-    <string name="scout_premix_no_link_skipped">%1$s için kaynak yok, bu yüzden Scout başka bir bölüm seçti.</string>
+    <string name="scout_premix_no_link_skipped">%1$s için kaynak yok, bu yüzden DanPlus başka bir bölüm seçti.</string>
     <string name="scout_premix_no_link_stopped">Son 3 bölüm için kaynak yok. Bunu denemek için Oynat düğmesine ya da Yeniden karıştır düğmesine basın.</string>
     <string name="scout_premix_none">Bu seçimlere uyan bir şey yok. Başka bir on yıl veya tür deneyin.</string>
 </resources>

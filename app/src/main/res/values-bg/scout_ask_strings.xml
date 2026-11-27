@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">По избор. Използва вашия собствен AI ключ: Claude, OpenAI, Gemini или Groq</string>
     <string name="scout_question_settings_none">Не е настроено</string>
     <string name="scout_question_settings_on">Включено</string>
-    <string name="scout_question_search_line">Питай Scout</string>
+    <string name="scout_question_search_line">Питай DanPlus</string>
     <string name="scout_question_mic_listening">Слушам…</string>
     <string name="scout_question_type_prompt">Напишете въпроса си</string>
     <string name="scout_question_example_1">\"Филми като Inception, но без сънищата\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Отговорът не можа да бъде прочетен. Опитайте отново.</string>
     <string name="scout_question_error_nothing">Не се върнаха подходящи заглавия. Опитайте да попитате по друг начин.</string>
     <string name="scout_question_error_rejected">Услугата отказа заявката. Проверете настройките на страницата в телефона.</string>
-    <string name="scout_web_title">Scout: въпроси и AI ключ</string>
+    <string name="scout_web_title">DanPlus: въпроси и AI ключ</string>
     <string name="scout_web_question_title">Питай</string>
     <string name="scout_web_question_placeholder">Какво ви се гледа?</string>
     <string name="scout_web_question_send">Питай на телевизора</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Много бърз, безплатно в началото</string>
     <string name="scout_ai_chatgpt_line">GPT. Плащане при ползване, много евтин</string>
     <string name="scout_ai_claude_line">Anthropic. Плащане при ползване, най-добри препоръки</string>
-    <string name="scout_ai_stored_lead">Scout използва вашия собствен ключ. Той остава криптиран на това устройство и не се синхронизира с акаунта ви.</string>
+    <string name="scout_ai_stored_lead">DanPlus използва вашия собствен ключ. Той остава криптиран на това устройство и не се синхронизира с акаунта ви.</string>
     <string name="scout_ai_add_title">Добавяне или смяна на ключа за %1$s</string>
     <string name="scout_ai_step_1">Сканирайте това с телефона си</string>
     <string name="scout_ai_step_2">Отворете връзката, за да вземете ключ</string>

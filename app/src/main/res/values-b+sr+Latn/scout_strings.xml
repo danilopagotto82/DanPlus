@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Prati ono što ste poslednje završili</string>
     <string name="scout_row_gems">Skriveni dragulji</string>
     <string name="scout_row_gems_sub">Dobro ocenjeni naslovi koje je videlo malo ljudi</string>
-    <string name="scout_row_tiles">Scout pločice</string>
+    <string name="scout_row_tiles">DanPlus pločice</string>
     <string name="scout_row_tiles_sub">Iznenadi me, raspoloženja, decenije</string>
     <string name="scout_ratings_enabled">Ocenjivanje naslova</string>
     <string name="scout_ratings_enabled_sub">Prikazuje dugme Oceni, palčeve u meniju dugog pritiska i pitanje posle filma</string>
@@ -39,7 +39,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Pritisnite OK na naslovu za promenu ili brisanje ocene</string>
     <string name="scout_row_because_title">Jer ste gledali %1$s</string>
-    <string name="scout_tile_surprise">Iznenadi me</string>
     <string name="scout_tile_more">Više…</string>
     <string name="scout_picker_title">Pronađite nešto</string>
     <string name="scout_save_row">Sačuvaj kao red na Početnoj</string>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cinema_session">Minha sessão de cinema</string>
+    <string name="cinema_session_description">Escolha o clima e o tempo disponível para a companhia selecionada.</string>
+    <string name="cinema_quick">Escolha por mim</string>
+    <string name="cinema_quick_description">O filme que mais combina com você neste momento.</string>
+    <string name="cinema_choice">A ESCOLHA DO DANPLUS</string>
+    <string name="cinema_mood">Qual é o clima de hoje?</string>
+    <string name="cinema_any_mood">Qualquer clima</string>
+    <string name="cinema_no_limit">Sem limite</string>
+    <string name="cinema_minutes">%1$d min</string>
+    <string name="cinema_find">Encontrar minha sessão perfeita</string>
+    <string name="cinema_searching">Buscando um filme para esta sessão…</string>
+    <string name="cinema_empty">Nenhum filme elegível foi encontrado com esses filtros.</string>
+    <string name="cinema_adjust">Ajustar a sessão</string>
+    <string name="cinema_reason">Por que escolhemos este filme?</string>
+    <string name="cinema_mood_reason">Combina com o clima selecionado (%1$s) e atende aos filtros da sessão.</string>
+    <string name="cinema_filter_reason">Este filme já foi lançado e atende aos filtros e à duração aplicáveis.</string>
+    <string name="cinema_another">Outra escolha</string>
+    <string name="cinema_rating">TMDB %1$.1f</string>
+    <string name="cinema_trailer">Trailer</string>
+    <string name="cinema_trailer_loading">Carregando trailer…</string>
+    <string name="cinema_trailer_unavailable">Trailer indisponível.</string>
+    <string name="cinema_back_to_pick">Voltar à escolha</string>
+    <string name="cinema_company">Companhia</string>
+    <string name="cinema_taste_adventure">Apaixonado por grandes aventuras</string>
+    <string name="cinema_taste_suspense">Mestre do suspense</string>
+    <string name="cinema_taste_worlds">Cinéfilo de outros mundos</string>
+    <string name="cinema_taste_explorer">Explorador de histórias</string>
+</resources>

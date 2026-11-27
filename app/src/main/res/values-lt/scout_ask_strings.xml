@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Neprivaloma. Naudoja jūsų pačių DI raktą: Claude, OpenAI, Gemini arba Groq</string>
     <string name="scout_question_settings_none">Nenustatyta</string>
     <string name="scout_question_settings_on">Įjungta</string>
-    <string name="scout_question_search_line">Klauskite Scout</string>
+    <string name="scout_question_search_line">Klauskite DanPlus</string>
     <string name="scout_question_mic_listening">Klausau…</string>
     <string name="scout_question_type_prompt">Įveskite savo klausimą</string>
     <string name="scout_question_example_1">\"Filmai kaip Inception, bet be sapnų\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Nepavyko perskaityti atsakymo. Bandykite dar kartą.</string>
     <string name="scout_question_error_nothing">Tinkamų pavadinimų negauta. Pabandykite paklausti kitaip.</string>
     <string name="scout_question_error_rejected">Paslauga atmetė užklausą. Patikrinkite nustatymus telefono puslapyje.</string>
-    <string name="scout_web_title">Scout: klausimai ir DI raktas</string>
+    <string name="scout_web_title">DanPlus: klausimai ir DI raktas</string>
     <string name="scout_web_question_title">Klausti</string>
     <string name="scout_web_question_placeholder">Ką norėtumėte žiūrėti?</string>
     <string name="scout_web_question_send">Klausti per TV</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Labai spartus, pradžioje nemokamai</string>
     <string name="scout_ai_chatgpt_line">GPT. Mokama pagal naudojimą, labai pigu</string>
     <string name="scout_ai_claude_line">Anthropic. Mokama pagal naudojimą, geriausios rekomendacijos</string>
-    <string name="scout_ai_stored_lead">Scout naudoja jūsų pačių raktą. Jis lieka užšifruotas šiame įrenginyje ir nesinchronizuojamas su jūsų paskyra.</string>
+    <string name="scout_ai_stored_lead">DanPlus naudoja jūsų pačių raktą. Jis lieka užšifruotas šiame įrenginyje ir nesinchronizuojamas su jūsų paskyra.</string>
     <string name="scout_ai_add_title">Pridėkite arba pakeiskite %1$s raktą</string>
     <string name="scout_ai_step_1">Nuskaitykite telefonu</string>
     <string name="scout_ai_step_2">Atidarykite nuorodą ir gaukite raktą</string>

@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Mærkelige, kløgtige og anderledes end alt andet.</string>
     <string name="scout_premix_why_world">Komedier, krimier og meget mere derfra, valgt til dig.</string>
 
-    <string name="scout_premix_own_sub">Vælg et par ting. Scout vælger serierne.</string>
+    <string name="scout_premix_own_sub">Vælg et par ting. DanPlus vælger serierne.</string>
     <string name="scout_premix_own_decade">Årti</string>
     <string name="scout_premix_own_kind">Type</string>
     <string name="scout_premix_own_mood">Stemning</string>
@@ -94,11 +94,11 @@
         <item quantity="one">%d serie kommer med</item>
         <item quantity="other">%d serier kommer med</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Kun få serier passer, så Scout har taget årtierne omkring med.</string>
-    <string name="scout_premix_widened_votes">Kun få serier passer, så Scout har taget mindre kendte med.</string>
-    <string name="scout_premix_widened_mood">Kun få serier passer, så Scout har ladet stemningen ude.</string>
+    <string name="scout_premix_widened_decade">Kun få serier passer, så DanPlus har taget årtierne omkring med.</string>
+    <string name="scout_premix_widened_votes">Kun få serier passer, så DanPlus har taget mindre kendte med.</string>
+    <string name="scout_premix_widened_mood">Kun få serier passer, så DanPlus har ladet stemningen ude.</string>
     <string name="scout_premix_too_few">Kun få serier passer. Prøv et andet årti.</string>
-    <string name="scout_premix_no_link_skipped">Ingen kilder til %1$s, så Scout valgte et andet afsnit.</string>
+    <string name="scout_premix_no_link_skipped">Ingen kilder til %1$s, så DanPlus valgte et andet afsnit.</string>
     <string name="scout_premix_no_link_stopped">Ingen kilder til de sidste 3 afsnit. Tryk på Afspil for at prøve dette, eller Bland igen.</string>
     <string name="scout_premix_none">Intet passer til disse valg. Prøv et andet årti eller en anden type.</string>
 </resources>

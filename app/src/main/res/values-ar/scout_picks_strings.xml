@@ -11,8 +11,8 @@
     <string name="scout_picks_row_new">جديد لك</string>
     <string name="scout_picks_row_trending">رائج لك</string>
     <string name="scout_picks_quick_title">اختر خمسة تحبها</string>
-    <string name="scout_picks_quick_sub">هذا يمنح Scout بداية أسرع. يمكنك تغييرها في أي وقت من ذوقك.</string>
-    <string name="scout_picks_quick_row_sub">طريقة سريعة لتعريف Scout بما تستمتع به</string>
+    <string name="scout_picks_quick_sub">هذا يمنح DanPlus بداية أسرع. يمكنك تغييرها في أي وقت من ذوقك.</string>
+    <string name="scout_picks_quick_row_sub">طريقة سريعة لتعريف DanPlus بما تستمتع به</string>
     <string name="scout_picks_quick_count">%1$d من %2$d</string>
     <string name="scout_picks_quick_done">تم</string>
     <string name="scout_picks_quick_skip">تخطي</string>
@@ -25,10 +25,10 @@
     <string name="scout_picks_words_writing">جارٍ الكتابة…</string>
     <string name="scout_picks_words_remove">إزالة</string>
     <string name="scout_picks_sort_title">دع الذكاء الاصطناعي يرتب اختياراتي</string>
-    <string name="scout_picks_sort_sub">مرة في الأسبوع تقريبًا باستخدام مفتاحك. اختيارات Scout نفسها لا تحتاج إلى ذكاء اصطناعي.</string>
+    <string name="scout_picks_sort_sub">مرة في الأسبوع تقريبًا باستخدام مفتاحك. اختيارات DanPlus نفسها لا تحتاج إلى ذكاء اصطناعي.</string>
     <string name="scout_picks_on">تشغيل</string>
     <string name="scout_picks_off">إيقاف</string>
-    <string name="scout_picks_sent">يُرسل إلى خدمة الذكاء الاصطناعي التي اخترتها بمفتاحك: نحو 100 عنوان وجدها Scout لك، وذوقك بالكلمات، والعناوين التي أعجبتك والتي لم تعجبك، والأنواع التي تستبعدها. لا يصلها سجلك الكامل.</string>
+    <string name="scout_picks_sent">يُرسل إلى خدمة الذكاء الاصطناعي التي اخترتها بمفتاحك: نحو 100 عنوان وجدها DanPlus لك، وذوقك بالكلمات، والعناوين التي أعجبتك والتي لم تعجبك، والأنواع التي تستبعدها. لا يصلها سجلك الكامل.</string>
     <string name="scout_picks_refine_violent">أقل عنفًا</string>
     <string name="scout_picks_refine_older">أقدم</string>
     <string name="scout_picks_refine_newer">أحدث</string>

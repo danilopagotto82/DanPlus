@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Παράξενες, έξυπνες και διαφορετικές από όλες τις άλλες.</string>
     <string name="scout_premix_why_world">Κωμωδίες, αστυνομικά και πολλά άλλα από εκεί, διαλεγμένα για εσάς.</string>
 
-    <string name="scout_premix_own_sub">Επιλέξτε μερικά πράγματα. Το Scout διαλέγει τις σειρές.</string>
+    <string name="scout_premix_own_sub">Επιλέξτε μερικά πράγματα. Το DanPlus διαλέγει τις σειρές.</string>
     <string name="scout_premix_own_decade">Δεκαετία</string>
     <string name="scout_premix_own_kind">Είδος</string>
     <string name="scout_premix_own_mood">Διάθεση</string>
@@ -94,11 +94,11 @@
         <item quantity="one">Μπαίνει %d σειρά</item>
         <item quantity="other">Μπαίνουν %d σειρές</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Ταιριάζουν μόνο λίγες σειρές, οπότε το Scout πρόσθεσε τις διπλανές δεκαετίες.</string>
-    <string name="scout_premix_widened_votes">Ταιριάζουν μόνο λίγες σειρές, οπότε το Scout πρόσθεσε λιγότερο γνωστές.</string>
-    <string name="scout_premix_widened_mood">Ταιριάζουν μόνο λίγες σειρές, οπότε το Scout άφησε έξω τη διάθεση.</string>
+    <string name="scout_premix_widened_decade">Ταιριάζουν μόνο λίγες σειρές, οπότε το DanPlus πρόσθεσε τις διπλανές δεκαετίες.</string>
+    <string name="scout_premix_widened_votes">Ταιριάζουν μόνο λίγες σειρές, οπότε το DanPlus πρόσθεσε λιγότερο γνωστές.</string>
+    <string name="scout_premix_widened_mood">Ταιριάζουν μόνο λίγες σειρές, οπότε το DanPlus άφησε έξω τη διάθεση.</string>
     <string name="scout_premix_too_few">Ταιριάζουν μόνο λίγες σειρές. Δοκιμάστε άλλη δεκαετία.</string>
-    <string name="scout_premix_no_link_skipped">Δεν βρέθηκαν πηγές για %1$s, οπότε το Scout επέλεξε άλλο επεισόδιο.</string>
+    <string name="scout_premix_no_link_skipped">Δεν βρέθηκαν πηγές για %1$s, οπότε το DanPlus επέλεξε άλλο επεισόδιο.</string>
     <string name="scout_premix_no_link_stopped">Δεν βρέθηκαν πηγές για τα τελευταία 3 επεισόδια. Πατήστε Αναπαραγωγή για να δοκιμάσετε αυτό, ή Νέα ανάμειξη.</string>
     <string name="scout_premix_none">Τίποτα δεν ταιριάζει με αυτές τις επιλογές. Δοκιμάστε άλλη δεκαετία ή είδος.</string>
 </resources>

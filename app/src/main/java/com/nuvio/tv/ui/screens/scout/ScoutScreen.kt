@@ -233,6 +233,8 @@ fun ScoutScreen(
     var chosenGenre by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmFresh by rememberSaveable { mutableStateOf(false) }
     var rating by remember { mutableStateOf<ScoutPick?>(null) }
+    var cinemaPickingCompany by remember { mutableStateOf(false) }
+    var cinema by remember { mutableStateOf<ScoutAudience?>(null) }
     var discovery by remember { mutableStateOf<ScoutAudience?>(null) }
     var mixesOpen by rememberSaveable { mutableStateOf(startOnMixes) }
     var mixesOpened by remember { mutableStateOf(false) }
@@ -389,7 +391,6 @@ fun ScoutScreen(
                             shown = hero,
                             logo = state.heroLogo,
                             compact = compact,
-                            watched = appliesWatchFilter && watchDisplay.isWatched(hero.pick),
                             ratingsOn = scoutProfile.settings.ratingsEnabled,
                             rating = scoutProfile.rating("tmdb:${hero.pick.tmdbId}"),
                             focus = ::focus,
@@ -420,7 +421,9 @@ fun ScoutScreen(
                     state = state,
                     watchDisplay = watchDisplay.takeIf { appliesWatchFilter },
                     onToggleWatched = { viewModel.toggleShowWatched(watchDisplay) },
+                    onCinema = { cinema = viewModel.discoveryAudience() },
                     onSurprise = viewModel::surprise,
+                    onRenew = viewModel::threeMore,
                     onAdvanced = { discovery = viewModel.discoveryAudience() },
                     onAsk = onAsk?.let { { viewModel.openAsk() } },
                     focus = ::focus
@@ -443,7 +446,6 @@ fun ScoutScreen(
                         when {
                             state.asking -> viewModel.backToMoods()
                             item.key == TAB_FILTERS -> onOpenPicker()
-                            item.key == SCOUT_FOCUS_THREE_MORE -> viewModel.threeMore()
                             item.key.startsWith(TAB_TUNE) -> ScoutTune.entries.firstOrNull { it.code == item.key.removePrefix(TAB_TUNE) }?.let(viewModel::pressTune)
                         }
                     }
@@ -487,12 +489,52 @@ fun ScoutScreen(
         )
     }
 
+    LaunchedEffect(activeId, state.others, state.answers.family, cinemaPickingCompany) {
+        if (!cinemaPickingCompany && cinema?.let(viewModel::cinemaAudienceIsCurrent) == false) {
+            cinema = null
+        }
+    }
+    LaunchedEffect(cinema) {
+        if (cinema == null && viewModel.focusKey == "cinema") {
+            requesters["cinema"]?.requestFocusAfterFrames()
+        }
+    }
+    cinema?.let { audience ->
+        ScoutCinemaDialog(
+            initialMood = state.answers.mood,
+            visible = !cinemaPickingCompany,
+            onPickCompany = {
+                cinemaPickingCompany = true
+                choosing = CHOOSING_WHO
+            },
+            choose = { mood, duration, rejected, configured ->
+                viewModel.cinemaChoice(audience, mood, duration, rejected, configured)
+            },
+            loadTrailer = { pick -> viewModel.cinemaTrailer(audience, pick) },
+            onDismiss = { cinema = null },
+            onPlay = { choice ->
+                if (viewModel.cinemaAudienceIsCurrent(audience)) {
+                    val pick = choice.shown.pick
+                    cinema = null
+                    viewModel.focusPending = "cinema"
+                    onPlayTitle("tmdb:${pick.tmdbId}", "movie", pick.backdrop, choice.logo)
+                }
+            }
+        )
+    }
+
     if (state.pinFor == null) when (choosing) {
         CHOOSING_LENGTH -> ScoutLengthDialog(state.answers, onChoose = {
             viewModel.pressTime(it)
             choosing = null
         }, onDismiss = { choosing = null })
-        CHOOSING_WHO -> ScoutWhoDialog(state, profiles, pictures, activeId, viewModel, onDismiss = { choosing = null })
+        CHOOSING_WHO -> ScoutWhoDialog(state, profiles, pictures, activeId, viewModel, onDismiss = {
+            choosing = null
+            if (cinemaPickingCompany) {
+                cinema = viewModel.discoveryAudience()
+                cinemaPickingCompany = false
+            }
+        })
     }
 
     rating?.takeIf { state.row.any { visible -> visible.key == it.key } }?.let { pick ->
@@ -568,7 +610,6 @@ private fun scoutTabItems(state: ScoutScreenState, listEmojis: Boolean): List<Sc
     if (state.asking) return listOf(ScoutTabItem(SCOUT_FOCUS_FOR_YOU, stringResource(R.string.scout_for_you), false))
     if (state.surprise) {
         return buildList {
-            add(ScoutTabItem(SCOUT_FOCUS_THREE_MORE, stringResource(R.string.scout_tune_more), false))
             ScoutTune.entries.filter { it != ScoutTune.FROM_COUNTRY }.forEach {
                 add(ScoutTabItem(TAB_TUNE + it.code, stringResource(it.labelRes), it in answers.tunes))
             }
@@ -707,7 +748,6 @@ private fun ScoutHeroBlock(
     shown: ScoutShownPick,
     logo: String?,
     compact: Boolean,
-    watched: Boolean,
     ratingsOn: Boolean,
     rating: ScoutRating?,
     focus: (String) -> Modifier,
@@ -722,10 +762,7 @@ private fun ScoutHeroBlock(
     var inLibrary by remember(pick.key) { mutableStateOf(false) }
     LaunchedEffect(pick.key) { inLibrary = controller.isInLibrary(pick.toPreview()) }
     Column(verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)) {
-        Box {
-            ScoutHeroLogo(logo, pick.name, if (compact) LOGO_SMALL else LOGO_TALL)
-            if (watched) ScoutWatchedMark(Modifier.align(Alignment.TopEnd))
-        }
+        ScoutHeroLogo(logo, pick.name, if (compact) LOGO_SMALL else LOGO_TALL)
         Row(horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm), modifier = Modifier.focusGroup()) {
             ScoutChip(stringResource(R.string.hero_play), primary = !v2, onClick = onPlay, modifier = focus("hero_play"), icon = {
                 Icon(Icons.Default.PlayArrow, null, Modifier.size(18.dp))
@@ -743,17 +780,28 @@ private fun ScoutHeroBlock(
                 ScoutChip(stringResource(R.string.scout_rate), onClick = onRate, modifier = focus("hero_rate"), icon = { ScoutRatingIcon(rating, 18.dp) })
             }
         }
+        val badgeColor = Color(0xFFD8B675)
         Text(
             text = scoutReasonLine(shown),
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = NuvioTheme.colors.TextPrimary,
+            color = badgeColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth(.62f)
+            modifier = Modifier.widthIn(max = 420.dp)
+                .background(Color(0xD91B1813), RoundedCornerShape(8.dp))
+                .border(1.dp, badgeColor.copy(alpha = .45f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp, vertical = 4.dp)
         )
         pick.overview?.takeIf { it.isNotBlank() }?.let { overview ->
-            ScoutSynopsis(pick.name, overview, modifier = Modifier.fillMaxWidth(.5f), maxLines = if (compact) 1 else 2)
+            ScoutSynopsis(
+                pick.name,
+                overview,
+                modifier = Modifier.fillMaxWidth(.58f)
+                    .background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = .55f), Color.Transparent)))
+                    .padding(horizontal = 4.dp),
+                maxLines = if (compact) 2 else 3
+            )
         }
         val detail = shown.detail
         MediaMetadataChips(
@@ -798,7 +846,9 @@ private fun ScoutMoodLine(
     state: ScoutScreenState,
     watchDisplay: ScoutWatchDisplay?,
     onToggleWatched: () -> Unit,
+    onCinema: () -> Unit,
     onSurprise: () -> Unit,
+    onRenew: () -> Unit,
     onAdvanced: () -> Unit,
     onAsk: (() -> Unit)?,
     focus: (String) -> Modifier
@@ -860,12 +910,19 @@ private fun ScoutMoodLine(
             )
         }
         ScoutChip(
+            stringResource(R.string.scout_title),
+            onClick = onCinema,
+            modifier = focus("cinema"),
+            primary = true,
+            icon = { Icon(Icons.Default.PlayArrow, null, Modifier.size(16.dp)) }
+        )
+        ScoutChip(
             stringResource(R.string.scout_tile_surprise),
             onClick = onSurprise,
             modifier = focus("tab_surprise"),
-            primary = true,
             icon = { Icon(Icons.Default.Shuffle, null, Modifier.size(16.dp)) }
         )
+        ScoutChip(stringResource(R.string.scout_tune_more), onRenew, focus(SCOUT_FOCUS_THREE_MORE))
         if (watchDisplay != null) {
             ScoutChip(stringResource(R.string.e05_scout_filters), onAdvanced, focus("advanced_filters"))
             ScoutWatchedButton(
@@ -981,8 +1038,11 @@ private fun ScoutWatchedMark(modifier: Modifier = Modifier) {
     Icon(
         Icons.Default.Check,
         contentDescription = stringResource(R.string.d12_watched),
-        tint = Color(0xFF63CFE9),
-        modifier = modifier.padding(8.dp).size(20.dp)
+        tint = Color(0xFFD8B675),
+        modifier = modifier.padding(8.dp).size(24.dp)
+            .background(Color(0xF51A1712), CircleShape)
+            .border(1.dp, Color(0xFFD8B675), CircleShape)
+            .padding(4.dp)
     )
 }
 
@@ -1004,7 +1064,7 @@ private fun ScoutPick.toPreview() = MetaPreview(
 )
 
 @Composable
-private fun scoutReasonLine(shown: ScoutShownPick): String = shown.reason?.takeIf { it.isNotBlank() } ?: when (val why = scoutWhy(shown.pick, shown.detail, shown.suitsEveryone)) {
+internal fun scoutReasonLine(shown: ScoutShownPick): String = shown.reason?.takeIf { it.isNotBlank() } ?: when (val why = scoutWhy(shown.pick, shown.detail, shown.suitsEveryone)) {
     ScoutWhy.SuitsEveryone -> stringResource(R.string.scout_why_everyone)
     is ScoutWhy.Close -> stringResource(R.string.scout_why_close, why.name)
     ScoutWhy.Finished -> stringResource(R.string.scout_why_finished)

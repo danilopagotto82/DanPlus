@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Čudne, pametne in drugačne od vsega drugega.</string>
     <string name="scout_premix_why_world">Komedije, kriminalke in drugo, posneto tam, izbrano za vas.</string>
 
-    <string name="scout_premix_own_sub">Izberite nekaj stvari. Serije izbere Scout.</string>
+    <string name="scout_premix_own_sub">Izberite nekaj stvari. Serije izbere DanPlus.</string>
     <string name="scout_premix_own_decade">Desetletje</string>
     <string name="scout_premix_own_kind">Vrsta</string>
     <string name="scout_premix_own_mood">Razpoloženje</string>
@@ -96,11 +96,11 @@
         <item quantity="few">%d serije v miksu</item>
         <item quantity="other">%d serij v miksu</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Ustreza le nekaj serij, zato je Scout dodal sosednji desetletji.</string>
-    <string name="scout_premix_widened_votes">Ustreza le nekaj serij, zato je Scout dodal manj znane.</string>
-    <string name="scout_premix_widened_mood">Ustreza le nekaj serij, zato je Scout izpustil razpoloženje.</string>
+    <string name="scout_premix_widened_decade">Ustreza le nekaj serij, zato je DanPlus dodal sosednji desetletji.</string>
+    <string name="scout_premix_widened_votes">Ustreza le nekaj serij, zato je DanPlus dodal manj znane.</string>
+    <string name="scout_premix_widened_mood">Ustreza le nekaj serij, zato je DanPlus izpustil razpoloženje.</string>
     <string name="scout_premix_too_few">Ustreza le nekaj serij. Poskusite z drugim desetletjem.</string>
-    <string name="scout_premix_no_link_skipped">Ni virov za %1$s, zato je Scout izbral drugo epizodo.</string>
+    <string name="scout_premix_no_link_skipped">Ni virov za %1$s, zato je DanPlus izbral drugo epizodo.</string>
     <string name="scout_premix_no_link_stopped">Ni virov za zadnje 3 epizode. Pritisnite Predvajaj, da poskusite to, ali Znova premešaj.</string>
     <string name="scout_premix_none">Nič ne ustreza tem izbiram. Poskusite z drugim desetletjem ali vrsto.</string>
 </resources>

@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">Perfis</string>
     <string name="backup_part_profiles_sub">Nomes e imagens</string>
     <string name="backup_part_settings">Definições do Arc</string>
-    <string name="backup_part_settings_sub">Scout, miniaturas, DNS, botões do comando e mais</string>
+    <string name="backup_part_settings_sub">DanPlus, miniaturas, DNS, botões do comando e mais</string>
     <string name="backup_part_history">Biblioteca e histórico de visualização</string>
     <string name="backup_part_history_sub">Títulos guardados, Continuar a ver e marcas de visto</string>
     <string name="backup_part_history_signed_in">A tua conta Nuvio já guarda isto. Só é restaurado numa box sem sessão iniciada.</string>

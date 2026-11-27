@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Vreemd, slim en anders dan al het andere.</string>
     <string name="scout_premix_why_world">Komedies, misdaad en meer die daar zijn gemaakt, voor jou gekozen.</string>
 
-    <string name="scout_premix_own_sub">Kies een paar dingen. Scout kiest de series.</string>
+    <string name="scout_premix_own_sub">Kies een paar dingen. DanPlus kiest de series.</string>
     <string name="scout_premix_own_decade">Decennium</string>
     <string name="scout_premix_own_kind">Soort</string>
     <string name="scout_premix_own_mood">Stemming</string>
@@ -94,11 +94,11 @@
         <item quantity="one">%d serie gaat erin</item>
         <item quantity="other">%d series gaan erin</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Er pasten maar weinig series, dus Scout nam de decennia ernaast erbij.</string>
-    <string name="scout_premix_widened_votes">Er pasten maar weinig series, dus Scout voegde minder bekende toe.</string>
-    <string name="scout_premix_widened_mood">Er pasten maar weinig series, dus Scout liet de stemming weg.</string>
+    <string name="scout_premix_widened_decade">Er pasten maar weinig series, dus DanPlus nam de decennia ernaast erbij.</string>
+    <string name="scout_premix_widened_votes">Er pasten maar weinig series, dus DanPlus voegde minder bekende toe.</string>
+    <string name="scout_premix_widened_mood">Er pasten maar weinig series, dus DanPlus liet de stemming weg.</string>
     <string name="scout_premix_too_few">Er passen maar weinig series. Probeer een ander decennium.</string>
-    <string name="scout_premix_no_link_skipped">Geen bronnen voor %1$s, dus Scout koos een andere aflevering.</string>
+    <string name="scout_premix_no_link_skipped">Geen bronnen voor %1$s, dus DanPlus koos een andere aflevering.</string>
     <string name="scout_premix_no_link_stopped">Geen bronnen voor de laatste 3 afleveringen. Druk op Afspelen om deze te proberen, of op Opnieuw mixen.</string>
     <string name="scout_premix_none">Niets past bij deze keuzes. Probeer een ander decennium of een andere soort.</string>
 </resources>

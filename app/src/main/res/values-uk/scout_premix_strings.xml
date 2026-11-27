@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Дивні, розумні й ні на що не схожі.</string>
     <string name="scout_premix_why_world">Комедії, кримінал та інше, зняте там і дібране для вас.</string>
 
-    <string name="scout_premix_own_sub">Виберіть кілька параметрів. Серіали дібере Scout.</string>
+    <string name="scout_premix_own_sub">Виберіть кілька параметрів. Серіали дібере DanPlus.</string>
     <string name="scout_premix_own_decade">Десятиліття</string>
     <string name="scout_premix_own_kind">Тип</string>
     <string name="scout_premix_own_mood">Настрій</string>
@@ -96,11 +96,11 @@
         <item quantity="many">%d серіалів у міксі</item>
         <item quantity="other">%d серіалу в міксі</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Підходить лише кілька серіалів, тому Scout додав сусідні десятиліття.</string>
-    <string name="scout_premix_widened_votes">Підходить лише кілька серіалів, тому Scout додав менш відомі.</string>
-    <string name="scout_premix_widened_mood">Підходить лише кілька серіалів, тому Scout не став зважати на настрій.</string>
+    <string name="scout_premix_widened_decade">Підходить лише кілька серіалів, тому DanPlus додав сусідні десятиліття.</string>
+    <string name="scout_premix_widened_votes">Підходить лише кілька серіалів, тому DanPlus додав менш відомі.</string>
+    <string name="scout_premix_widened_mood">Підходить лише кілька серіалів, тому DanPlus не став зважати на настрій.</string>
     <string name="scout_premix_too_few">Підходить лише кілька серіалів. Спробуйте інше десятиліття.</string>
-    <string name="scout_premix_no_link_skipped">Немає джерел для %1$s, тому Scout обрав іншу серію.</string>
+    <string name="scout_premix_no_link_skipped">Немає джерел для %1$s, тому DanPlus обрав іншу серію.</string>
     <string name="scout_premix_no_link_stopped">Немає джерел для останніх 3 серій. Натисніть Дивитися, щоб спробувати цю, або Перемішати.</string>
     <string name="scout_premix_none">Під ці параметри нічого не підходить. Спробуйте інше десятиліття або тип.</string>
 </resources>

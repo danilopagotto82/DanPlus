@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Udda, kluriga och olika allt annat.</string>
     <string name="scout_premix_why_world">Komedier, kriminal och mer därtill, gjorda där och utvalda åt dig.</string>
 
-    <string name="scout_premix_own_sub">Välj några saker. Scout väljer serierna.</string>
+    <string name="scout_premix_own_sub">Välj några saker. DanPlus väljer serierna.</string>
     <string name="scout_premix_own_decade">Årtionde</string>
     <string name="scout_premix_own_kind">Typ</string>
     <string name="scout_premix_own_mood">Stämning</string>
@@ -94,11 +94,11 @@
         <item quantity="one">%d serie ingår</item>
         <item quantity="other">%d serier ingår</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Bara några få serier passar, så Scout lade till årtiondena runt omkring.</string>
-    <string name="scout_premix_widened_votes">Bara några få serier passar, så Scout lade till mindre kända.</string>
-    <string name="scout_premix_widened_mood">Bara några få serier passar, så Scout lät bli att ta hänsyn till stämningen.</string>
+    <string name="scout_premix_widened_decade">Bara några få serier passar, så DanPlus lade till årtiondena runt omkring.</string>
+    <string name="scout_premix_widened_votes">Bara några få serier passar, så DanPlus lade till mindre kända.</string>
+    <string name="scout_premix_widened_mood">Bara några få serier passar, så DanPlus lät bli att ta hänsyn till stämningen.</string>
     <string name="scout_premix_too_few">Bara några få serier passar. Testa ett annat årtionde.</string>
-    <string name="scout_premix_no_link_skipped">Inga källor för %1$s, så Scout valde ett annat avsnitt.</string>
+    <string name="scout_premix_no_link_skipped">Inga källor för %1$s, så DanPlus valde ett annat avsnitt.</string>
     <string name="scout_premix_no_link_stopped">Inga källor för de senaste 3 avsnitten. Tryck på Spela för att prova det här, eller Mixa om.</string>
     <string name="scout_premix_none">Inget passar de här valen. Testa ett annat årtionde eller en annan typ.</string>
 </resources>

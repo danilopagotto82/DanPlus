@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Sleduje, co jste naposledy dokončili</string>
     <string name="scout_row_gems">Skryté klenoty</string>
     <string name="scout_row_gems_sub">Dobře hodnocené tituly, které vidělo málo lidí</string>
-    <string name="scout_row_tiles">Dlaždice Scout</string>
+    <string name="scout_row_tiles">Dlaždice DanPlus</string>
     <string name="scout_row_tiles_sub">Překvap mě, nálady, dekády</string>
     <string name="scout_ratings_enabled">Hodnotit tituly</string>
     <string name="scout_ratings_enabled_sub">Zobrazí tlačítko Hodnotit, palce v nabídce dlouhého stisku a otázku po filmu</string>
@@ -40,7 +40,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Stiskněte OK na titulu pro změnu nebo vymazání hodnocení</string>
     <string name="scout_row_because_title">Protože jste sledovali %1$s</string>
-    <string name="scout_tile_surprise">Překvap mě</string>
     <string name="scout_tile_more">Více…</string>
     <string name="scout_picker_title">Najít něco</string>
     <string name="scout_save_row">Uložit jako řádek na domovské stránce</string>

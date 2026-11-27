@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Valgfritt. Bruker din egen KI-nøkkel: Claude, OpenAI, Gemini eller Groq</string>
     <string name="scout_question_settings_none">Ikke satt opp</string>
     <string name="scout_question_settings_on">På</string>
-    <string name="scout_question_search_line">Spør Scout</string>
+    <string name="scout_question_search_line">Spør DanPlus</string>
     <string name="scout_question_mic_listening">Lytter…</string>
     <string name="scout_question_type_prompt">Skriv spørsmålet ditt</string>
     <string name="scout_question_example_1">\"Filmer som Inception, men uten drømmingen\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Svaret kunne ikke leses. Prøv igjen.</string>
     <string name="scout_question_error_nothing">Ingen passende titler kom tilbake. Prøv å spørre på en annen måte.</string>
     <string name="scout_question_error_rejected">Tjenesten avviste forespørselen. Sjekk innstillingene på telefonsiden.</string>
-    <string name="scout_web_title">Scout: spør og KI-nøkkel</string>
+    <string name="scout_web_title">DanPlus: spør og KI-nøkkel</string>
     <string name="scout_web_question_title">Spør</string>
     <string name="scout_web_question_placeholder">Hva har du lyst til å se?</string>
     <string name="scout_web_question_send">Spør på TV-en</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Veldig rask, gratis i starten</string>
     <string name="scout_ai_chatgpt_line">GPT. Betaling etter bruk, veldig billig</string>
     <string name="scout_ai_claude_line">Anthropic. Betaling etter bruk, de beste forslagene</string>
-    <string name="scout_ai_stored_lead">Scout bruker din egen nøkkel. Den lagres kryptert på denne boksen og synkroniseres ikke til kontoen din.</string>
+    <string name="scout_ai_stored_lead">DanPlus bruker din egen nøkkel. Den lagres kryptert på denne boksen og synkroniseres ikke til kontoen din.</string>
     <string name="scout_ai_add_title">Legg til eller endre %1$s-nøkkelen din</string>
     <string name="scout_ai_step_1">Skann dette med telefonen</string>
     <string name="scout_ai_step_2">Følg lenken for å få en nøkkel</string>

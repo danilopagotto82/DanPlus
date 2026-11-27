@@ -382,6 +382,12 @@ internal fun ScoutTasteDialogs(
 private fun ScoutTasteHead(state: ScoutTasteState) {
     val summary = state.summary
     val genres = summary.genres.mapNotNull { genreName(it.key) }.take(2)
+    val identity = when (summary.genres.firstOrNull()?.key?.toIntOrNull()) {
+        12, 28 -> R.string.cinema_taste_adventure
+        53, 9648 -> R.string.cinema_taste_suspense
+        878, 14 -> R.string.cinema_taste_worlds
+        else -> R.string.cinema_taste_explorer
+    }
     val decades = summary.topDecades.map { decadeName(it) }
     val headline = buildString {
         if (genres.size >= 2) append(stringResource(R.string.scout_taste_headline_two, genres[0], genres[1]))
@@ -404,6 +410,9 @@ private fun ScoutTasteHead(state: ScoutTasteState) {
         verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)
     ) {
         if (headline.isNotBlank()) {
+            if (state.titlesUsed >= SCOUT_TASTE_MIN_TITLES) {
+                Text(stringResource(identity), style = MaterialTheme.typography.titleLarge, color = Color(0xFFD8B675))
+            }
             Text(headline, style = MaterialTheme.typography.headlineLarge, color = NuvioTheme.colors.TextPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         if (lately != null) {
@@ -564,6 +573,6 @@ private fun ScoutLearn(
 private fun ScoutTrack(share: Float, modifier: Modifier, strongest: Boolean = true) {
     val shape = RoundedCornerShape(NuvioTheme.radii.full)
     Box(modifier.height(NuvioTheme.spacing.sm).background(NuvioTheme.colors.TextPrimary.copy(alpha = .12f), shape)) {
-        Box(Modifier.fillMaxHeight().fillMaxWidth(share.coerceIn(0f, 1f)).alpha(if (strongest) 1f else SOFTER_BAR).background(NuvioTheme.colors.Secondary, shape))
+        Box(Modifier.fillMaxHeight().fillMaxWidth(share.coerceIn(0f, 1f)).alpha(if (strongest) 1f else SOFTER_BAR).background(Color(0xFFD8B675), shape))
     }
 }

@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Vad är du sugen på?</string>
     <string name="scout_your_taste">Din smak</string>
-    <string name="scout_your_taste_sub">Se vad Scout har lärt sig och justera det</string>
+    <string name="scout_your_taste_sub">Se vad DanPlus har lärt sig och justera det</string>
     <string name="scout_q_watching">Vad du tittar på</string>
     <string name="scout_q_mood">Stämning</string>
     <string name="scout_q_who">Vem tittar</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">Fler filter</string>
     <string name="scout_ask_words">Fråga med egna ord</string>
     <string name="scout_tune_it">Justera</string>
-    <string name="scout_tune_more">Tre till</string>
     <string name="scout_tune_lighter">Lättare</string>
     <string name="scout_tune_newer">Nyare</string>
     <string name="scout_tune_older">Äldre</string>
@@ -157,7 +156,7 @@
     <string name="scout_taste_directors">Regissörer och skapare</string>
     <string name="scout_taste_actors">Skådespelare</string>
     <string name="scout_taste_shaping">Titlar som formar dina förslag</string>
-    <string name="scout_taste_learn">Hjälp Scout att lära sig</string>
+    <string name="scout_taste_learn">Hjälp DanPlus att lära sig</string>
     <string name="scout_taste_seen">Har du sett %1$s?</string>
     <string name="scout_taste_learn_sub">Betygsätt en titel då och då så blir dina förslag bättre snabbare.</string>
     <string name="scout_taste_not_seen">Har inte sett den</string>
@@ -182,7 +181,7 @@
     <string name="scout_genre_thriller">Thriller</string>
     <string name="scout_genre_war">Krig</string>
     <string name="scout_genre_western">Western</string>
-    <string name="scout_licence_icon_title">Scout-ikon</string>
+    <string name="scout_licence_icon_title">Surpreenda-me-ikon</string>
     <string name="scout_licence_icon_body">Från Material Design Icons, Apache-licens 2.0.</string>
     <string name="scout_award_oscar_winners">Oscars: vinnare</string>
     <string name="scout_award_oscar_nominees">Oscars: nominerade</string>

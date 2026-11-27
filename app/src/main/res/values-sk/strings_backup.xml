@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">Profily</string>
     <string name="backup_part_profiles_sub">Mená a obrázky</string>
     <string name="backup_part_settings">Nastavenia Arc</string>
-    <string name="backup_part_settings_sub">Scout, miniatúry, DNS, tlačidlá ovládača a ďalšie</string>
+    <string name="backup_part_settings_sub">DanPlus, miniatúry, DNS, tlačidlá ovládača a ďalšie</string>
     <string name="backup_part_history">Knižnica a história sledovania</string>
     <string name="backup_part_history_sub">Uložené tituly, Pokračovať v sledovaní a označenia videného</string>
     <string name="backup_part_history_signed_in">Váš účet Nuvio ich už uchováva. Obnovia sa len v zariadení, ktoré nie je prihlásené.</string>

@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">風変わりで賢く、ほかにはない番組。</string>
     <string name="scout_premix_why_world">その国で作られたコメディや犯罪ものなどを、あなたに合わせて選びました。</string>
 
-    <string name="scout_premix_own_sub">いくつか選ぶだけ。番組は Scout が選びます。</string>
+    <string name="scout_premix_own_sub">いくつか選ぶだけ。番組は DanPlus が選びます。</string>
     <string name="scout_premix_own_decade">年代</string>
     <string name="scout_premix_own_kind">種類</string>
     <string name="scout_premix_own_mood">気分</string>
@@ -93,11 +93,11 @@
     <plurals name="scout_premix_goes_in">
         <item quantity="other">%d作品が入ります</item>
     </plurals>
-    <string name="scout_premix_widened_decade">合う番組が少ないため、Scout が前後の年代を加えました。</string>
-    <string name="scout_premix_widened_votes">合う番組が少ないため、Scout があまり知られていない作品を加えました。</string>
-    <string name="scout_premix_widened_mood">合う番組が少ないため、Scout が気分の条件を外しました。</string>
+    <string name="scout_premix_widened_decade">合う番組が少ないため、DanPlus が前後の年代を加えました。</string>
+    <string name="scout_premix_widened_votes">合う番組が少ないため、DanPlus があまり知られていない作品を加えました。</string>
+    <string name="scout_premix_widened_mood">合う番組が少ないため、DanPlus が気分の条件を外しました。</string>
     <string name="scout_premix_too_few">合う番組が少ないです。別の年代を試してください。</string>
-    <string name="scout_premix_no_link_skipped">%1$s のソースがないため、Scout は別のエピソードを選びました。</string>
+    <string name="scout_premix_no_link_skipped">%1$s のソースがないため、DanPlus は別のエピソードを選びました。</string>
     <string name="scout_premix_no_link_stopped">直近3話のソースがありません。再生でこのエピソードを試すか、リミックスしてください。</string>
     <string name="scout_premix_none">この条件に合う番組はありません。別の年代や種類を試してください。</string>
 </resources>

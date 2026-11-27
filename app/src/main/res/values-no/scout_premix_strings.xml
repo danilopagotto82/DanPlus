@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Rare, smarte og ulike alt annet.</string>
     <string name="scout_premix_why_world">Komedier, krim og mer laget der, valgt for deg.</string>
 
-    <string name="scout_premix_own_sub">Velg noen ting. Scout velger seriene.</string>
+    <string name="scout_premix_own_sub">Velg noen ting. DanPlus velger seriene.</string>
     <string name="scout_premix_own_decade">Tiår</string>
     <string name="scout_premix_own_kind">Type</string>
     <string name="scout_premix_own_mood">Stemning</string>
@@ -94,11 +94,11 @@
         <item quantity="one">%d serie kommer med</item>
         <item quantity="other">%d serier kommer med</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Bare noen få serier passet, så Scout la til tiårene rundt.</string>
-    <string name="scout_premix_widened_votes">Bare noen få serier passet, så Scout la til mindre kjente.</string>
-    <string name="scout_premix_widened_mood">Bare noen få serier passet, så Scout droppet stemningen.</string>
+    <string name="scout_premix_widened_decade">Bare noen få serier passet, så DanPlus la til tiårene rundt.</string>
+    <string name="scout_premix_widened_votes">Bare noen få serier passet, så DanPlus la til mindre kjente.</string>
+    <string name="scout_premix_widened_mood">Bare noen få serier passet, så DanPlus droppet stemningen.</string>
     <string name="scout_premix_too_few">Bare noen få serier passer. Prøv et annet tiår.</string>
-    <string name="scout_premix_no_link_skipped">Ingen kilder for %1$s, så Scout valgte en annen episode.</string>
+    <string name="scout_premix_no_link_skipped">Ingen kilder for %1$s, så DanPlus valgte en annen episode.</string>
     <string name="scout_premix_no_link_stopped">Ingen kilder for de tre siste episodene. Trykk Spill av for å prøve denne, eller Miks på nytt.</string>
     <string name="scout_premix_none">Ingenting passer til disse valgene. Prøv et annet tiår eller en annen type.</string>
 </resources>

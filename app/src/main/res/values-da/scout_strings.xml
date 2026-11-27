@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Følger det, du sidst så færdigt</string>
     <string name="scout_row_gems">Skjulte perler</string>
     <string name="scout_row_gems_sub">Godt bedømte titler, som få har set</string>
-    <string name="scout_row_tiles">Scout-felter</string>
+    <string name="scout_row_tiles">DanPlus-felter</string>
     <string name="scout_row_tiles_sub">Overrask mig, stemninger, årtier</string>
     <string name="scout_ratings_enabled">Bedøm titler</string>
     <string name="scout_ratings_enabled_sub">Viser knappen Bedøm, tommelfingrene i langtryksmenuen og spørgsmålet efter en film</string>
@@ -38,7 +38,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Tryk OK på en titel for at ændre eller rydde bedømmelsen</string>
     <string name="scout_row_because_title">Fordi du så %1$s</string>
-    <string name="scout_tile_surprise">Overrask mig</string>
     <string name="scout_tile_more">Mere…</string>
     <string name="scout_picker_title">Find noget</string>
     <string name="scout_save_row">Gem som række på Hjem</string>

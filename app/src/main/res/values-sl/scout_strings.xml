@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Sledi temu, kar ste nazadnje dokončali</string>
     <string name="scout_row_gems">Skriti biseri</string>
     <string name="scout_row_gems_sub">Dobro ocenjeni naslovi, ki jih je videlo malo ljudi</string>
-    <string name="scout_row_tiles">Ploščice Scout</string>
+    <string name="scout_row_tiles">Ploščice DanPlus</string>
     <string name="scout_row_tiles_sub">Presenti me, razpoloženja, desetletja</string>
     <string name="scout_ratings_enabled">Ocenjevanje naslovov</string>
     <string name="scout_ratings_enabled_sub">Prikaže gumb Oceni, palce v meniju dolgega pritiska in vprašanje po filmu</string>
@@ -40,7 +40,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Pritisnite OK na naslovu za spremembo ali izbris ocene</string>
     <string name="scout_row_because_title">Ker ste gledali %1$s</string>
-    <string name="scout_tile_surprise">Presenti me</string>
     <string name="scout_tile_more">Več…</string>
     <string name="scout_picker_title">Poiščite nekaj</string>
     <string name="scout_save_row">Shrani kot vrsto na Domov</string>

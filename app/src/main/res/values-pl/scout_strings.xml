@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Podąża za tym, co ostatnio ukończono</string>
     <string name="scout_row_gems">Ukryte perełki</string>
     <string name="scout_row_gems_sub">Dobrze oceniane tytuły, które widziało niewielu</string>
-    <string name="scout_row_tiles">Kafelki Scout</string>
+    <string name="scout_row_tiles">Kafelki DanPlus</string>
     <string name="scout_row_tiles_sub">Zaskocz mnie, nastroje, dekady</string>
     <string name="scout_ratings_enabled">Oceniaj tytuły</string>
     <string name="scout_ratings_enabled_sub">Pokazuje przycisk Oceń, kciuki w menu długiego naciśnięcia i pytanie po filmie</string>
@@ -40,7 +40,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Naciśnij OK na tytule, aby zmienić lub usunąć ocenę</string>
     <string name="scout_row_because_title">Bo obejrzano %1$s</string>
-    <string name="scout_tile_surprise">Zaskocz mnie</string>
     <string name="scout_tile_more">Więcej…</string>
     <string name="scout_picker_title">Znajdź coś</string>
     <string name="scout_save_row">Zapisz jako rząd na stronie głównej</string>

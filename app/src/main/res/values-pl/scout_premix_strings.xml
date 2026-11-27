@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Dziwne, sprytne i niepodobne do niczego innego.</string>
     <string name="scout_premix_why_world">Komedie, kryminały i inne seriale stamtąd, wybrane dla Ciebie.</string>
 
-    <string name="scout_premix_own_sub">Wybierz kilka rzeczy. Seriale dobierze Scout.</string>
+    <string name="scout_premix_own_sub">Wybierz kilka rzeczy. Seriale dobierze DanPlus.</string>
     <string name="scout_premix_own_decade">Dekada</string>
     <string name="scout_premix_own_kind">Rodzaj</string>
     <string name="scout_premix_own_mood">Nastrój</string>
@@ -96,11 +96,11 @@
         <item quantity="many">Wchodzi %d seriali</item>
         <item quantity="other">Wchodzi %d serialu</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Pasuje tylko kilka seriali, więc Scout dodał sąsiednie dekady.</string>
-    <string name="scout_premix_widened_votes">Pasuje tylko kilka seriali, więc Scout dodał mniej znane.</string>
-    <string name="scout_premix_widened_mood">Pasuje tylko kilka seriali, więc Scout pominął nastrój.</string>
+    <string name="scout_premix_widened_decade">Pasuje tylko kilka seriali, więc DanPlus dodał sąsiednie dekady.</string>
+    <string name="scout_premix_widened_votes">Pasuje tylko kilka seriali, więc DanPlus dodał mniej znane.</string>
+    <string name="scout_premix_widened_mood">Pasuje tylko kilka seriali, więc DanPlus pominął nastrój.</string>
     <string name="scout_premix_too_few">Pasuje tylko kilka seriali. Spróbuj innej dekady.</string>
-    <string name="scout_premix_no_link_skipped">Brak źródeł dla %1$s, więc Scout wybrał inny odcinek.</string>
+    <string name="scout_premix_no_link_skipped">Brak źródeł dla %1$s, więc DanPlus wybrał inny odcinek.</string>
     <string name="scout_premix_no_link_stopped">Brak źródeł dla ostatnich 3 odcinków. Naciśnij Odtwórz, aby spróbować tego, lub Wymieszaj.</string>
     <string name="scout_premix_none">Nic nie pasuje do tych wyborów. Spróbuj innej dekady lub rodzaju.</string>
 </resources>

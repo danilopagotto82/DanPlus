@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Странни, находчиви и различни от всичко друго.</string>
     <string name="scout_premix_why_world">Комедии, криминални сериали и още оттам, избрани за вас.</string>
 
-    <string name="scout_premix_own_sub">Изберете няколко неща. Сериалите ги подбира Scout.</string>
+    <string name="scout_premix_own_sub">Изберете няколко неща. Сериалите ги подбира DanPlus.</string>
     <string name="scout_premix_own_decade">Десетилетие</string>
     <string name="scout_premix_own_kind">Вид</string>
     <string name="scout_premix_own_mood">Настроение</string>
@@ -94,11 +94,11 @@
         <item quantity="one">%d сериал влиза</item>
         <item quantity="other">%d сериала влизат</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Подхождат само няколко сериала, затова Scout добави съседните десетилетия.</string>
-    <string name="scout_premix_widened_votes">Подхождат само няколко сериала, затова Scout добави по-малко известни.</string>
-    <string name="scout_premix_widened_mood">Подхождат само няколко сериала, затова Scout пропусна настроението.</string>
+    <string name="scout_premix_widened_decade">Подхождат само няколко сериала, затова DanPlus добави съседните десетилетия.</string>
+    <string name="scout_premix_widened_votes">Подхождат само няколко сериала, затова DanPlus добави по-малко известни.</string>
+    <string name="scout_premix_widened_mood">Подхождат само няколко сериала, затова DanPlus пропусна настроението.</string>
     <string name="scout_premix_too_few">Подхождат само няколко сериала. Опитайте друго десетилетие.</string>
-    <string name="scout_premix_no_link_skipped">Няма източници за %1$s, затова Scout избра друг епизод.</string>
+    <string name="scout_premix_no_link_skipped">Няма източници за %1$s, затова DanPlus избра друг епизод.</string>
     <string name="scout_premix_no_link_stopped">Няма източници за последните 3 епизода. Натиснете Възпроизвеждане, за да опитате този, или Смесване отново.</string>
     <string name="scout_premix_none">Нищо не подхожда на тези избори. Опитайте друго десетилетие или вид.</string>
 </resources>

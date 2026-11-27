@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Hva har du lyst på?</string>
     <string name="scout_your_taste">Din smak</string>
-    <string name="scout_your_taste_sub">Se hva Scout har lært, og juster det</string>
+    <string name="scout_your_taste_sub">Se hva DanPlus har lært, og juster det</string>
     <string name="scout_q_watching">Hva du ser</string>
     <string name="scout_q_mood">Stemning</string>
     <string name="scout_q_who">Hvem ser på</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">Flere filtre</string>
     <string name="scout_ask_words">Spør med egne ord</string>
     <string name="scout_tune_it">Finjuster</string>
-    <string name="scout_tune_more">Tre til</string>
     <string name="scout_tune_lighter">Lettere</string>
     <string name="scout_tune_newer">Nyere</string>
     <string name="scout_tune_older">Eldre</string>
@@ -157,7 +156,7 @@
     <string name="scout_taste_directors">Regissører og skapere</string>
     <string name="scout_taste_actors">Skuespillere</string>
     <string name="scout_taste_shaping">Titler som former forslagene dine</string>
-    <string name="scout_taste_learn">Hjelp Scout å lære</string>
+    <string name="scout_taste_learn">Hjelp DanPlus å lære</string>
     <string name="scout_taste_seen">Har du sett %1$s?</string>
     <string name="scout_taste_learn_sub">Vurder en tittel av og til, så blir forslagene raskere bedre.</string>
     <string name="scout_taste_not_seen">Har ikke sett den</string>
@@ -182,7 +181,7 @@
     <string name="scout_genre_thriller">Thriller</string>
     <string name="scout_genre_war">Krig</string>
     <string name="scout_genre_western">Western</string>
-    <string name="scout_licence_icon_title">Scout-ikon</string>
+    <string name="scout_licence_icon_title">Surpreenda-me-ikon</string>
     <string name="scout_licence_icon_body">Fra Material Design Icons, Apache-lisens 2.0.</string>
     <string name="scout_award_oscar_winners">Oscar: vinnere</string>
     <string name="scout_award_oscar_nominees">Oscar: nominerte</string>

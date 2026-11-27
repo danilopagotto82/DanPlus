@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">आपने हाल में जो पूरा किया उसके अनुसार</string>
     <string name="scout_row_gems">छिपे हुए रत्न</string>
     <string name="scout_row_gems_sub">अच्छी रेटिंग वाले टाइटल जिन्हें कम लोगों ने देखा</string>
-    <string name="scout_row_tiles">Scout टाइल</string>
+    <string name="scout_row_tiles">DanPlus टाइल</string>
     <string name="scout_row_tiles_sub">सरप्राइज़ करें, मूड, दशक</string>
     <string name="scout_ratings_enabled">टाइटल रेट करें</string>
     <string name="scout_ratings_enabled_sub">रेट बटन, लंबे दबाव वाले मेन्यू में थंब और फ़िल्म के बाद का सवाल दिखाता है</string>
@@ -38,7 +38,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">रेटिंग बदलने या हटाने के लिए टाइटल पर OK दबाएँ</string>
     <string name="scout_row_because_title">क्योंकि आपने %1$s देखा</string>
-    <string name="scout_tile_surprise">सरप्राइज़ करें</string>
     <string name="scout_tile_more">और…</string>
     <string name="scout_picker_title">कुछ ढूँढें</string>
     <string name="scout_save_row">होम पंक्ति के रूप में सेव करें</string>

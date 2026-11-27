@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">الملفات الشخصية</string>
     <string name="backup_part_profiles_sub">الأسماء والصور</string>
     <string name="backup_part_settings">إعدادات Arc</string>
-    <string name="backup_part_settings_sub">Scout والصور المصغرة وDNS وأزرار جهاز التحكم والمزيد</string>
+    <string name="backup_part_settings_sub">DanPlus والصور المصغرة وDNS وأزرار جهاز التحكم والمزيد</string>
     <string name="backup_part_history">المكتبة وسجل المشاهدة</string>
     <string name="backup_part_history_sub">العناوين المحفوظة ومتابعة المشاهدة وعلامات المشاهدة</string>
     <string name="backup_part_history_signed_in">حسابك في Nuvio يحفظها بالفعل. تُستعاد فقط على جهاز غير مسجّل الدخول.</string>

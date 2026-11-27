@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">Profiles</string>
     <string name="backup_part_profiles_sub">Names and pictures</string>
     <string name="backup_part_settings">DanPlus settings</string>
-    <string name="backup_part_settings_sub">Scout, thumbnails, DNS, remote buttons and more</string>
+    <string name="backup_part_settings_sub">DanPlus, thumbnails, DNS, remote buttons and more</string>
     <string name="backup_part_history">Library and watch history</string>
     <string name="backup_part_history_sub">Saved titles, Continue watching and watched marks</string>
     <string name="backup_part_history_signed_in">Your Nuvio account already keeps these. Restored only on a box that is not signed in.</string>

@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Опционо. Користи ваш лични AI кључ: Claude, OpenAI, Gemini или Groq</string>
     <string name="scout_question_settings_none">Није подешено</string>
     <string name="scout_question_settings_on">Укључено</string>
-    <string name="scout_question_search_line">Питај Scout</string>
+    <string name="scout_question_search_line">Питај DanPlus</string>
     <string name="scout_question_mic_listening">Слушам…</string>
     <string name="scout_question_type_prompt">Унесите питање</string>
     <string name="scout_question_example_1">\"Филмови попут Inception, али без сањања\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Одговор није могао да се прочита. Покушајте поново.</string>
     <string name="scout_question_error_nothing">Нису враћени одговарајући наслови. Покушајте да питате другачије.</string>
     <string name="scout_question_error_rejected">Услуга је одбила захтев. Проверите подешавања на страници на телефону.</string>
-    <string name="scout_web_title">Scout: питања и AI кључ</string>
+    <string name="scout_web_title">DanPlus: питања и AI кључ</string>
     <string name="scout_web_question_title">Питај</string>
     <string name="scout_web_question_placeholder">Шта вам се гледа?</string>
     <string name="scout_web_question_send">Питај на ТВ-у</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Врло брз, бесплатно за почетак</string>
     <string name="scout_ai_chatgpt_line">GPT. Плаћање по употреби, врло јефтин</string>
     <string name="scout_ai_claude_line">Anthropic. Плаћање по употреби, најбољи предлози</string>
-    <string name="scout_ai_stored_lead">Scout користи ваш сопствени кључ. Остаје шифрован на овом уређају и не синхронизује се са вашим налогом.</string>
+    <string name="scout_ai_stored_lead">DanPlus користи ваш сопствени кључ. Остаје шифрован на овом уређају и не синхронизује се са вашим налогом.</string>
     <string name="scout_ai_add_title">Додајте или промените кључ за %1$s</string>
     <string name="scout_ai_step_1">Скенирајте телефоном</string>
     <string name="scout_ai_step_2">Отворите линк да добијете кључ</string>

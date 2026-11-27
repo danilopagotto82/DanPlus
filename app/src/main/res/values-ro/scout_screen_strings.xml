@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Ce ai chef să vezi?</string>
     <string name="scout_your_taste">Gusturile tale</string>
-    <string name="scout_your_taste_sub">Vezi ce a învățat Scout și ajustează-l</string>
+    <string name="scout_your_taste_sub">Vezi ce a învățat DanPlus și ajustează-l</string>
     <string name="scout_q_watching">Ce urmărești</string>
     <string name="scout_q_mood">Stare</string>
     <string name="scout_q_who">Cine se uită</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">Mai multe filtre</string>
     <string name="scout_ask_words">Întreabă cu propriile cuvinte</string>
     <string name="scout_tune_it">Ajustează</string>
-    <string name="scout_tune_more">Încă trei</string>
     <string name="scout_tune_lighter">Mai lejer</string>
     <string name="scout_tune_newer">Mai nou</string>
     <string name="scout_tune_older">Mai vechi</string>
@@ -160,7 +159,7 @@
     <string name="scout_taste_directors">Regizori și creatori</string>
     <string name="scout_taste_actors">Actori</string>
     <string name="scout_taste_shaping">Titluri care îți modelează sugestiile</string>
-    <string name="scout_taste_learn">Ajută-l pe Scout să învețe</string>
+    <string name="scout_taste_learn">Ajută-l pe DanPlus să învețe</string>
     <string name="scout_taste_seen">Ai văzut %1$s?</string>
     <string name="scout_taste_learn_sub">Evaluează din când în când un titlu și sugestiile se îmbunătățesc mai repede.</string>
     <string name="scout_taste_not_seen">Nu l-am văzut</string>
@@ -185,7 +184,7 @@
     <string name="scout_genre_thriller">Thriller</string>
     <string name="scout_genre_war">Război</string>
     <string name="scout_genre_western">Western</string>
-    <string name="scout_licence_icon_title">Pictograma Scout</string>
+    <string name="scout_licence_icon_title">Pictograma Surpreenda-me</string>
     <string name="scout_licence_icon_body">Din Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">Oscar: câștigători</string>
     <string name="scout_award_oscar_nominees">Oscar: nominalizați</string>

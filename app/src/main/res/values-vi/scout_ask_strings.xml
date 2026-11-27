@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Tùy chọn. Dùng khóa AI của chính bạn: Claude, OpenAI, Gemini hoặc Groq</string>
     <string name="scout_question_settings_none">Chưa thiết lập</string>
     <string name="scout_question_settings_on">Bật</string>
-    <string name="scout_question_search_line">Hỏi Scout</string>
+    <string name="scout_question_search_line">Hỏi DanPlus</string>
     <string name="scout_question_mic_listening">Đang nghe…</string>
     <string name="scout_question_type_prompt">Nhập câu hỏi của bạn</string>
     <string name="scout_question_example_1">\"Phim giống Inception, nhưng không có chuyện giấc mơ\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Không thể đọc câu trả lời. Hãy thử lại.</string>
     <string name="scout_question_error_nothing">Không có tựa phim phù hợp nào trả về. Hãy thử hỏi theo cách khác.</string>
     <string name="scout_question_error_rejected">Dịch vụ từ chối yêu cầu. Hãy kiểm tra cài đặt trên trang điện thoại.</string>
-    <string name="scout_web_title">Scout: hỏi và khóa AI</string>
+    <string name="scout_web_title">DanPlus: hỏi và khóa AI</string>
     <string name="scout_web_question_title">Hỏi</string>
     <string name="scout_web_question_placeholder">Bạn muốn xem gì?</string>
     <string name="scout_web_question_send">Hỏi trên TV</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Rất nhanh, bắt đầu miễn phí</string>
     <string name="scout_ai_chatgpt_line">GPT. Trả theo mức dùng, rất rẻ</string>
     <string name="scout_ai_claude_line">Anthropic. Trả theo mức dùng, gợi ý tốt nhất</string>
-    <string name="scout_ai_stored_lead">Scout dùng khóa của chính bạn. Khóa được lưu mã hóa trên thiết bị này và không đồng bộ với tài khoản của bạn.</string>
+    <string name="scout_ai_stored_lead">DanPlus dùng khóa của chính bạn. Khóa được lưu mã hóa trên thiết bị này và không đồng bộ với tài khoản của bạn.</string>
     <string name="scout_ai_add_title">Thêm hoặc đổi khóa %1$s của bạn</string>
     <string name="scout_ai_step_1">Quét mã này bằng điện thoại</string>
     <string name="scout_ai_step_2">Mở liên kết để lấy khóa</string>

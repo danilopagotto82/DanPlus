@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Προαιρετικό. Χρησιμοποιεί το δικό σας κλειδί AI: Claude, OpenAI, Gemini ή Groq</string>
     <string name="scout_question_settings_none">Δεν έχει ρυθμιστεί</string>
     <string name="scout_question_settings_on">Ενεργό</string>
-    <string name="scout_question_search_line">Ρωτήστε το Scout</string>
+    <string name="scout_question_search_line">Ρωτήστε το DanPlus</string>
     <string name="scout_question_mic_listening">Ακούω…</string>
     <string name="scout_question_type_prompt">Πληκτρολογήστε την ερώτησή σας</string>
     <string name="scout_question_example_1">\"Ταινίες σαν το Inception, αλλά χωρίς όνειρα\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Η απάντηση δεν μπόρεσε να διαβαστεί. Δοκιμάστε ξανά.</string>
     <string name="scout_question_error_nothing">Δεν επιστράφηκαν τίτλοι που να ταιριάζουν. Δοκιμάστε να ρωτήσετε αλλιώς.</string>
     <string name="scout_question_error_rejected">Η υπηρεσία απέρριψε το αίτημα. Ελέγξτε τις ρυθμίσεις στη σελίδα του κινητού.</string>
-    <string name="scout_web_title">Scout: ερωτήσεις και κλειδί AI</string>
+    <string name="scout_web_title">DanPlus: ερωτήσεις και κλειδί AI</string>
     <string name="scout_web_question_title">Ρωτήστε</string>
     <string name="scout_web_question_placeholder">Τι θα θέλατε να δείτε;</string>
     <string name="scout_web_question_send">Ρωτήστε στην τηλεόραση</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Πολύ γρήγορο, δωρεάν στην αρχή</string>
     <string name="scout_ai_chatgpt_line">GPT. Πληρωμή ανά χρήση, πολύ φθηνό</string>
     <string name="scout_ai_claude_line">Anthropic. Πληρωμή ανά χρήση, οι καλύτερες προτάσεις</string>
-    <string name="scout_ai_stored_lead">Το Scout χρησιμοποιεί το δικό σας κλειδί. Μένει κρυπτογραφημένο σε αυτή τη συσκευή και δεν συγχρονίζεται με τον λογαριασμό σας.</string>
+    <string name="scout_ai_stored_lead">Το DanPlus χρησιμοποιεί το δικό σας κλειδί. Μένει κρυπτογραφημένο σε αυτή τη συσκευή και δεν συγχρονίζεται με τον λογαριασμό σας.</string>
     <string name="scout_ai_add_title">Προσθήκη ή αλλαγή του κλειδιού %1$s</string>
     <string name="scout_ai_step_1">Σαρώστε το με το κινητό σας</string>
     <string name="scout_ai_step_2">Ακολουθήστε τον σύνδεσμο για να πάρετε κλειδί</string>

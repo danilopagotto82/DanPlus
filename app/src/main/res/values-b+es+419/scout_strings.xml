@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Sigue lo último que terminaste</string>
     <string name="scout_row_gems">Joyas ocultas</string>
     <string name="scout_row_gems_sub">Títulos bien valorados que poca gente ha visto</string>
-    <string name="scout_row_tiles">Mosaicos de Scout</string>
+    <string name="scout_row_tiles">Mosaicos de DanPlus</string>
     <string name="scout_row_tiles_sub">Sorpréndeme, estados de ánimo, décadas</string>
     <string name="scout_ratings_enabled">Valorar títulos</string>
     <string name="scout_ratings_enabled_sub">Muestra el botón Valorar, los pulgares en el menú de pulsación larga y la pregunta tras una película</string>
@@ -39,7 +39,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Pulsa OK en un título para cambiar o borrar su valoración</string>
     <string name="scout_row_because_title">Porque viste %1$s</string>
-    <string name="scout_tile_surprise">Sorpréndeme</string>
     <string name="scout_tile_more">Más…</string>
     <string name="scout_picker_title">Encontrar algo</string>
     <string name="scout_save_row">Guardar como fila de Inicio</string>

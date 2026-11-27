@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Décalé, malin et unique en son genre.</string>
     <string name="scout_premix_why_world">Comédies, polars et plus encore venus de là-bas, choisis pour vous.</string>
 
-    <string name="scout_premix_own_sub">Faites quelques choix. Scout sélectionne les séries.</string>
+    <string name="scout_premix_own_sub">Faites quelques choix. DanPlus sélectionne les séries.</string>
     <string name="scout_premix_own_decade">Décennie</string>
     <string name="scout_premix_own_kind">Genre</string>
     <string name="scout_premix_own_mood">Humeur</string>
@@ -95,11 +95,11 @@
         <item quantity="many">%d séries incluses</item>
         <item quantity="other">%d séries incluses</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Peu de séries correspondent, alors Scout a ajouté les décennies voisines.</string>
-    <string name="scout_premix_widened_votes">Peu de séries correspondent, alors Scout a ajouté des séries moins connues.</string>
-    <string name="scout_premix_widened_mood">Peu de séries correspondent, alors Scout a laissé l\'humeur de côté.</string>
+    <string name="scout_premix_widened_decade">Peu de séries correspondent, alors DanPlus a ajouté les décennies voisines.</string>
+    <string name="scout_premix_widened_votes">Peu de séries correspondent, alors DanPlus a ajouté des séries moins connues.</string>
+    <string name="scout_premix_widened_mood">Peu de séries correspondent, alors DanPlus a laissé l\'humeur de côté.</string>
     <string name="scout_premix_too_few">Peu de séries correspondent. Essayez une autre décennie.</string>
-    <string name="scout_premix_no_link_skipped">Aucune source pour %1$s, Scout a donc choisi un autre épisode.</string>
+    <string name="scout_premix_no_link_skipped">Aucune source pour %1$s, DanPlus a donc choisi un autre épisode.</string>
     <string name="scout_premix_no_link_stopped">Aucune source pour les 3 derniers épisodes. Appuyez sur Regarder pour essayer celui-ci, ou sur Remixer.</string>
     <string name="scout_premix_none">Rien ne correspond à ces choix. Essayez une autre décennie ou un autre genre.</string>
 </resources>

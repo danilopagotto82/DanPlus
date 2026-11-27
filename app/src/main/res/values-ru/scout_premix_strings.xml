@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Странные, умные и ни на что не похожие.</string>
     <string name="scout_premix_why_world">Комедии, криминал и многое другое, снятое там и подобранное для вас.</string>
 
-    <string name="scout_premix_own_sub">Выберите несколько параметров. Сериалы подберёт Scout.</string>
+    <string name="scout_premix_own_sub">Выберите несколько параметров. Сериалы подберёт DanPlus.</string>
     <string name="scout_premix_own_decade">Десятилетие</string>
     <string name="scout_premix_own_kind">Тип</string>
     <string name="scout_premix_own_mood">Настроение</string>
@@ -96,11 +96,11 @@
         <item quantity="many">%d сериалов в миксе</item>
         <item quantity="other">%d сериала в миксе</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Подходящих сериалов мало, поэтому Scout добавил соседние десятилетия.</string>
-    <string name="scout_premix_widened_votes">Подходящих сериалов мало, поэтому Scout добавил менее известные.</string>
-    <string name="scout_premix_widened_mood">Подходящих сериалов мало, поэтому Scout не стал учитывать настроение.</string>
+    <string name="scout_premix_widened_decade">Подходящих сериалов мало, поэтому DanPlus добавил соседние десятилетия.</string>
+    <string name="scout_premix_widened_votes">Подходящих сериалов мало, поэтому DanPlus добавил менее известные.</string>
+    <string name="scout_premix_widened_mood">Подходящих сериалов мало, поэтому DanPlus не стал учитывать настроение.</string>
     <string name="scout_premix_too_few">Подходящих сериалов мало. Попробуйте другое десятилетие.</string>
-    <string name="scout_premix_no_link_skipped">Нет источников для %1$s, поэтому Scout выбрал другую серию.</string>
+    <string name="scout_premix_no_link_skipped">Нет источников для %1$s, поэтому DanPlus выбрал другую серию.</string>
     <string name="scout_premix_no_link_stopped">Нет источников для последних 3 серий. Нажмите Смотреть, чтобы попробовать эту, или Перемешать.</string>
     <string name="scout_premix_none">Под эти параметры ничего не подходит. Попробуйте другое десятилетие или тип.</string>
 </resources>

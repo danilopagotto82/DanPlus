@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Optional. Uses your own AI key: Claude, OpenAI, Gemini or Groq</string>
     <string name="scout_question_settings_none">Not set up</string>
     <string name="scout_question_settings_on">On</string>
-    <string name="scout_question_search_line">Ask Scout</string>
+    <string name="scout_question_search_line">Ask DanPlus</string>
     <string name="scout_question_mic_listening">Listening…</string>
     <string name="scout_question_type_prompt">Type your question</string>
     <string name="scout_question_example_1">\"Films like Inception, but without the dreaming\"</string>
@@ -55,7 +55,7 @@
     <string name="scout_ai_groq_line">Very fast, free to start</string>
     <string name="scout_ai_chatgpt_line">GPT. Paid by use, very cheap</string>
     <string name="scout_ai_claude_line">Anthropic. Paid by use, the best picks</string>
-    <string name="scout_ai_stored_lead">Scout uses your own key. It stays encrypted on this box and is not synced to your account.</string>
+    <string name="scout_ai_stored_lead">DanPlus uses your own key. It stays encrypted on this box and is not synced to your account.</string>
     <string name="scout_ai_add_title">Add or change your %1$s key</string>
     <string name="scout_ai_step_1">Scan this with your phone</string>
     <string name="scout_ai_step_2">Follow the link to get a key</string>
@@ -93,7 +93,7 @@
     <string name="scout_question_error_nothing">No matching titles came back. Try asking another way.</string>
     <string name="scout_question_error_rejected">The service refused the request. Check the settings on the phone page.</string>
 
-    <string name="scout_web_title">Scout: ask and AI key</string>
+    <string name="scout_web_title">DanPlus: ask and AI key</string>
     <string name="scout_web_question_title">Ask</string>
     <string name="scout_web_question_placeholder">What do you feel like watching?</string>
     <string name="scout_web_question_send">Ask on the TV</string>

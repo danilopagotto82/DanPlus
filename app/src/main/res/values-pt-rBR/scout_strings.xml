@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="scout_title">Descubra-me</string>
-    <string name="scout_show_in_menu">Mostrar Descubra-me no menu</string>
+    <string name="scout_title">Surpreenda-me</string>
+    <string name="scout_show_in_menu">Mostrar Surpreenda-me no menu</string>
     <string name="scout_rate">Avaliar</string>
     <string name="scout_rate_not_for_me">Não é para mim</string>
     <string name="scout_rate_like">Gostei</string>
@@ -20,8 +20,8 @@
     <string name="scout_row_because_sub">Segue o que você terminou por último</string>
     <string name="scout_row_gems">Pérolas escondidas</string>
     <string name="scout_row_gems_sub">Títulos bem avaliados que pouca gente viu</string>
-    <string name="scout_row_tiles">Mosaicos Scout</string>
-    <string name="scout_row_tiles_sub">Me surpreenda, climas, décadas</string>
+    <string name="scout_row_tiles">Mosaicos DanPlus</string>
+    <string name="scout_row_tiles_sub">Descubra-me, climas, décadas</string>
     <string name="scout_ratings_enabled">Avaliar títulos</string>
     <string name="scout_ratings_enabled_sub">Mostra o botão Avaliar, os polegares no menu de pressionar e segurar e a pergunta depois de um filme</string>
     <string name="scout_ratings_off_note">Oculta o botão Avaliar, os polegares no menu e a pergunta depois de um filme. Suas avaliações continuam valendo.</string>
@@ -41,7 +41,7 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Pressione OK em um título para mudar ou limpar a avaliação</string>
     <string name="scout_row_because_title">Porque você assistiu %1$s</string>
-    <string name="scout_tile_surprise">Me surpreenda</string>
+    <string name="scout_tile_surprise">Descubra-me</string>
     <string name="scout_tile_more">Mais…</string>
     <string name="scout_picker_title">Encontrar algo</string>
     <string name="scout_save_row">Salvar como linha do Início</string>

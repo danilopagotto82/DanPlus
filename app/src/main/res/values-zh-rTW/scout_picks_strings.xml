@@ -11,8 +11,8 @@
     <string name="scout_picks_row_new">為你推薦的新片</string>
     <string name="scout_picks_row_trending">為你推薦的熱門</string>
     <string name="scout_picks_quick_title">選擇五部你喜愛的作品</string>
-    <string name="scout_picks_quick_sub">這樣 Scout 能更快上手。你可以隨時在「你的喜好」中變更。</string>
-    <string name="scout_picks_quick_row_sub">快速告訴 Scout 你喜歡什麼</string>
+    <string name="scout_picks_quick_sub">這樣 DanPlus 能更快上手。你可以隨時在「你的喜好」中變更。</string>
+    <string name="scout_picks_quick_row_sub">快速告訴 DanPlus 你喜歡什麼</string>
     <string name="scout_picks_quick_count">%1$d/%2$d</string>
     <string name="scout_picks_quick_done">完成</string>
     <string name="scout_picks_quick_skip">略過</string>
@@ -25,10 +25,10 @@
     <string name="scout_picks_words_writing">正在撰寫…</string>
     <string name="scout_picks_words_remove">移除</string>
     <string name="scout_picks_sort_title">讓 AI 排序我的推薦</string>
-    <string name="scout_picks_sort_sub">大約每週一次,使用你的金鑰。Scout 本身的推薦不需要 AI。</string>
+    <string name="scout_picks_sort_sub">大約每週一次,使用你的金鑰。DanPlus 本身的推薦不需要 AI。</string>
     <string name="scout_picks_on">開</string>
     <string name="scout_picks_off">關</string>
-    <string name="scout_picks_sent">會用你的金鑰傳送給你選的 AI 服務：Scout 為你找到的約 100 部作品、你用文字描述的口味、你喜歡和不喜歡的作品，以及你排除的類型。不會傳送完整的觀看紀錄。</string>
+    <string name="scout_picks_sent">會用你的金鑰傳送給你選的 AI 服務：DanPlus 為你找到的約 100 部作品、你用文字描述的口味、你喜歡和不喜歡的作品，以及你排除的類型。不會傳送完整的觀看紀錄。</string>
     <string name="scout_picks_refine_violent">少點暴力</string>
     <string name="scout_picks_refine_older">舊一點</string>
     <string name="scout_picks_refine_newer">新一點</string>

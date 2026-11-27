@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Opcional. Usa sua própria chave de IA: Claude, OpenAI, Gemini ou Groq</string>
     <string name="scout_question_settings_none">Não configurado</string>
     <string name="scout_question_settings_on">Ativado</string>
-    <string name="scout_question_search_line">Perguntar ao Scout</string>
+    <string name="scout_question_search_line">Perguntar ao DanPlus</string>
     <string name="scout_question_mic_listening">Ouvindo…</string>
     <string name="scout_question_type_prompt">Digite sua pergunta</string>
     <string name="scout_question_example_1">\"Filmes como Inception, mas sem os sonhos\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Não foi possível ler a resposta. Tente de novo.</string>
     <string name="scout_question_error_nothing">Não voltou nenhum título correspondente. Tente perguntar de outro jeito.</string>
     <string name="scout_question_error_rejected">O serviço recusou o pedido. Verifique os ajustes na página do celular.</string>
-    <string name="scout_web_title">Scout: perguntar e chave de IA</string>
+    <string name="scout_web_title">DanPlus: perguntar e chave de IA</string>
     <string name="scout_web_question_title">Perguntar</string>
     <string name="scout_web_question_placeholder">O que você quer assistir?</string>
     <string name="scout_web_question_send">Perguntar na TV</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Muito rápida, grátis para começar</string>
     <string name="scout_ai_chatgpt_line">GPT. Pago por uso, muito barata</string>
     <string name="scout_ai_claude_line">Anthropic. Pago por uso, as melhores sugestões</string>
-    <string name="scout_ai_stored_lead">O Scout usa sua própria chave. Ela fica criptografada neste aparelho e não é sincronizada com sua conta.</string>
+    <string name="scout_ai_stored_lead">O DanPlus usa sua própria chave. Ela fica criptografada neste aparelho e não é sincronizada com sua conta.</string>
     <string name="scout_ai_add_title">Adicione ou mude sua chave %1$s</string>
     <string name="scout_ai_step_1">Escaneie com o celular</string>
     <string name="scout_ai_step_2">Siga o link para obter uma chave</string>

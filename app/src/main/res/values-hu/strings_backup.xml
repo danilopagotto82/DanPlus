@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">Profilok</string>
     <string name="backup_part_profiles_sub">Nevek és képek</string>
     <string name="backup_part_settings">Arc-beállítások</string>
-    <string name="backup_part_settings_sub">Scout, miniatűrök, DNS, távirányító-gombok és egyebek</string>
+    <string name="backup_part_settings_sub">DanPlus, miniatűrök, DNS, távirányító-gombok és egyebek</string>
     <string name="backup_part_history">Könyvtár és megtekintési előzmények</string>
     <string name="backup_part_history_sub">Mentett címek, Megtekintés folytatása és megtekintési jelölések</string>
     <string name="backup_part_history_signed_in">A Nuvio-fiókod már őrzi ezeket. Visszaállítás csak be nem jelentkezett eszközön.</string>

@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Seka tai, ką paskutinį kartą baigėte</string>
     <string name="scout_row_gems">Paslėpti perlai</string>
     <string name="scout_row_gems_sub">Gerai įvertinti pavadinimai, kuriuos matė nedaug žmonių</string>
-    <string name="scout_row_tiles">Scout langeliai</string>
+    <string name="scout_row_tiles">DanPlus langeliai</string>
     <string name="scout_row_tiles_sub">Nustebink mane, nuotaikos, dešimtmečiai</string>
     <string name="scout_ratings_enabled">Vertinti pavadinimus</string>
     <string name="scout_ratings_enabled_sub">Rodo mygtuką Įvertinti, nykščius ilgo paspaudimo meniu ir klausimą po filmo</string>
@@ -40,7 +40,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Paspauskite OK ant pavadinimo, kad pakeistumėte ar išvalytumėte įvertinimą</string>
     <string name="scout_row_because_title">Nes žiūrėjote %1$s</string>
-    <string name="scout_tile_surprise">Nustebink mane</string>
     <string name="scout_tile_more">Daugiau…</string>
     <string name="scout_picker_title">Rasti ką nors</string>
     <string name="scout_save_row">Įrašyti kaip eilutę pagrindiniame</string>

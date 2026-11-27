@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Zvláštní, nápadité a jiné než všechno ostatní.</string>
     <string name="scout_premix_why_world">Komedie, krimi a další odtamtud, vybrané pro vás.</string>
 
-    <string name="scout_premix_own_sub">Vyberte pár věcí. Seriály vybere Scout.</string>
+    <string name="scout_premix_own_sub">Vyberte pár věcí. Seriály vybere DanPlus.</string>
     <string name="scout_premix_own_decade">Desetiletí</string>
     <string name="scout_premix_own_kind">Druh</string>
     <string name="scout_premix_own_mood">Nálada</string>
@@ -96,11 +96,11 @@
         <item quantity="many">Přibude %d seriálu</item>
         <item quantity="other">Přibude %d seriálů</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Vyhovuje jen pár seriálů, proto Scout přidal okolní desetiletí.</string>
-    <string name="scout_premix_widened_votes">Vyhovuje jen pár seriálů, proto Scout přidal méně známé.</string>
-    <string name="scout_premix_widened_mood">Vyhovuje jen pár seriálů, proto Scout vynechal náladu.</string>
+    <string name="scout_premix_widened_decade">Vyhovuje jen pár seriálů, proto DanPlus přidal okolní desetiletí.</string>
+    <string name="scout_premix_widened_votes">Vyhovuje jen pár seriálů, proto DanPlus přidal méně známé.</string>
+    <string name="scout_premix_widened_mood">Vyhovuje jen pár seriálů, proto DanPlus vynechal náladu.</string>
     <string name="scout_premix_too_few">Vyhovuje jen pár seriálů. Zkuste jiné desetiletí.</string>
-    <string name="scout_premix_no_link_skipped">Pro %1$s nejsou žádné zdroje, proto Scout vybral jiný díl.</string>
+    <string name="scout_premix_no_link_skipped">Pro %1$s nejsou žádné zdroje, proto DanPlus vybral jiný díl.</string>
     <string name="scout_premix_no_link_stopped">Pro poslední 3 díly nejsou žádné zdroje. Stiskněte Přehrát a zkuste tento, nebo Znovu zamíchat.</string>
     <string name="scout_premix_none">Těmto volbám nic nevyhovuje. Zkuste jiné desetiletí nebo druh.</string>
 </resources>

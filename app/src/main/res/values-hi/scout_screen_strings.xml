@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">आप क्या देखना चाहेंगे?</string>
     <string name="scout_your_taste">आपकी पसंद</string>
-    <string name="scout_your_taste_sub">देखें कि Scout ने क्या सीखा, और उसे बदलें</string>
+    <string name="scout_your_taste_sub">देखें कि DanPlus ने क्या सीखा, और उसे बदलें</string>
     <string name="scout_q_watching">क्या देखना है</string>
     <string name="scout_q_mood">मूड</string>
     <string name="scout_q_who">कौन देख रहा है</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">और फ़िल्टर</string>
     <string name="scout_ask_words">अपने शब्दों में पूछें</string>
     <string name="scout_tune_it">ट्यून करें</string>
-    <string name="scout_tune_more">तीन और</string>
     <string name="scout_tune_lighter">हल्का</string>
     <string name="scout_tune_newer">नया</string>
     <string name="scout_tune_older">पुराना</string>
@@ -157,7 +156,7 @@
     <string name="scout_taste_directors">निर्देशक और निर्माता</string>
     <string name="scout_taste_actors">अभिनेता</string>
     <string name="scout_taste_shaping">आपके सुझाव तय करने वाले टाइटल</string>
-    <string name="scout_taste_learn">Scout को सीखने में मदद करें</string>
+    <string name="scout_taste_learn">DanPlus को सीखने में मदद करें</string>
     <string name="scout_taste_seen">क्या आपने %1$s देखा है?</string>
     <string name="scout_taste_learn_sub">कभी-कभी किसी टाइटल को रेट करें, और आपके सुझाव जल्दी बेहतर होंगे।</string>
     <string name="scout_taste_not_seen">नहीं देखा</string>
@@ -182,7 +181,7 @@
     <string name="scout_genre_thriller">थ्रिलर</string>
     <string name="scout_genre_war">युद्ध</string>
     <string name="scout_genre_western">वेस्टर्न</string>
-    <string name="scout_licence_icon_title">Scout आइकन</string>
+    <string name="scout_licence_icon_title">Surpreenda-me आइकन</string>
     <string name="scout_licence_icon_body">From Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">ऑस्कर: विजेता</string>
     <string name="scout_award_oscar_nominees">ऑस्कर: नामांकित</string>

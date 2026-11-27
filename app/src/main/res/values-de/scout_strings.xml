@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Folgt dem, was du zuletzt beendet hast</string>
     <string name="scout_row_gems">Verborgene Perlen</string>
     <string name="scout_row_gems_sub">Gut bewertete Titel, die wenige gesehen haben</string>
-    <string name="scout_row_tiles">Scout-Kacheln</string>
+    <string name="scout_row_tiles">DanPlus-Kacheln</string>
     <string name="scout_row_tiles_sub">Überrasche mich, Stimmungen, Jahrzehnte</string>
     <string name="scout_ratings_enabled">Titel bewerten</string>
     <string name="scout_ratings_enabled_sub">Zeigt die Bewerten-Taste, die Daumen im Menü bei langem Drücken und die Frage nach einem Film</string>
@@ -38,7 +38,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Drücke OK auf einem Titel, um die Bewertung zu ändern oder zu löschen</string>
     <string name="scout_row_because_title">Weil du %1$s gesehen hast</string>
-    <string name="scout_tile_surprise">Überrasche mich</string>
     <string name="scout_tile_more">Mehr…</string>
     <string name="scout_picker_title">Etwas finden</string>
     <string name="scout_save_row">Als Startseiten-Reihe speichern</string>

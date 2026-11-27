@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Čudne, pametne i drugačije od svega ostalog.</string>
     <string name="scout_premix_why_world">Komedije, krimići i još mnogo toga odande, izabrano za vas.</string>
 
-    <string name="scout_premix_own_sub">Izaberite nekoliko stvari. Scout bira serije.</string>
+    <string name="scout_premix_own_sub">Izaberite nekoliko stvari. DanPlus bira serije.</string>
     <string name="scout_premix_own_decade">Decenija</string>
     <string name="scout_premix_own_kind">Vrsta</string>
     <string name="scout_premix_own_mood">Raspoloženje</string>
@@ -95,11 +95,11 @@
         <item quantity="few">Ulaze %d serije</item>
         <item quantity="other">Ulazi %d serija</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Odgovara samo nekoliko serija, pa je Scout dodao susedne decenije.</string>
-    <string name="scout_premix_widened_votes">Odgovara samo nekoliko serija, pa je Scout dodao manje poznate.</string>
-    <string name="scout_premix_widened_mood">Odgovara samo nekoliko serija, pa je Scout izostavio raspoloženje.</string>
+    <string name="scout_premix_widened_decade">Odgovara samo nekoliko serija, pa je DanPlus dodao susedne decenije.</string>
+    <string name="scout_premix_widened_votes">Odgovara samo nekoliko serija, pa je DanPlus dodao manje poznate.</string>
+    <string name="scout_premix_widened_mood">Odgovara samo nekoliko serija, pa je DanPlus izostavio raspoloženje.</string>
     <string name="scout_premix_too_few">Odgovara samo nekoliko serija. Probajte drugu deceniju.</string>
-    <string name="scout_premix_no_link_skipped">Nema izvora za %1$s, pa je Scout izabrao drugu epizodu.</string>
+    <string name="scout_premix_no_link_skipped">Nema izvora za %1$s, pa je DanPlus izabrao drugu epizodu.</string>
     <string name="scout_premix_no_link_stopped">Nema izvora za poslednje 3 epizode. Pritisnite Pusti da probate ovu, ili Ponovo izmešaj.</string>
     <string name="scout_premix_none">Ništa ne odgovara ovom izboru. Probajte drugu deceniju ili vrstu.</string>
 </resources>

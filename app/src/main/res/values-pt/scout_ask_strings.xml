@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Opcional. Usa a tua própria chave de IA: Claude, OpenAI, Gemini ou Groq</string>
     <string name="scout_question_settings_none">Não configurado</string>
     <string name="scout_question_settings_on">Ativado</string>
-    <string name="scout_question_search_line">Perguntar ao Scout</string>
+    <string name="scout_question_search_line">Perguntar ao DanPlus</string>
     <string name="scout_question_mic_listening">A ouvir…</string>
     <string name="scout_question_type_prompt">Escreve a tua pergunta</string>
     <string name="scout_question_example_1">\"Filmes como Inception, mas sem os sonhos\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Não foi possível ler a resposta. Tenta novamente.</string>
     <string name="scout_question_error_nothing">Não voltaram títulos correspondentes. Tenta perguntar de outra forma.</string>
     <string name="scout_question_error_rejected">O serviço recusou o pedido. Verifica as definições na página do telemóvel.</string>
-    <string name="scout_web_title">Scout: perguntar e chave de IA</string>
+    <string name="scout_web_title">DanPlus: perguntar e chave de IA</string>
     <string name="scout_web_question_title">Perguntar</string>
     <string name="scout_web_question_placeholder">O que te apetece ver?</string>
     <string name="scout_web_question_send">Perguntar na TV</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Muito rápida, grátis para começar</string>
     <string name="scout_ai_chatgpt_line">GPT. Pago por utilização, muito barata</string>
     <string name="scout_ai_claude_line">Anthropic. Pago por utilização, as melhores sugestões</string>
-    <string name="scout_ai_stored_lead">O Scout usa a tua própria chave. Fica cifrada neste dispositivo e não é sincronizada com a tua conta.</string>
+    <string name="scout_ai_stored_lead">O DanPlus usa a tua própria chave. Fica cifrada neste dispositivo e não é sincronizada com a tua conta.</string>
     <string name="scout_ai_add_title">Adiciona ou altera a tua chave %1$s</string>
     <string name="scout_ai_step_1">Lê isto com o telemóvel</string>
     <string name="scout_ai_step_2">Segue a ligação para obter uma chave</string>

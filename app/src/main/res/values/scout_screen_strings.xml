@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">What are you in the mood for?</string>
     <string name="scout_your_taste">Your taste</string>
-    <string name="scout_your_taste_sub">See what Scout has learnt and adjust it</string>
+    <string name="scout_your_taste_sub">See what DanPlus has learnt and adjust it</string>
     <string name="scout_q_watching">Watching</string>
     <string name="scout_q_mood">Mood</string>
     <string name="scout_q_who">Who is watching</string>
@@ -23,7 +23,7 @@
     <string name="scout_more_filters">More filters</string>
     <string name="scout_ask_words">Ask in your own words</string>
     <string name="scout_tune_it">Tune it</string>
-    <string name="scout_tune_more">Three more</string>
+    <string name="scout_tune_more">Other options</string>
     <string name="scout_tune_lighter">Lighter</string>
     <string name="scout_tune_newer">Newer</string>
     <string name="scout_tune_older">Older</string>
@@ -157,7 +157,7 @@
     <string name="scout_taste_directors">Directors and creators</string>
     <string name="scout_taste_actors">Actors</string>
     <string name="scout_taste_shaping">Titles shaping your picks</string>
-    <string name="scout_taste_learn">Help Scout learn</string>
+    <string name="scout_taste_learn">Help DanPlus learn</string>
     <string name="scout_taste_seen">Have you seen %1$s?</string>
     <string name="scout_taste_learn_sub">Rate a title now and then and your picks improve faster.</string>
     <string name="scout_taste_not_seen">Haven\'t seen it</string>
@@ -182,7 +182,7 @@
     <string name="scout_genre_thriller">Thriller</string>
     <string name="scout_genre_war">War</string>
     <string name="scout_genre_western">Western</string>
-    <string name="scout_licence_icon_title">Scout icon</string>
+    <string name="scout_licence_icon_title">Surpreenda-me icon</string>
     <string name="scout_licence_icon_body">From Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">Oscar winners</string>
     <string name="scout_award_oscar_nominees">Oscar nominees</string>

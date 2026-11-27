@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Estranhas, engenhosas e diferentes de tudo o resto.</string>
     <string name="scout_premix_why_world">Comédias, crime e muito mais feitos lá, escolhidos para ti.</string>
 
-    <string name="scout_premix_own_sub">Escolhe algumas coisas. O Scout escolhe as séries.</string>
+    <string name="scout_premix_own_sub">Escolhe algumas coisas. O DanPlus escolhe as séries.</string>
     <string name="scout_premix_own_decade">Década</string>
     <string name="scout_premix_own_kind">Tipo</string>
     <string name="scout_premix_own_mood">Disposição</string>
@@ -95,11 +95,11 @@
         <item quantity="many">Entram %d séries</item>
         <item quantity="other">Entram %d séries</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Só algumas séries servem, por isso o Scout juntou as décadas vizinhas.</string>
-    <string name="scout_premix_widened_votes">Só algumas séries servem, por isso o Scout juntou outras menos conhecidas.</string>
-    <string name="scout_premix_widened_mood">Só algumas séries servem, por isso o Scout deixou a disposição de fora.</string>
+    <string name="scout_premix_widened_decade">Só algumas séries servem, por isso o DanPlus juntou as décadas vizinhas.</string>
+    <string name="scout_premix_widened_votes">Só algumas séries servem, por isso o DanPlus juntou outras menos conhecidas.</string>
+    <string name="scout_premix_widened_mood">Só algumas séries servem, por isso o DanPlus deixou a disposição de fora.</string>
     <string name="scout_premix_too_few">Só algumas séries servem. Experimenta outra década.</string>
-    <string name="scout_premix_no_link_skipped">Sem fontes para %1$s, por isso o Scout escolheu outro episódio.</string>
+    <string name="scout_premix_no_link_skipped">Sem fontes para %1$s, por isso o DanPlus escolheu outro episódio.</string>
     <string name="scout_premix_no_link_stopped">Sem fontes para os últimos 3 episódios. Carrega em Reproduzir para tentar este, ou em Voltar a misturar.</string>
     <string name="scout_premix_none">Nada serve para estas escolhas. Experimenta outra década ou outro tipo.</string>
 </resources>

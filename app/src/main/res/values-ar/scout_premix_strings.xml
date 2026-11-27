@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">غريبة وذكية ولا تشبه أي شيء آخر.</string>
     <string name="scout_premix_why_world">كوميديا وجريمة وغيرها من هناك، مختارة لك.</string>
 
-    <string name="scout_premix_own_sub">اختر بضعة أشياء ويختار Scout المسلسلات.</string>
+    <string name="scout_premix_own_sub">اختر بضعة أشياء ويختار DanPlus المسلسلات.</string>
     <string name="scout_premix_own_decade">العقد</string>
     <string name="scout_premix_own_kind">النوع</string>
     <string name="scout_premix_own_mood">المزاج</string>
@@ -98,11 +98,11 @@
         <item quantity="many">%d مسلسلًا في المزيج</item>
         <item quantity="other">%d مسلسل في المزيج</item>
     </plurals>
-    <string name="scout_premix_widened_decade">القليل من المسلسلات يناسب اختيارك، لذا أضاف Scout العقود المجاورة.</string>
-    <string name="scout_premix_widened_votes">القليل من المسلسلات يناسب اختيارك، لذا أضاف Scout مسلسلات أقل شهرة.</string>
-    <string name="scout_premix_widened_mood">القليل من المسلسلات يناسب اختيارك، لذا تجاهل Scout المزاج.</string>
+    <string name="scout_premix_widened_decade">القليل من المسلسلات يناسب اختيارك، لذا أضاف DanPlus العقود المجاورة.</string>
+    <string name="scout_premix_widened_votes">القليل من المسلسلات يناسب اختيارك، لذا أضاف DanPlus مسلسلات أقل شهرة.</string>
+    <string name="scout_premix_widened_mood">القليل من المسلسلات يناسب اختيارك، لذا تجاهل DanPlus المزاج.</string>
     <string name="scout_premix_too_few">القليل من المسلسلات يناسب اختيارك. جرّب عقدًا آخر.</string>
-    <string name="scout_premix_no_link_skipped">لا توجد مصادر لـ %1$s، لذا اختار Scout حلقة أخرى.</string>
+    <string name="scout_premix_no_link_skipped">لا توجد مصادر لـ %1$s، لذا اختار DanPlus حلقة أخرى.</string>
     <string name="scout_premix_no_link_stopped">لا توجد مصادر لآخر 3 حلقات. اضغط تشغيل لتجربة هذه الحلقة، أو إعادة المزج.</string>
     <string name="scout_premix_none">لا شيء يناسب هذه الاختيارات. جرّب عقدًا أو نوعًا آخر.</string>
 </resources>

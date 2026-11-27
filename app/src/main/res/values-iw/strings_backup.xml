@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">פרופילים</string>
     <string name="backup_part_profiles_sub">שמות ותמונות</string>
     <string name="backup_part_settings">הגדרות Arc</string>
-    <string name="backup_part_settings_sub">Scout, תמונות ממוזערות, DNS, כפתורי השלט ועוד</string>
+    <string name="backup_part_settings_sub">DanPlus, תמונות ממוזערות, DNS, כפתורי השלט ועוד</string>
     <string name="backup_part_history">ספרייה והיסטוריית צפייה</string>
     <string name="backup_part_history_sub">כותרים שמורים, המשך בצפייה וסימוני נצפה</string>
     <string name="backup_part_history_signed_in">חשבון Nuvio שלך כבר שומר אותם. משוחזרים רק במכשיר שלא מחובר לחשבון.</string>

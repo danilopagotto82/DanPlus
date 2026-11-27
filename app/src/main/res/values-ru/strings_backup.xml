@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">Профили</string>
     <string name="backup_part_profiles_sub">Имена и изображения</string>
     <string name="backup_part_settings">Настройки Arc</string>
-    <string name="backup_part_settings_sub">Scout, миниатюры, DNS, кнопки пульта и другое</string>
+    <string name="backup_part_settings_sub">DanPlus, миниатюры, DNS, кнопки пульта и другое</string>
     <string name="backup_part_history">Библиотека и история просмотра</string>
     <string name="backup_part_history_sub">Сохранённое, «Продолжить просмотр» и отметки о просмотре</string>
     <string name="backup_part_history_signed_in">Ваш аккаунт Nuvio уже хранит это. Восстанавливается только на приставке без входа в аккаунт.</string>

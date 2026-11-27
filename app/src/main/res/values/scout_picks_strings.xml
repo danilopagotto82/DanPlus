@@ -11,8 +11,8 @@
     <string name="scout_picks_row_new">New for you</string>
     <string name="scout_picks_row_trending">Trending for you</string>
     <string name="scout_picks_quick_title">Pick five you love</string>
-    <string name="scout_picks_quick_sub">This gives Scout a head start. Change them any time in Your taste.</string>
-    <string name="scout_picks_quick_row_sub">A quick way to teach Scout what you enjoy</string>
+    <string name="scout_picks_quick_sub">This gives DanPlus a head start. Change them any time in Your taste.</string>
+    <string name="scout_picks_quick_row_sub">A quick way to teach DanPlus what you enjoy</string>
     <string name="scout_picks_quick_count">%1$d of %2$d</string>
     <string name="scout_picks_quick_done">Done</string>
     <string name="scout_picks_quick_skip">Skip</string>
@@ -25,10 +25,10 @@
     <string name="scout_picks_words_writing">Writing…</string>
     <string name="scout_picks_words_remove">Remove</string>
     <string name="scout_picks_sort_title">Let AI sort my picks</string>
-    <string name="scout_picks_sort_sub">About once a week, using your key. Scout\'s own picks need no AI.</string>
+    <string name="scout_picks_sort_sub">About once a week, using your key. DanPlus\'s own picks need no AI.</string>
     <string name="scout_picks_on">On</string>
     <string name="scout_picks_off">Off</string>
-    <string name="scout_picks_sent">Goes to your AI service with your key: about 100 titles Scout found for you, your taste in words, titles you liked and didn\'t, and genres you leave out. It doesn\'t get your full history.</string>
+    <string name="scout_picks_sent">Goes to your AI service with your key: about 100 titles DanPlus found for you, your taste in words, titles you liked and didn\'t, and genres you leave out. It doesn\'t get your full history.</string>
     <string name="scout_picks_refine_violent">Less violent</string>
     <string name="scout_picks_refine_older">Older</string>
     <string name="scout_picks_refine_newer">Newer</string>

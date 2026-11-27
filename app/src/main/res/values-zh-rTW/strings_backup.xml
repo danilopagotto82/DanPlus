@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">個人資料</string>
     <string name="backup_part_profiles_sub">名稱和頭像</string>
     <string name="backup_part_settings">Arc 設定</string>
-    <string name="backup_part_settings_sub">Scout、縮圖、DNS、遙控器按鍵等</string>
+    <string name="backup_part_settings_sub">DanPlus、縮圖、DNS、遙控器按鍵等</string>
     <string name="backup_part_history">媒體庫與觀看紀錄</string>
     <string name="backup_part_history_sub">已儲存的作品、繼續觀看和已觀看標記</string>
     <string name="backup_part_history_signed_in">您的 Nuvio 帳戶已保存這些內容。僅在未登入的裝置上還原。</string>

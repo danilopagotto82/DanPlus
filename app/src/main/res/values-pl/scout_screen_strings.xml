@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Na co masz ochotę?</string>
     <string name="scout_your_taste">Twój gust</string>
-    <string name="scout_your_taste_sub">Zobacz, czego nauczył się Scout, i to dostosuj</string>
+    <string name="scout_your_taste_sub">Zobacz, czego nauczył się DanPlus, i to dostosuj</string>
     <string name="scout_q_watching">Co oglądasz</string>
     <string name="scout_q_mood">Nastrój</string>
     <string name="scout_q_who">Kto ogląda</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">Więcej filtrów</string>
     <string name="scout_ask_words">Zapytaj własnymi słowami</string>
     <string name="scout_tune_it">Dostosuj</string>
-    <string name="scout_tune_more">Jeszcze trzy</string>
     <string name="scout_tune_lighter">Lżejsze</string>
     <string name="scout_tune_newer">Nowsze</string>
     <string name="scout_tune_older">Starsze</string>
@@ -188,7 +187,7 @@
     <string name="scout_genre_thriller">Thriller</string>
     <string name="scout_genre_war">Wojenny</string>
     <string name="scout_genre_western">Western</string>
-    <string name="scout_licence_icon_title">Ikona Scout</string>
+    <string name="scout_licence_icon_title">Ikona Surpreenda-me</string>
     <string name="scout_licence_icon_body">Z Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">Oscary: zwycięzcy</string>
     <string name="scout_award_oscar_nominees">Oscary: nominowani</string>

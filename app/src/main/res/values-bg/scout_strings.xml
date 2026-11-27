@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Следва последно завършеното от вас</string>
     <string name="scout_row_gems">Скрити бисери</string>
     <string name="scout_row_gems_sub">Добре оценени заглавия, които малко хора са гледали</string>
-    <string name="scout_row_tiles">Плочки на Scout</string>
+    <string name="scout_row_tiles">Плочки на DanPlus</string>
     <string name="scout_row_tiles_sub">Изненадай ме, настроения, десетилетия</string>
     <string name="scout_ratings_enabled">Оценяване на заглавия</string>
     <string name="scout_ratings_enabled_sub">Показва бутона Оцени, палците в менюто при дълго натискане и въпроса след филм</string>
@@ -38,7 +38,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Натиснете OK върху заглавие, за да промените или изчистите оценката</string>
     <string name="scout_row_because_title">Защото гледахте %1$s</string>
-    <string name="scout_tile_surprise">Изненадай ме</string>
     <string name="scout_tile_more">Още…</string>
     <string name="scout_picker_title">Намерете нещо</string>
     <string name="scout_save_row">Запазване като ред на Начало</string>

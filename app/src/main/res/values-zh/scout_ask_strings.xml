@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">可选。使用你自己的 AI 密钥：Claude、OpenAI、Gemini 或 Groq</string>
     <string name="scout_question_settings_none">未设置</string>
     <string name="scout_question_settings_on">已开启</string>
-    <string name="scout_question_search_line">问问 Scout</string>
+    <string name="scout_question_search_line">问问 DanPlus</string>
     <string name="scout_question_mic_listening">正在聆听…</string>
     <string name="scout_question_type_prompt">输入你的问题</string>
     <string name="scout_question_example_1">\"类似 Inception 的电影，但没有做梦\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">无法读取回答。请重试。</string>
     <string name="scout_question_error_nothing">没有返回匹配的片名。请换个方式提问。</string>
     <string name="scout_question_error_rejected">服务拒绝了请求。请检查手机页面上的设置。</string>
-    <string name="scout_web_title">Scout：提问和 AI 密钥</string>
+    <string name="scout_web_title">DanPlus：提问和 AI 密钥</string>
     <string name="scout_web_question_title">提问</string>
     <string name="scout_web_question_placeholder">你想看点什么？</string>
     <string name="scout_web_question_send">在电视上提问</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">非常快，有免费额度</string>
     <string name="scout_ai_chatgpt_line">GPT。按用量付费，非常便宜</string>
     <string name="scout_ai_claude_line">Anthropic。按用量付费，推荐效果最好</string>
-    <string name="scout_ai_stored_lead">Scout 使用你自己的密钥。密钥加密存储在这台设备上，不会同步到你的账号。</string>
+    <string name="scout_ai_stored_lead">DanPlus 使用你自己的密钥。密钥加密存储在这台设备上，不会同步到你的账号。</string>
     <string name="scout_ai_add_title">添加或更换你的 %1$s 密钥</string>
     <string name="scout_ai_step_1">用手机扫描这个二维码</string>
     <string name="scout_ai_step_2">打开链接获取密钥</string>

@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Mihez van kedved?</string>
     <string name="scout_your_taste">Az ízlésed</string>
-    <string name="scout_your_taste_sub">Nézd meg, mit tanult a Scout, és módosítsd</string>
+    <string name="scout_your_taste_sub">Nézd meg, mit tanult a DanPlus, és módosítsd</string>
     <string name="scout_q_watching">Mit nézel</string>
     <string name="scout_q_mood">Hangulat</string>
     <string name="scout_q_who">Ki nézi</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">További szűrők</string>
     <string name="scout_ask_words">Kérdezz a saját szavaiddal</string>
     <string name="scout_tune_it">Finomítás</string>
-    <string name="scout_tune_more">Még három</string>
     <string name="scout_tune_lighter">Könnyedebb</string>
     <string name="scout_tune_newer">Újabb</string>
     <string name="scout_tune_older">Régebbi</string>
@@ -182,7 +181,7 @@
     <string name="scout_genre_thriller">Thriller</string>
     <string name="scout_genre_war">Háborús</string>
     <string name="scout_genre_western">Western</string>
-    <string name="scout_licence_icon_title">Scout ikon</string>
+    <string name="scout_licence_icon_title">Surpreenda-me ikon</string>
     <string name="scout_licence_icon_body">Forrás: Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">Oscar: díjazottak</string>
     <string name="scout_award_oscar_nominees">Oscar: jelöltek</string>

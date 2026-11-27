@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Segue o que terminaste recentemente</string>
     <string name="scout_row_gems">Pérolas escondidas</string>
     <string name="scout_row_gems_sub">Títulos bem classificados que pouca gente viu</string>
-    <string name="scout_row_tiles">Mosaicos Scout</string>
+    <string name="scout_row_tiles">Mosaicos DanPlus</string>
     <string name="scout_row_tiles_sub">Surpreende-me, estados de espírito, décadas</string>
     <string name="scout_ratings_enabled">Classificar títulos</string>
     <string name="scout_ratings_enabled_sub">Mostra o botão Classificar, os polegares no menu de pressão longa e a pergunta depois de um filme</string>
@@ -39,7 +39,7 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Prime OK num título para alterar ou limpar a classificação</string>
     <string name="scout_row_because_title">Porque viste %1$s</string>
-    <string name="scout_tile_surprise">Surpreende-me</string>
+    <string name="scout_tile_surprise">Descubra-me</string>
     <string name="scout_tile_more">Mais…</string>
     <string name="scout_picker_title">Encontrar algo</string>
     <string name="scout_save_row">Guardar como linha do Início</string>

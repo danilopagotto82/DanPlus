@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Ne izlemek istersiniz?</string>
     <string name="scout_your_taste">Zevkiniz</string>
-    <string name="scout_your_taste_sub">Scout\'un öğrendiklerine bakın ve ayarlayın</string>
+    <string name="scout_your_taste_sub">DanPlus\'un öğrendiklerine bakın ve ayarlayın</string>
     <string name="scout_q_watching">Ne izleniyor</string>
     <string name="scout_q_mood">Ruh hali</string>
     <string name="scout_q_who">Kim izliyor</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">Diğer filtreler</string>
     <string name="scout_ask_words">Kendi sözlerinizle sorun</string>
     <string name="scout_tune_it">Ayarla</string>
-    <string name="scout_tune_more">Üç tane daha</string>
     <string name="scout_tune_lighter">Daha hafif</string>
     <string name="scout_tune_newer">Daha yeni</string>
     <string name="scout_tune_older">Daha eski</string>
@@ -157,7 +156,7 @@
     <string name="scout_taste_directors">Yönetmenler ve yaratıcılar</string>
     <string name="scout_taste_actors">Oyuncular</string>
     <string name="scout_taste_shaping">Önerilerinizi şekillendiren yapımlar</string>
-    <string name="scout_taste_learn">Scout\'un öğrenmesine yardım edin</string>
+    <string name="scout_taste_learn">DanPlus\'un öğrenmesine yardım edin</string>
     <string name="scout_taste_seen">%1$s izlediniz mi?</string>
     <string name="scout_taste_learn_sub">Arada bir yapım puanlayın, önerileriniz daha hızlı iyileşsin.</string>
     <string name="scout_taste_not_seen">İzlemedim</string>
@@ -182,7 +181,7 @@
     <string name="scout_genre_thriller">Gerilim</string>
     <string name="scout_genre_war">Savaş</string>
     <string name="scout_genre_western">Vahşi Batı</string>
-    <string name="scout_licence_icon_title">Scout simgesi</string>
+    <string name="scout_licence_icon_title">Surpreenda-me simgesi</string>
     <string name="scout_licence_icon_body">From Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">Oscar kazananları</string>
     <string name="scout_award_oscar_nominees">Oscar adayları</string>

@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Optioneel. Gebruikt je eigen AI-sleutel: Claude, OpenAI, Gemini of Groq</string>
     <string name="scout_question_settings_none">Niet ingesteld</string>
     <string name="scout_question_settings_on">Aan</string>
-    <string name="scout_question_search_line">Vraag het aan Scout</string>
+    <string name="scout_question_search_line">Vraag het aan DanPlus</string>
     <string name="scout_question_mic_listening">Luisteren…</string>
     <string name="scout_question_type_prompt">Typ je vraag</string>
     <string name="scout_question_example_1">\"Films zoals Inception, maar zonder het dromen\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Het antwoord kon niet worden gelezen. Probeer het opnieuw.</string>
     <string name="scout_question_error_nothing">Er kwamen geen passende titels terug. Probeer het anders te vragen.</string>
     <string name="scout_question_error_rejected">De dienst weigerde het verzoek. Controleer de instellingen op de telefoonpagina.</string>
-    <string name="scout_web_title">Scout: vraag en AI-sleutel</string>
+    <string name="scout_web_title">DanPlus: vraag en AI-sleutel</string>
     <string name="scout_web_question_title">Vraag</string>
     <string name="scout_web_question_placeholder">Waar heb je zin in om te kijken?</string>
     <string name="scout_web_question_send">Vraag op de tv</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Heel snel, gratis om te beginnen</string>
     <string name="scout_ai_chatgpt_line">GPT. Betalen per gebruik, heel goedkoop</string>
     <string name="scout_ai_claude_line">Anthropic. Betalen per gebruik, de beste tips</string>
-    <string name="scout_ai_stored_lead">Scout gebruikt je eigen sleutel. Die blijft versleuteld op deze box en wordt niet gesynchroniseerd met je account.</string>
+    <string name="scout_ai_stored_lead">DanPlus gebruikt je eigen sleutel. Die blijft versleuteld op deze box en wordt niet gesynchroniseerd met je account.</string>
     <string name="scout_ai_add_title">Je %1$s-sleutel toevoegen of wijzigen</string>
     <string name="scout_ai_step_1">Scan dit met je telefoon</string>
     <string name="scout_ai_step_2">Volg de link om een sleutel te krijgen</string>

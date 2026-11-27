@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">古怪、聪明，与众不同。</string>
     <string name="scout_premix_why_world">当地出品的喜剧、犯罪剧等，为你精选。</string>
 
-    <string name="scout_premix_own_sub">选几项即可，剧集由 Scout 来挑。</string>
+    <string name="scout_premix_own_sub">选几项即可，剧集由 DanPlus 来挑。</string>
     <string name="scout_premix_own_decade">年代</string>
     <string name="scout_premix_own_kind">类型</string>
     <string name="scout_premix_own_mood">心情</string>
@@ -93,11 +93,11 @@
     <plurals name="scout_premix_goes_in">
         <item quantity="other">%d 部剧集加入</item>
     </plurals>
-    <string name="scout_premix_widened_decade">符合的剧集不多，Scout 已加入相邻的年代。</string>
-    <string name="scout_premix_widened_votes">符合的剧集不多，Scout 已加入较冷门的剧集。</string>
-    <string name="scout_premix_widened_mood">符合的剧集不多，Scout 已忽略心情。</string>
+    <string name="scout_premix_widened_decade">符合的剧集不多，DanPlus 已加入相邻的年代。</string>
+    <string name="scout_premix_widened_votes">符合的剧集不多，DanPlus 已加入较冷门的剧集。</string>
+    <string name="scout_premix_widened_mood">符合的剧集不多，DanPlus 已忽略心情。</string>
     <string name="scout_premix_too_few">符合的剧集不多。试试其他年代。</string>
-    <string name="scout_premix_no_link_skipped">%1$s 没有可用来源，所以 Scout 选了另一集。</string>
+    <string name="scout_premix_no_link_skipped">%1$s 没有可用来源，所以 DanPlus 选了另一集。</string>
     <string name="scout_premix_no_link_stopped">最近 3 集都没有来源。按播放试试这一集，或按重新混合。</string>
     <string name="scout_premix_none">没有符合这些选择的剧集。试试其他年代或类型。</string>
 </resources>

@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Følger det du sist så ferdig</string>
     <string name="scout_row_gems">Skjulte perler</string>
     <string name="scout_row_gems_sub">Godt vurderte titler som få har sett</string>
-    <string name="scout_row_tiles">Scout-ruter</string>
+    <string name="scout_row_tiles">DanPlus-ruter</string>
     <string name="scout_row_tiles_sub">Overrask meg, stemninger, tiår</string>
     <string name="scout_ratings_enabled">Vurder titler</string>
     <string name="scout_ratings_enabled_sub">Viser knappen Vurder, tomlene i langtrykkmenyen og spørsmålet etter en film</string>
@@ -38,7 +38,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Trykk OK på en tittel for å endre eller fjerne vurderingen</string>
     <string name="scout_row_because_title">Fordi du så %1$s</string>
-    <string name="scout_tile_surprise">Overrask meg</string>
     <string name="scout_tile_more">Mer…</string>
     <string name="scout_picker_title">Finn noe</string>
     <string name="scout_save_row">Lagre som rad på Hjem</string>

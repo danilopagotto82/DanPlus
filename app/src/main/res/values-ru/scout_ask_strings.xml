@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">По желанию. Использует ваш собственный ключ ИИ: Claude, OpenAI, Gemini или Groq</string>
     <string name="scout_question_settings_none">Не настроено</string>
     <string name="scout_question_settings_on">Вкл.</string>
-    <string name="scout_question_search_line">Спросить Scout</string>
+    <string name="scout_question_search_line">Спросить DanPlus</string>
     <string name="scout_question_mic_listening">Слушаю…</string>
     <string name="scout_question_type_prompt">Введите вопрос</string>
     <string name="scout_question_example_1">\"Фильмы вроде Inception, но без сновидений\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Не удалось прочитать ответ. Повторите попытку.</string>
     <string name="scout_question_error_nothing">Подходящих названий не нашлось. Попробуйте спросить иначе.</string>
     <string name="scout_question_error_rejected">Сервис отклонил запрос. Проверьте настройки на странице в телефоне.</string>
-    <string name="scout_web_title">Scout: вопросы и ключ ИИ</string>
+    <string name="scout_web_title">DanPlus: вопросы и ключ ИИ</string>
     <string name="scout_web_question_title">Спросить</string>
     <string name="scout_web_question_placeholder">Что хочется посмотреть?</string>
     <string name="scout_web_question_send">Спросить на ТВ</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Очень быстрый, бесплатно для начала</string>
     <string name="scout_ai_chatgpt_line">GPT. Оплата по использованию, очень дёшево</string>
     <string name="scout_ai_claude_line">Anthropic. Оплата по использованию, лучшие рекомендации</string>
-    <string name="scout_ai_stored_lead">Scout использует ваш собственный ключ. Он хранится в зашифрованном виде на этом устройстве и не синхронизируется с вашей учётной записью.</string>
+    <string name="scout_ai_stored_lead">DanPlus использует ваш собственный ключ. Он хранится в зашифрованном виде на этом устройстве и не синхронизируется с вашей учётной записью.</string>
     <string name="scout_ai_add_title">Добавьте или смените ключ %1$s</string>
     <string name="scout_ai_step_1">Отсканируйте телефоном</string>
     <string name="scout_ai_step_2">Перейдите по ссылке, чтобы получить ключ</string>

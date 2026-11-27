@@ -2,10 +2,10 @@
 <resources>
     <string name="scout_mood_question">O que te apetece ver?</string>
     <string name="scout_your_taste">Os teus gostos</string>
-    <string name="scout_your_taste_sub">Vê o que o Scout aprendeu e ajusta-o</string>
+    <string name="scout_your_taste_sub">Vê o que o DanPlus aprendeu e ajusta-o</string>
     <string name="scout_q_watching">O que ver</string>
     <string name="scout_q_mood">Disposição</string>
-    <string name="scout_q_who">Quem está a ver</string>
+    <string name="scout_q_who">Quem vai assistir comigo?</string>
     <string name="scout_watch_anything">Qualquer coisa</string>
     <string name="scout_watch_movie">Filme</string>
     <string name="scout_watch_series">Série</string>
@@ -23,7 +23,7 @@
     <string name="scout_more_filters">Mais filtros</string>
     <string name="scout_ask_words">Pergunta com as tuas palavras</string>
     <string name="scout_tune_it">Ajustar</string>
-    <string name="scout_tune_more">Mais três</string>
+    <string name="scout_tune_more">Outras opções</string>
     <string name="scout_tune_lighter">Mais leve</string>
     <string name="scout_tune_newer">Mais recente</string>
     <string name="scout_tune_older">Mais antigo</string>
@@ -157,7 +157,7 @@
     <string name="scout_taste_directors">Realizadores e criadores</string>
     <string name="scout_taste_actors">Atores</string>
     <string name="scout_taste_shaping">Títulos que moldam as tuas sugestões</string>
-    <string name="scout_taste_learn">Ajuda o Scout a aprender</string>
+    <string name="scout_taste_learn">Ajuda o DanPlus a aprender</string>
     <string name="scout_taste_seen">Viste %1$s?</string>
     <string name="scout_taste_learn_sub">Classifica um título de vez em quando e as sugestões melhoram mais depressa.</string>
     <string name="scout_taste_not_seen">Não vi</string>
@@ -182,7 +182,7 @@
     <string name="scout_genre_thriller">Thriller</string>
     <string name="scout_genre_war">Guerra</string>
     <string name="scout_genre_western">Western</string>
-    <string name="scout_licence_icon_title">Ícone do Scout</string>
+    <string name="scout_licence_icon_title">Ícone do Surpreenda-me</string>
     <string name="scout_licence_icon_body">De Material Design Icons, licença Apache 2.0.</string>
     <string name="scout_award_oscar_winners">Óscares: vencedores</string>
     <string name="scout_award_oscar_nominees">Óscares: nomeados</string>

@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">你想看点什么?</string>
     <string name="scout_your_taste">你的口味</string>
-    <string name="scout_your_taste_sub">查看 Scout 学到了什么，并进行调整</string>
+    <string name="scout_your_taste_sub">查看 DanPlus 学到了什么，并进行调整</string>
     <string name="scout_q_watching">观看内容</string>
     <string name="scout_q_mood">心情</string>
     <string name="scout_q_who">谁在看</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">更多筛选</string>
     <string name="scout_ask_words">用你自己的话提问</string>
     <string name="scout_tune_it">调整</string>
-    <string name="scout_tune_more">再来三部</string>
     <string name="scout_tune_lighter">更轻松</string>
     <string name="scout_tune_newer">更新</string>
     <string name="scout_tune_older">更早</string>
@@ -154,7 +153,7 @@
     <string name="scout_taste_directors">导演与主创</string>
     <string name="scout_taste_actors">演员</string>
     <string name="scout_taste_shaping">影响你推荐的作品</string>
-    <string name="scout_taste_learn">帮助 Scout 学习</string>
+    <string name="scout_taste_learn">帮助 DanPlus 学习</string>
     <string name="scout_taste_seen">你看过 %1$s 吗?</string>
     <string name="scout_taste_learn_sub">偶尔评价一部作品，推荐会更快变好。</string>
     <string name="scout_taste_not_seen">没看过</string>
@@ -179,7 +178,7 @@
     <string name="scout_genre_thriller">惊悚</string>
     <string name="scout_genre_war">战争</string>
     <string name="scout_genre_western">西部片</string>
-    <string name="scout_licence_icon_title">Scout 图标</string>
+    <string name="scout_licence_icon_title">Surpreenda-me 图标</string>
     <string name="scout_licence_icon_body">From Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">奥斯卡得主</string>
     <string name="scout_award_oscar_nominees">奥斯卡提名</string>

@@ -112,16 +112,37 @@ fun scoutOrderPicks(
     exclusions: ScoutExclusions,
     seed: Long,
     others: List<ScoutGroupMember> = emptyList()
+): List<ScoutPick> = orderScoutPicks(candidates, pool, exclusions, seed, others, balanceCinema = false)
+
+internal fun scoutOrderCinemaPicks(
+    candidates: List<ScoutPick>,
+    pool: ScoutPool?,
+    exclusions: ScoutExclusions,
+    others: List<ScoutGroupMember>
+): List<ScoutPick> = orderScoutPicks(candidates, pool, exclusions, 0L, others, balanceCinema = true)
+
+private fun orderScoutPicks(
+    candidates: List<ScoutPick>,
+    pool: ScoutPool?,
+    exclusions: ScoutExclusions,
+    seed: Long,
+    others: List<ScoutGroupMember>,
+    balanceCinema: Boolean
 ): List<ScoutPick> {
     val seeds = pool?.picked.orEmpty().associate { it.key to it.seedName }
     val random = Random(seed)
     val pools = listOf(pool) + others.map { it.pool }
+    val informedPools = pools.filter { !it?.picked.isNullOrEmpty() }
     return candidates.distinctBy { it.key }
         .filterNot { pick -> exclusions.blocks(pick) || others.any { it.exclusions.blocks(pick) } }
         .map { pick ->
-            val fit = pools.minOf { scoutFit(pick, it) }
+            val fit = if (balanceCinema) {
+                val affinities = informedPools.map { scoutFit(pick, it) }
+                if (affinities.isEmpty()) 0.0 else .65 * affinities.min() + .35 * affinities.average()
+            } else pools.minOf { scoutFit(pick, it) }
             val named = seeds[pick.key]?.let { pick.copy(seedName = it) } ?: pick
-            named to fit + (pick.rating ?: 0f) / 10.0 + random.nextDouble() * SHUFFLE
+            val shuffle = if (balanceCinema) 0.0 else random.nextDouble() * SHUFFLE
+            named to fit + (pick.rating ?: 0f) / 10.0 + shuffle
         }
         .sortedByDescending { it.second }
         .map { it.first }

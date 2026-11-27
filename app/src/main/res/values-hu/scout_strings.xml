@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Követi, amit legutóbb befejeztél</string>
     <string name="scout_row_gems">Rejtett gyöngyszemek</string>
     <string name="scout_row_gems_sub">Jól értékelt címek, amelyeket kevesen láttak</string>
-    <string name="scout_row_tiles">Scout-csempék</string>
+    <string name="scout_row_tiles">DanPlus-csempék</string>
     <string name="scout_row_tiles_sub">Lepj meg, hangulatok, évtizedek</string>
     <string name="scout_ratings_enabled">Címek értékelése</string>
     <string name="scout_ratings_enabled_sub">Megjeleníti az Értékelés gombot, a hüvelykujjakat a hosszú nyomás menüben és a film utáni kérdést</string>
@@ -38,7 +38,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Nyomj OK-t egy címen az értékelés módosításához vagy törléséhez</string>
     <string name="scout_row_because_title">Mert ezt nézted: %1$s</string>
-    <string name="scout_tile_surprise">Lepj meg</string>
     <string name="scout_tile_more">Továbbiak…</string>
     <string name="scout_picker_title">Keress valamit</string>
     <string name="scout_save_row">Mentés Kezdőlap-sorként</string>

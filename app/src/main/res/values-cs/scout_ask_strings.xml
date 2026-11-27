@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Odpověď se nepodařilo přečíst. Zkuste to znovu.</string>
     <string name="scout_question_error_nothing">Nevrátily se žádné odpovídající tituly. Zkuste se zeptat jinak.</string>
     <string name="scout_question_error_rejected">Služba požadavek odmítla. Zkontrolujte nastavení na stránce v telefonu.</string>
-    <string name="scout_web_title">Scout: dotazy a klíč AI</string>
+    <string name="scout_web_title">DanPlus: dotazy a klíč AI</string>
     <string name="scout_web_question_title">Zeptat se</string>
     <string name="scout_web_question_placeholder">Na co máte chuť?</string>
     <string name="scout_web_question_send">Zeptat se na TV</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Velmi rychlý, zpočátku zdarma</string>
     <string name="scout_ai_chatgpt_line">GPT. Platba za použití, velmi levný</string>
     <string name="scout_ai_claude_line">Anthropic. Platba za použití, nejlepší tipy</string>
-    <string name="scout_ai_stored_lead">Scout používá váš vlastní klíč. Zůstává zašifrovaný v tomto zařízení a nesynchronizuje se s vaším účtem.</string>
+    <string name="scout_ai_stored_lead">DanPlus používá váš vlastní klíč. Zůstává zašifrovaný v tomto zařízení a nesynchronizuje se s vaším účtem.</string>
     <string name="scout_ai_add_title">Přidat nebo změnit klíč %1$s</string>
     <string name="scout_ai_step_1">Naskenujte telefonem</string>
     <string name="scout_ai_step_2">Otevřete odkaz a získejte klíč</string>

@@ -281,7 +281,7 @@ class AskCatalogProvider @Inject constructor(
 
     companion object {
         const val ADDON_ID = "scout-ask"
-        const val ADDON_NAME = "Scout"
+        const val ADDON_NAME = "Surpreenda-me"
         const val BASE_URL = BuiltInCatalogs.BASE_PREFIX + "scout-ask"
 
         fun homeKey(rowId: String): String = catalogRowLegacyKey(ADDON_ID, ROW_TYPE, rowId)

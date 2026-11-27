@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Необов\'язково. Використовує ваш власний ключ ШІ: Claude, OpenAI, Gemini або Groq</string>
     <string name="scout_question_settings_none">Не налаштовано</string>
     <string name="scout_question_settings_on">Увімк.</string>
-    <string name="scout_question_search_line">Запитати Scout</string>
+    <string name="scout_question_search_line">Запитати DanPlus</string>
     <string name="scout_question_mic_listening">Слухаю…</string>
     <string name="scout_question_type_prompt">Введіть запитання</string>
     <string name="scout_question_example_1">\"Фільми на кшталт Inception, але без сновидінь\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Не вдалося прочитати відповідь. Спробуйте ще раз.</string>
     <string name="scout_question_error_nothing">Відповідних назв не знайшлося. Спробуйте запитати інакше.</string>
     <string name="scout_question_error_rejected">Сервіс відхилив запит. Перевірте налаштування на сторінці в телефоні.</string>
-    <string name="scout_web_title">Scout: запитання і ключ ШІ</string>
+    <string name="scout_web_title">DanPlus: запитання і ключ ШІ</string>
     <string name="scout_web_question_title">Запитати</string>
     <string name="scout_web_question_placeholder">Що хочеться подивитися?</string>
     <string name="scout_web_question_send">Запитати на ТВ</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Дуже швидкий, безкоштовно для початку</string>
     <string name="scout_ai_chatgpt_line">GPT. Оплата за використання, дуже дешевий</string>
     <string name="scout_ai_claude_line">Anthropic. Оплата за використання, найкращі рекомендації</string>
-    <string name="scout_ai_stored_lead">Scout використовує ваш власний ключ. Він зберігається в зашифрованому вигляді на цьому пристрої й не синхронізується з вашим обліковим записом.</string>
+    <string name="scout_ai_stored_lead">DanPlus використовує ваш власний ключ. Він зберігається в зашифрованому вигляді на цьому пристрої й не синхронізується з вашим обліковим записом.</string>
     <string name="scout_ai_add_title">Додайте або змініть ключ %1$s</string>
     <string name="scout_ai_step_1">Скануйте телефоном</string>
     <string name="scout_ai_step_2">Перейдіть за посиланням, щоб отримати ключ</string>

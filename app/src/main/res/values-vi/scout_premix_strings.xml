@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Lạ lùng, thông minh và không giống bất cứ gì khác.</string>
     <string name="scout_premix_why_world">Phim hài, hình sự và nhiều hơn nữa sản xuất tại đó, chọn riêng cho bạn.</string>
 
-    <string name="scout_premix_own_sub">Chọn vài thứ. Scout sẽ chọn chương trình.</string>
+    <string name="scout_premix_own_sub">Chọn vài thứ. DanPlus sẽ chọn chương trình.</string>
     <string name="scout_premix_own_decade">Thập niên</string>
     <string name="scout_premix_own_kind">Loại</string>
     <string name="scout_premix_own_mood">Tâm trạng</string>
@@ -93,11 +93,11 @@
     <plurals name="scout_premix_goes_in">
         <item quantity="other">%d chương trình trong bản trộn</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Chỉ có ít chương trình phù hợp, nên Scout thêm các thập niên lân cận.</string>
-    <string name="scout_premix_widened_votes">Chỉ có ít chương trình phù hợp, nên Scout thêm các chương trình ít người biết hơn.</string>
-    <string name="scout_premix_widened_mood">Chỉ có ít chương trình phù hợp, nên Scout bỏ qua tâm trạng.</string>
+    <string name="scout_premix_widened_decade">Chỉ có ít chương trình phù hợp, nên DanPlus thêm các thập niên lân cận.</string>
+    <string name="scout_premix_widened_votes">Chỉ có ít chương trình phù hợp, nên DanPlus thêm các chương trình ít người biết hơn.</string>
+    <string name="scout_premix_widened_mood">Chỉ có ít chương trình phù hợp, nên DanPlus bỏ qua tâm trạng.</string>
     <string name="scout_premix_too_few">Chỉ có ít chương trình phù hợp. Hãy thử thập niên khác.</string>
-    <string name="scout_premix_no_link_skipped">Không có nguồn cho %1$s, nên Scout đã chọn tập khác.</string>
+    <string name="scout_premix_no_link_skipped">Không có nguồn cho %1$s, nên DanPlus đã chọn tập khác.</string>
     <string name="scout_premix_no_link_stopped">Không có nguồn cho 3 tập gần nhất. Nhấn Xem để thử tập này, hoặc Trộn lại.</string>
     <string name="scout_premix_none">Không có gì phù hợp với các lựa chọn này. Hãy thử thập niên hoặc loại khác.</string>
 </resources>

@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Opcional. Usa tu propia clave de IA: Claude, OpenAI, Gemini o Groq</string>
     <string name="scout_question_settings_none">Sin configurar</string>
     <string name="scout_question_settings_on">Activado</string>
-    <string name="scout_question_search_line">Preguntar a Scout</string>
+    <string name="scout_question_search_line">Preguntar a DanPlus</string>
     <string name="scout_question_mic_listening">Escuchando…</string>
     <string name="scout_question_type_prompt">Escribe tu pregunta</string>
     <string name="scout_question_example_1">\"Películas como Inception, pero sin soñar\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">No se pudo leer la respuesta. Inténtalo de nuevo.</string>
     <string name="scout_question_error_nothing">No llegaron títulos que coincidan. Prueba a preguntar de otra forma.</string>
     <string name="scout_question_error_rejected">El servicio rechazó la petición. Revisa los ajustes en la página del móvil.</string>
-    <string name="scout_web_title">Scout: preguntas y clave de IA</string>
+    <string name="scout_web_title">DanPlus: preguntas y clave de IA</string>
     <string name="scout_web_question_title">Preguntar</string>
     <string name="scout_web_question_placeholder">¿Qué te apetece ver?</string>
     <string name="scout_web_question_send">Preguntar en la TV</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Muy rápida, gratis para empezar</string>
     <string name="scout_ai_chatgpt_line">GPT. Pago por uso, muy barata</string>
     <string name="scout_ai_claude_line">Anthropic. Pago por uso, las mejores recomendaciones</string>
-    <string name="scout_ai_stored_lead">Scout usa tu propia clave. Se queda cifrada en este dispositivo y no se sincroniza con tu cuenta.</string>
+    <string name="scout_ai_stored_lead">DanPlus usa tu propia clave. Se queda cifrada en este dispositivo y no se sincroniza con tu cuenta.</string>
     <string name="scout_ai_add_title">Añade o cambia tu clave de %1$s</string>
     <string name="scout_ai_step_1">Escanea esto con el móvil</string>
     <string name="scout_ai_step_2">Sigue el enlace para obtener una clave</string>

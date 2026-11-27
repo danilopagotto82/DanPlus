@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Valgfrit. Bruger din egen AI-nøgle: Claude, OpenAI, Gemini eller Groq</string>
     <string name="scout_question_settings_none">Ikke konfigureret</string>
     <string name="scout_question_settings_on">Til</string>
-    <string name="scout_question_search_line">Spørg Scout</string>
+    <string name="scout_question_search_line">Spørg DanPlus</string>
     <string name="scout_question_mic_listening">Lytter…</string>
     <string name="scout_question_type_prompt">Skriv dit spørgsmål</string>
     <string name="scout_question_example_1">\"Film som Inception, men uden drømmene\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Svaret kunne ikke læses. Prøv igen.</string>
     <string name="scout_question_error_nothing">Ingen matchende titler kom tilbage. Prøv at spørge på en anden måde.</string>
     <string name="scout_question_error_rejected">Tjenesten afviste anmodningen. Tjek indstillingerne på telefonsiden.</string>
-    <string name="scout_web_title">Scout: spørg og AI-nøgle</string>
+    <string name="scout_web_title">DanPlus: spørg og AI-nøgle</string>
     <string name="scout_web_question_title">Spørg</string>
     <string name="scout_web_question_placeholder">Hvad har du lyst til at se?</string>
     <string name="scout_web_question_send">Spørg på tv\'et</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Meget hurtig, gratis at starte med</string>
     <string name="scout_ai_chatgpt_line">GPT. Betaling efter forbrug, meget billig</string>
     <string name="scout_ai_claude_line">Anthropic. Betaling efter forbrug, de bedste forslag</string>
-    <string name="scout_ai_stored_lead">Scout bruger din egen nøgle. Den forbliver krypteret på denne boks og synkroniseres ikke til din konto.</string>
+    <string name="scout_ai_stored_lead">DanPlus bruger din egen nøgle. Den forbliver krypteret på denne boks og synkroniseres ikke til din konto.</string>
     <string name="scout_ai_add_title">Tilføj eller skift din %1$s-nøgle</string>
     <string name="scout_ai_step_1">Scan med din telefon</string>
     <string name="scout_ai_step_2">Følg linket for at få en nøgle</string>

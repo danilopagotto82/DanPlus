@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Kaj bi radi gledali?</string>
     <string name="scout_your_taste">Vaš okus</string>
-    <string name="scout_your_taste_sub">Oglejte si, kaj se je Scout naučil, in to prilagodite</string>
+    <string name="scout_your_taste_sub">Oglejte si, kaj se je DanPlus naučil, in to prilagodite</string>
     <string name="scout_q_watching">Kaj gledati</string>
     <string name="scout_q_mood">Razpoloženje</string>
     <string name="scout_q_who">Kdo gleda</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">Več filtrov</string>
     <string name="scout_ask_words">Vprašajte s svojimi besedami</string>
     <string name="scout_tune_it">Prilagodi</string>
-    <string name="scout_tune_more">Še tri</string>
     <string name="scout_tune_lighter">Lažje</string>
     <string name="scout_tune_newer">Novejše</string>
     <string name="scout_tune_older">Starejše</string>
@@ -188,7 +187,7 @@
     <string name="scout_genre_thriller">Triler</string>
     <string name="scout_genre_war">Vojni</string>
     <string name="scout_genre_western">Vestern</string>
-    <string name="scout_licence_icon_title">Ikona Scout</string>
+    <string name="scout_licence_icon_title">Ikona Surpreenda-me</string>
     <string name="scout_licence_icon_body">Iz Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">Oskarji: zmagovalci</string>
     <string name="scout_award_oscar_nominees">Oskarji: nominiranci</string>

@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">跟隨你最近看完的內容</string>
     <string name="scout_row_gems">遺珠之作</string>
     <string name="scout_row_gems_sub">評分很高但少有人看的作品</string>
-    <string name="scout_row_tiles">Scout 卡片</string>
+    <string name="scout_row_tiles">DanPlus 卡片</string>
     <string name="scout_row_tiles_sub">給我驚喜、心情、年代</string>
     <string name="scout_ratings_enabled">為作品評分</string>
     <string name="scout_ratings_enabled_sub">顯示評分按鈕、長按選單中的拇指和電影結束後的提問</string>
@@ -37,7 +37,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">在作品上按 OK 可變更或清除評分</string>
     <string name="scout_row_because_title">因為你看過 %1$s</string>
-    <string name="scout_tile_surprise">給我驚喜</string>
     <string name="scout_tile_more">更多…</string>
     <string name="scout_picker_title">找點什麼</string>
     <string name="scout_save_row">儲存為首頁列</string>

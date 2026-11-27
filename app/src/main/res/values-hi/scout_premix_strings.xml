@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">अजीब, चतुर और सबसे अलग।</string>
     <string name="scout_premix_why_world">वहाँ के कॉमेडी, क्राइम और बहुत कुछ, आपके लिए चुने हुए।</string>
 
-    <string name="scout_premix_own_sub">कुछ चीज़ें चुनें। शो Scout चुनेगा।</string>
+    <string name="scout_premix_own_sub">कुछ चीज़ें चुनें। शो DanPlus चुनेगा।</string>
     <string name="scout_premix_own_decade">दशक</string>
     <string name="scout_premix_own_kind">प्रकार</string>
     <string name="scout_premix_own_mood">मूड</string>
@@ -94,11 +94,11 @@
         <item quantity="one">%d शो शामिल</item>
         <item quantity="other">%d शो शामिल</item>
     </plurals>
-    <string name="scout_premix_widened_decade">बस कुछ ही शो मेल खाते हैं, इसलिए Scout ने आसपास के दशक जोड़ दिए।</string>
-    <string name="scout_premix_widened_votes">बस कुछ ही शो मेल खाते हैं, इसलिए Scout ने कम जाने-पहचाने शो जोड़ दिए।</string>
-    <string name="scout_premix_widened_mood">बस कुछ ही शो मेल खाते हैं, इसलिए Scout ने मूड छोड़ दिया।</string>
+    <string name="scout_premix_widened_decade">बस कुछ ही शो मेल खाते हैं, इसलिए DanPlus ने आसपास के दशक जोड़ दिए।</string>
+    <string name="scout_premix_widened_votes">बस कुछ ही शो मेल खाते हैं, इसलिए DanPlus ने कम जाने-पहचाने शो जोड़ दिए।</string>
+    <string name="scout_premix_widened_mood">बस कुछ ही शो मेल खाते हैं, इसलिए DanPlus ने मूड छोड़ दिया।</string>
     <string name="scout_premix_too_few">बस कुछ ही शो मेल खाते हैं। कोई और दशक आज़माएँ।</string>
-    <string name="scout_premix_no_link_skipped">%1$s के लिए कोई सोर्स नहीं मिला, इसलिए Scout ने दूसरा एपिसोड चुना।</string>
+    <string name="scout_premix_no_link_skipped">%1$s के लिए कोई सोर्स नहीं मिला, इसलिए DanPlus ने दूसरा एपिसोड चुना।</string>
     <string name="scout_premix_no_link_stopped">पिछले 3 एपिसोड के लिए कोई सोर्स नहीं मिला। इसे आज़माने के लिए चलाएँ चुनें, या फिर से मिलाएँ।</string>
     <string name="scout_premix_none">इन चुनावों से कुछ भी मेल नहीं खाता। कोई और दशक या प्रकार आज़माएँ।</string>
 </resources>

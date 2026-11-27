@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Τι έχετε όρεξη να δείτε;</string>
     <string name="scout_your_taste">Το γούστο σας</string>
-    <string name="scout_your_taste_sub">Δείτε τι έμαθε το Scout και προσαρμόστε το</string>
+    <string name="scout_your_taste_sub">Δείτε τι έμαθε το DanPlus και προσαρμόστε το</string>
     <string name="scout_q_watching">Τι βλέπετε</string>
     <string name="scout_q_mood">Διάθεση</string>
     <string name="scout_q_who">Ποιος βλέπει</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">Περισσότερα φίλτρα</string>
     <string name="scout_ask_words">Ρωτήστε με δικά σας λόγια</string>
     <string name="scout_tune_it">Προσαρμογή</string>
-    <string name="scout_tune_more">Άλλα τρία</string>
     <string name="scout_tune_lighter">Πιο ανάλαφρο</string>
     <string name="scout_tune_newer">Πιο νέο</string>
     <string name="scout_tune_older">Πιο παλιό</string>
@@ -157,7 +156,7 @@
     <string name="scout_taste_directors">Σκηνοθέτες και δημιουργοί</string>
     <string name="scout_taste_actors">Ηθοποιοί</string>
     <string name="scout_taste_shaping">Τίτλοι που διαμορφώνουν τις προτάσεις</string>
-    <string name="scout_taste_learn">Βοηθήστε το Scout να μάθει</string>
+    <string name="scout_taste_learn">Βοηθήστε το DanPlus να μάθει</string>
     <string name="scout_taste_seen">Έχετε δει το %1$s;</string>
     <string name="scout_taste_learn_sub">Με μια βαθμολογία πού και πού, οι προτάσεις βελτιώνονται πιο γρήγορα.</string>
     <string name="scout_taste_not_seen">Δεν το έχω δει</string>
@@ -182,7 +181,7 @@
     <string name="scout_genre_thriller">Θρίλερ</string>
     <string name="scout_genre_war">Πόλεμος</string>
     <string name="scout_genre_western">Γουέστερν</string>
-    <string name="scout_licence_icon_title">Εικονίδιο Scout</string>
+    <string name="scout_licence_icon_title">Εικονίδιο Surpreenda-me</string>
     <string name="scout_licence_icon_body">From Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">Όσκαρ: νικητές</string>
     <string name="scout_award_oscar_nominees">Όσκαρ: υποψήφιοι</string>

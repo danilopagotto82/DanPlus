@@ -11,8 +11,8 @@
     <string name="scout_picks_row_new">Novità per te</string>
     <string name="scout_picks_row_trending">Di tendenza per te</string>
     <string name="scout_picks_quick_title">Scegline cinque che adori</string>
-    <string name="scout_picks_quick_sub">Così Scout parte avvantaggiato. Cambiali quando vuoi in I tuoi gusti.</string>
-    <string name="scout_picks_quick_row_sub">Un modo rapido per far capire a Scout cosa ti piace</string>
+    <string name="scout_picks_quick_sub">Così DanPlus parte avvantaggiato. Cambiali quando vuoi in I tuoi gusti.</string>
+    <string name="scout_picks_quick_row_sub">Un modo rapido per far capire a DanPlus cosa ti piace</string>
     <string name="scout_picks_quick_count">%1$d di %2$d</string>
     <string name="scout_picks_quick_done">Fine</string>
     <string name="scout_picks_quick_skip">Salta</string>
@@ -25,10 +25,10 @@
     <string name="scout_picks_words_writing">Scrittura…</string>
     <string name="scout_picks_words_remove">Rimuovi</string>
     <string name="scout_picks_sort_title">Lascia che l\'IA ordini i miei suggerimenti</string>
-    <string name="scout_picks_sort_sub">Circa una volta a settimana, con la tua chiave. I suggerimenti di Scout non hanno bisogno di IA.</string>
+    <string name="scout_picks_sort_sub">Circa una volta a settimana, con la tua chiave. I suggerimenti di DanPlus non hanno bisogno di IA.</string>
     <string name="scout_picks_on">Attivo</string>
     <string name="scout_picks_off">Disattivo</string>
-    <string name="scout_picks_sent">Va al tuo servizio IA con la tua chiave: circa 100 titoli trovati da Scout per te, i tuoi gusti in parole, i titoli che ti sono piaciuti e quelli no, e i generi che escludi. Non riceve tutta la tua cronologia.</string>
+    <string name="scout_picks_sent">Va al tuo servizio IA con la tua chiave: circa 100 titoli trovati da DanPlus per te, i tuoi gusti in parole, i titoli che ti sono piaciuti e quelli no, e i generi che escludi. Non riceve tutta la tua cronologia.</string>
     <string name="scout_picks_refine_violent">Meno violento</string>
     <string name="scout_picks_refine_older">Più vecchio</string>
     <string name="scout_picks_refine_newer">Più recente</string>

@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Facoltativo. Usa la tua chiave AI personale: Claude, OpenAI, Gemini o Groq</string>
     <string name="scout_question_settings_none">Non configurato</string>
     <string name="scout_question_settings_on">Attivo</string>
-    <string name="scout_question_search_line">Chiedi a Scout</string>
+    <string name="scout_question_search_line">Chiedi a DanPlus</string>
     <string name="scout_question_mic_listening">In ascolto…</string>
     <string name="scout_question_type_prompt">Scrivi la tua domanda</string>
     <string name="scout_question_example_1">\"Film come Inception, ma senza i sogni\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Non è stato possibile leggere la risposta. Riprova.</string>
     <string name="scout_question_error_nothing">Non sono tornati titoli corrispondenti. Prova a chiedere in un altro modo.</string>
     <string name="scout_question_error_rejected">Il servizio ha rifiutato la richiesta. Controlla le impostazioni nella pagina sul telefono.</string>
-    <string name="scout_web_title">Scout: domande e chiave AI</string>
+    <string name="scout_web_title">DanPlus: domande e chiave AI</string>
     <string name="scout_web_question_title">Chiedi</string>
     <string name="scout_web_question_placeholder">Cosa ti va di guardare?</string>
     <string name="scout_web_question_send">Chiedi sulla TV</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Velocissima, gratis per iniziare</string>
     <string name="scout_ai_chatgpt_line">GPT. Pagamento a consumo, molto economica</string>
     <string name="scout_ai_claude_line">Anthropic. Pagamento a consumo, i consigli migliori</string>
-    <string name="scout_ai_stored_lead">Scout usa la tua chiave personale. Resta cifrata su questo dispositivo e non viene sincronizzata con il tuo account.</string>
+    <string name="scout_ai_stored_lead">DanPlus usa la tua chiave personale. Resta cifrata su questo dispositivo e non viene sincronizzata con il tuo account.</string>
     <string name="scout_ai_add_title">Aggiungi o cambia la tua chiave %1$s</string>
     <string name="scout_ai_step_1">Inquadra con il telefono</string>
     <string name="scout_ai_step_2">Segui il link per ottenere una chiave</string>

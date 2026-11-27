@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Anda ingin menonton apa?</string>
     <string name="scout_your_taste">Selera Anda</string>
-    <string name="scout_your_taste_sub">Lihat apa yang dipelajari Scout dan sesuaikan</string>
+    <string name="scout_your_taste_sub">Lihat apa yang dipelajari DanPlus dan sesuaikan</string>
     <string name="scout_q_watching">Yang ditonton</string>
     <string name="scout_q_mood">Suasana hati</string>
     <string name="scout_q_who">Siapa yang menonton</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">Filter lainnya</string>
     <string name="scout_ask_words">Tanya dengan kata-kata Anda</string>
     <string name="scout_tune_it">Sesuaikan</string>
-    <string name="scout_tune_more">Tiga lagi</string>
     <string name="scout_tune_lighter">Lebih ringan</string>
     <string name="scout_tune_newer">Lebih baru</string>
     <string name="scout_tune_older">Lebih lama</string>
@@ -154,7 +153,7 @@
     <string name="scout_taste_directors">Sutradara dan kreator</string>
     <string name="scout_taste_actors">Pemeran</string>
     <string name="scout_taste_shaping">Judul yang membentuk pilihan Anda</string>
-    <string name="scout_taste_learn">Bantu Scout belajar</string>
+    <string name="scout_taste_learn">Bantu DanPlus belajar</string>
     <string name="scout_taste_seen">Sudahkah Anda menonton %1$s?</string>
     <string name="scout_taste_learn_sub">Sesekali beri nilai pada judul, dan pilihan Anda lebih cepat membaik.</string>
     <string name="scout_taste_not_seen">Belum menonton</string>
@@ -179,7 +178,7 @@
     <string name="scout_genre_thriller">Thriller</string>
     <string name="scout_genre_war">Perang</string>
     <string name="scout_genre_western">Western</string>
-    <string name="scout_licence_icon_title">Ikon Scout</string>
+    <string name="scout_licence_icon_title">Ikon Surpreenda-me</string>
     <string name="scout_licence_icon_body">From Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">Oscar: pemenang</string>
     <string name="scout_award_oscar_nominees">Oscar: nominasi</string>

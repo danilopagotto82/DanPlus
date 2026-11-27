@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Optional. Nutzt deinen eigenen KI-Schlüssel: Claude, OpenAI, Gemini oder Groq</string>
     <string name="scout_question_settings_none">Nicht eingerichtet</string>
     <string name="scout_question_settings_on">An</string>
-    <string name="scout_question_search_line">Scout fragen</string>
+    <string name="scout_question_search_line">DanPlus fragen</string>
     <string name="scout_question_mic_listening">Ich höre zu…</string>
     <string name="scout_question_type_prompt">Frage eintippen</string>
     <string name="scout_question_example_1">\"Filme wie Inception, aber ohne das Träumen\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Die Antwort konnte nicht gelesen werden. Versuche es erneut.</string>
     <string name="scout_question_error_nothing">Es kamen keine passenden Titel zurück. Formuliere die Frage anders.</string>
     <string name="scout_question_error_rejected">Der Dienst hat die Anfrage abgelehnt. Prüfe die Einstellungen auf der Smartphone-Seite.</string>
-    <string name="scout_web_title">Scout: Fragen und KI-Schlüssel</string>
+    <string name="scout_web_title">DanPlus: Fragen und KI-Schlüssel</string>
     <string name="scout_web_question_title">Fragen</string>
     <string name="scout_web_question_placeholder">Worauf hast du Lust?</string>
     <string name="scout_web_question_send">Auf dem Fernseher fragen</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Sehr schnell, anfangs kostenlos</string>
     <string name="scout_ai_chatgpt_line">GPT. Bezahlung nach Nutzung, sehr günstig</string>
     <string name="scout_ai_claude_line">Anthropic. Bezahlung nach Nutzung, die besten Tipps</string>
-    <string name="scout_ai_stored_lead">Scout nutzt deinen eigenen Schlüssel. Er bleibt verschlüsselt auf diesem Gerät und wird nicht mit deinem Konto synchronisiert.</string>
+    <string name="scout_ai_stored_lead">DanPlus nutzt deinen eigenen Schlüssel. Er bleibt verschlüsselt auf diesem Gerät und wird nicht mit deinem Konto synchronisiert.</string>
     <string name="scout_ai_add_title">%1$s-Schlüssel hinzufügen oder ändern</string>
     <string name="scout_ai_step_1">Mit dem Smartphone scannen</string>
     <string name="scout_ai_step_2">Dem Link folgen, um einen Schlüssel zu holen</string>

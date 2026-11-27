@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">אופציונלי. משתמש במפתח ה-AI שלכם: Claude, OpenAI, Gemini או Groq</string>
     <string name="scout_question_settings_none">לא הוגדר</string>
     <string name="scout_question_settings_on">פעיל</string>
-    <string name="scout_question_search_line">שאלו את Scout</string>
+    <string name="scout_question_search_line">שאלו את DanPlus</string>
     <string name="scout_question_mic_listening">מאזין…</string>
     <string name="scout_question_type_prompt">הקלידו את השאלה</string>
     <string name="scout_question_example_1">\"סרטים כמו Inception, אבל בלי החלומות\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">לא ניתן היה לקרוא את התשובה. נסו שוב.</string>
     <string name="scout_question_error_nothing">לא חזרו כותרים מתאימים. נסו לשאול בדרך אחרת.</string>
     <string name="scout_question_error_rejected">השירות דחה את הבקשה. בדקו את ההגדרות בדף בטלפון.</string>
-    <string name="scout_web_title">Scout: שאלות ומפתח AI</string>
+    <string name="scout_web_title">DanPlus: שאלות ומפתח AI</string>
     <string name="scout_web_question_title">שאלו</string>
     <string name="scout_web_question_placeholder">מה בא לכם לראות?</string>
     <string name="scout_web_question_send">שאלו בטלוויזיה</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">מהיר מאוד, חינם להתחלה</string>
     <string name="scout_ai_chatgpt_line">GPT. תשלום לפי שימוש, זול מאוד</string>
     <string name="scout_ai_claude_line">Anthropic. תשלום לפי שימוש, ההמלצות הטובות ביותר</string>
-    <string name="scout_ai_stored_lead">Scout משתמש במפתח שלכם. הוא נשמר מוצפן במכשיר זה ואינו מסונכרן לחשבון שלכם.</string>
+    <string name="scout_ai_stored_lead">DanPlus משתמש במפתח שלכם. הוא נשמר מוצפן במכשיר זה ואינו מסונכרן לחשבון שלכם.</string>
     <string name="scout_ai_add_title">הוספה או החלפה של מפתח %1$s</string>
     <string name="scout_ai_step_1">סרקו את הקוד בטלפון</string>
     <string name="scout_ai_step_2">היכנסו לקישור כדי לקבל מפתח</string>

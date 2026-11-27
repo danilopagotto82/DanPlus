@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">Profili</string>
     <string name="backup_part_profiles_sub">Imena in slike</string>
     <string name="backup_part_settings">Nastavitve Arc</string>
-    <string name="backup_part_settings_sub">Scout, sličice, DNS, gumbi daljinca in drugo</string>
+    <string name="backup_part_settings_sub">DanPlus, sličice, DNS, gumbi daljinca in drugo</string>
     <string name="backup_part_history">Knjižnica in zgodovina ogledov</string>
     <string name="backup_part_history_sub">Shranjeni naslovi, Nadaljuj z gledanjem in oznake ogledanega</string>
     <string name="backup_part_history_signed_in">Vaš račun Nuvio to že hrani. Obnovi se samo na napravi, ki ni prijavljena.</string>

@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Odd, clever and unlike anything else.</string>
     <string name="scout_premix_why_world">Comedies, crime and more made there, picked for you.</string>
 
-    <string name="scout_premix_own_sub">Choose a few things. Scout picks the shows.</string>
+    <string name="scout_premix_own_sub">Choose a few things. DanPlus picks the shows.</string>
     <string name="scout_premix_own_decade">Decade</string>
     <string name="scout_premix_own_kind">Kind</string>
     <string name="scout_premix_own_mood">Mood</string>
@@ -94,11 +94,11 @@
         <item quantity="one">%d show goes in</item>
         <item quantity="other">%d shows go in</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Only a few shows fit, so Scout added the decades either side.</string>
-    <string name="scout_premix_widened_votes">Only a few shows fit, so Scout added less-known ones.</string>
-    <string name="scout_premix_widened_mood">Only a few shows fit, so Scout left the mood out.</string>
+    <string name="scout_premix_widened_decade">Only a few shows fit, so DanPlus added the decades either side.</string>
+    <string name="scout_premix_widened_votes">Only a few shows fit, so DanPlus added less-known ones.</string>
+    <string name="scout_premix_widened_mood">Only a few shows fit, so DanPlus left the mood out.</string>
     <string name="scout_premix_too_few">Only a few shows fit. Try another decade.</string>
-    <string name="scout_premix_no_link_skipped">No links for %1$s, so Scout picked another episode.</string>
+    <string name="scout_premix_no_link_skipped">No links for %1$s, so DanPlus picked another episode.</string>
     <string name="scout_premix_no_link_stopped">No links for the last 3 episodes. Press Play to try this one, or Remix.</string>
     <string name="scout_premix_none">Nothing fits these choices. Try another decade or kind.</string>
     <string name="scout_premix_restore_hidden">Restore hidden mixes</string>

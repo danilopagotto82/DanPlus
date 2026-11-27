@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Ką norėtumėte žiūrėti?</string>
     <string name="scout_your_taste">Jūsų skonis</string>
-    <string name="scout_your_taste_sub">Pažiūrėkite, ką sužinojo Scout, ir pakoreguokite</string>
+    <string name="scout_your_taste_sub">Pažiūrėkite, ką sužinojo DanPlus, ir pakoreguokite</string>
     <string name="scout_q_watching">Ką žiūrėti</string>
     <string name="scout_q_mood">Nuotaika</string>
     <string name="scout_q_who">Kas žiūri</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">Daugiau filtrų</string>
     <string name="scout_ask_words">Klauskite savais žodžiais</string>
     <string name="scout_tune_it">Derinti</string>
-    <string name="scout_tune_more">Dar trys</string>
     <string name="scout_tune_lighter">Lengviau</string>
     <string name="scout_tune_newer">Naujesni</string>
     <string name="scout_tune_older">Senesni</string>
@@ -163,7 +162,7 @@
     <string name="scout_taste_directors">Režisieriai ir kūrėjai</string>
     <string name="scout_taste_actors">Aktoriai</string>
     <string name="scout_taste_shaping">Pavadinimai, formuojantys pasiūlymus</string>
-    <string name="scout_taste_learn">Padėkite Scout mokytis</string>
+    <string name="scout_taste_learn">Padėkite DanPlus mokytis</string>
     <string name="scout_taste_seen">Ar matėte %1$s?</string>
     <string name="scout_taste_learn_sub">Kartais įvertinkite pavadinimą, ir jūsų pasiūlymai gerės greičiau.</string>
     <string name="scout_taste_not_seen">Nemačiau</string>
@@ -188,7 +187,7 @@
     <string name="scout_genre_thriller">Trileris</string>
     <string name="scout_genre_war">Karo</string>
     <string name="scout_genre_western">Vesternas</string>
-    <string name="scout_licence_icon_title">Scout piktograma</string>
+    <string name="scout_licence_icon_title">Surpreenda-me piktograma</string>
     <string name="scout_licence_icon_body">Iš Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">Oskarai: laimėtojai</string>
     <string name="scout_award_oscar_nominees">Oskarai: nominantai</string>

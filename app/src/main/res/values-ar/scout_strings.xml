@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">يتبع آخر ما أنهيته</string>
     <string name="scout_row_gems">جواهر خفية</string>
     <string name="scout_row_gems_sub">عناوين جيدة التقييم شاهدها قلة</string>
-    <string name="scout_row_tiles">مربعات Scout</string>
+    <string name="scout_row_tiles">مربعات DanPlus</string>
     <string name="scout_row_tiles_sub">فاجئني، الأمزجة، العقود</string>
     <string name="scout_ratings_enabled">تقييم العناوين</string>
     <string name="scout_ratings_enabled_sub">يعرض زر التقييم والإبهام في قائمة الضغط المطول والسؤال بعد الفيلم</string>
@@ -42,7 +42,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">اضغط OK على عنوان لتغيير تقييمه أو مسحه</string>
     <string name="scout_row_because_title">لأنك شاهدت %1$s</string>
-    <string name="scout_tile_surprise">فاجئني</string>
     <string name="scout_tile_more">المزيد…</string>
     <string name="scout_picker_title">ابحث عن شيء</string>
     <string name="scout_save_row">حفظ كصف في الرئيسية</string>

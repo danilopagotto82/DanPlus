@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Neobavezno. Koristi tvoj vlastiti AI ključ: Claude, OpenAI, Gemini ili Groq</string>
     <string name="scout_question_settings_none">Nije postavljeno</string>
     <string name="scout_question_settings_on">Uključeno</string>
-    <string name="scout_question_search_line">Pitaj Scout</string>
+    <string name="scout_question_search_line">Pitaj DanPlus</string>
     <string name="scout_question_mic_listening">Slušam…</string>
     <string name="scout_question_type_prompt">Upiši pitanje</string>
     <string name="scout_question_example_1">\"Filmovi poput Inceptiona, ali bez sanjanja\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Odgovor se nije mogao pročitati. Pokušaj ponovno.</string>
     <string name="scout_question_error_nothing">Nisu vraćeni odgovarajući naslovi. Pokušaj pitati drukčije.</string>
     <string name="scout_question_error_rejected">Usluga je odbila zahtjev. Provjeri postavke na stranici na telefonu.</string>
-    <string name="scout_web_title">Scout: pitanja i AI ključ</string>
+    <string name="scout_web_title">DanPlus: pitanja i AI ključ</string>
     <string name="scout_web_question_title">Pitaj</string>
     <string name="scout_web_question_placeholder">Što ti se gleda?</string>
     <string name="scout_web_question_send">Pitaj na TV-u</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Vrlo brz, besplatno za početak</string>
     <string name="scout_ai_chatgpt_line">GPT. Plaćanje po upotrebi, vrlo jeftin</string>
     <string name="scout_ai_claude_line">Anthropic. Plaćanje po upotrebi, najbolji prijedlozi</string>
-    <string name="scout_ai_stored_lead">Scout koristi tvoj vlastiti ključ. Ostaje šifriran na ovom uređaju i ne sinkronizira se s tvojim računom.</string>
+    <string name="scout_ai_stored_lead">DanPlus koristi tvoj vlastiti ključ. Ostaje šifriran na ovom uređaju i ne sinkronizira se s tvojim računom.</string>
     <string name="scout_ai_add_title">Dodaj ili promijeni ključ za %1$s</string>
     <string name="scout_ai_step_1">Skeniraj ovo telefonom</string>
     <string name="scout_ai_step_2">Otvori poveznicu da dobiješ ključ</string>

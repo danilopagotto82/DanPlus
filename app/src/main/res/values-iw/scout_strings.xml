@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">עוקב אחרי מה שסיימת לאחרונה</string>
     <string name="scout_row_gems">פנינים נסתרות</string>
     <string name="scout_row_gems_sub">כותרים בדירוג טוב שמעטים ראו</string>
-    <string name="scout_row_tiles">משבצות Scout</string>
+    <string name="scout_row_tiles">משבצות DanPlus</string>
     <string name="scout_row_tiles_sub">תפתיעו אותי, מצבי רוח, עשורים</string>
     <string name="scout_ratings_enabled">דירוג כותרים</string>
     <string name="scout_ratings_enabled_sub">מציג את כפתור הדירוג, האגודלים בתפריט הלחיצה הארוכה והשאלה אחרי סרט</string>
@@ -39,7 +39,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">לחיצה על OK בכותר משנה או מוחקת את הדירוג</string>
     <string name="scout_row_because_title">כי צפית ב-%1$s</string>
-    <string name="scout_tile_surprise">תפתיעו אותי</string>
     <string name="scout_tile_more">עוד…</string>
     <string name="scout_picker_title">חיפוש משהו</string>
     <string name="scout_save_row">שמירה כשורה במסך הבית</string>

@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Esquisitas, inteligentes e diferentes de tudo.</string>
     <string name="scout_premix_why_world">Comédias, crime e muito mais feitos lá, escolhidos para você.</string>
 
-    <string name="scout_premix_own_sub">Escolha algumas coisas. O Scout escolhe as séries.</string>
+    <string name="scout_premix_own_sub">Escolha algumas coisas. O DanPlus escolhe as séries.</string>
     <string name="scout_premix_own_decade">Década</string>
     <string name="scout_premix_own_kind">Tipo</string>
     <string name="scout_premix_own_mood">Clima</string>
@@ -95,11 +95,11 @@
         <item quantity="many">Entram %d séries</item>
         <item quantity="other">Entram %d séries</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Poucas séries combinam, então o Scout incluiu as décadas vizinhas.</string>
-    <string name="scout_premix_widened_votes">Poucas séries combinam, então o Scout incluiu outras menos conhecidas.</string>
-    <string name="scout_premix_widened_mood">Poucas séries combinam, então o Scout deixou o clima de fora.</string>
+    <string name="scout_premix_widened_decade">Poucas séries combinam, então o DanPlus incluiu as décadas vizinhas.</string>
+    <string name="scout_premix_widened_votes">Poucas séries combinam, então o DanPlus incluiu outras menos conhecidas.</string>
+    <string name="scout_premix_widened_mood">Poucas séries combinam, então o DanPlus deixou o clima de fora.</string>
     <string name="scout_premix_too_few">Poucas séries combinam. Tente outra década.</string>
-    <string name="scout_premix_no_link_skipped">Sem fontes para %1$s, então o Scout escolheu outro episódio.</string>
+    <string name="scout_premix_no_link_skipped">Sem fontes para %1$s, então o DanPlus escolheu outro episódio.</string>
     <string name="scout_premix_no_link_stopped">Sem fontes para os últimos 3 episódios. Aperte Assistir para tentar este, ou Misturar de novo.</string>
     <string name="scout_premix_none">Nada combina com essas escolhas. Tente outra década ou outro tipo.</string>
     <string name="scout_premix_restore_hidden">Restaurar mixes ocultos</string>

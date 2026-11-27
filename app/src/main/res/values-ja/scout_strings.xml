@@ -37,7 +37,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">作品でOKを押すと評価を変更・解除できます</string>
     <string name="scout_row_because_title">%1$s を観たあなたへ</string>
-    <string name="scout_tile_surprise">おまかせ</string>
     <string name="scout_tile_more">もっと見る…</string>
     <string name="scout_picker_title">作品を探す</string>
     <string name="scout_save_row">ホームの列として保存</string>

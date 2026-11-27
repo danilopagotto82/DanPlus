@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">Profiluri</string>
     <string name="backup_part_profiles_sub">Nume și imagini</string>
     <string name="backup_part_settings">Setări Arc</string>
-    <string name="backup_part_settings_sub">Scout, miniaturi, DNS, butoane telecomandă și altele</string>
+    <string name="backup_part_settings_sub">DanPlus, miniaturi, DNS, butoane telecomandă și altele</string>
     <string name="backup_part_history">Bibliotecă și istoric de vizionare</string>
     <string name="backup_part_history_sub">Titluri salvate, Continuă vizionarea și marcaje de vizionare</string>
     <string name="backup_part_history_signed_in">Contul tău Nuvio le păstrează deja. Se restaurează doar pe un dispozitiv neconectat.</string>

@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">מוזרות, חכמות ולא דומות לשום דבר אחר.</string>
     <string name="scout_premix_why_world">קומדיות, פשע ועוד, שנוצרו שם, נבחרו בשבילך.</string>
 
-    <string name="scout_premix_own_sub">בוחרים כמה דברים, ו-Scout בוחר את הסדרות.</string>
+    <string name="scout_premix_own_sub">בוחרים כמה דברים, ו-DanPlus בוחר את הסדרות.</string>
     <string name="scout_premix_own_decade">עשור</string>
     <string name="scout_premix_own_kind">סוג</string>
     <string name="scout_premix_own_mood">מצב רוח</string>
@@ -95,11 +95,11 @@
         <item quantity="two">%d סדרות נכנסות</item>
         <item quantity="other">%d סדרות נכנסות</item>
     </plurals>
-    <string name="scout_premix_widened_decade">רק מעט סדרות מתאימות, אז Scout הוסיף את העשורים הסמוכים.</string>
-    <string name="scout_premix_widened_votes">רק מעט סדרות מתאימות, אז Scout הוסיף סדרות פחות מוכרות.</string>
-    <string name="scout_premix_widened_mood">רק מעט סדרות מתאימות, אז Scout השמיט את מצב הרוח.</string>
+    <string name="scout_premix_widened_decade">רק מעט סדרות מתאימות, אז DanPlus הוסיף את העשורים הסמוכים.</string>
+    <string name="scout_premix_widened_votes">רק מעט סדרות מתאימות, אז DanPlus הוסיף סדרות פחות מוכרות.</string>
+    <string name="scout_premix_widened_mood">רק מעט סדרות מתאימות, אז DanPlus השמיט את מצב הרוח.</string>
     <string name="scout_premix_too_few">רק מעט סדרות מתאימות. כדאי לנסות עשור אחר.</string>
-    <string name="scout_premix_no_link_skipped">אין מקורות עבור %1$s, ולכן Scout בחר פרק אחר.</string>
+    <string name="scout_premix_no_link_skipped">אין מקורות עבור %1$s, ולכן DanPlus בחר פרק אחר.</string>
     <string name="scout_premix_no_link_stopped">אין מקורות ל-3 הפרקים האחרונים. כדאי ללחוץ על הפעלה כדי לנסות את הפרק הזה, או על ערבוב מחדש.</string>
     <string name="scout_premix_none">שום דבר לא מתאים לבחירות האלה. כדאי לנסות עשור או סוג אחר.</string>
 </resources>

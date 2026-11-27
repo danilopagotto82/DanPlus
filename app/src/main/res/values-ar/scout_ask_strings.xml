@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">اختياري. يستخدم مفتاح الذكاء الاصطناعي الخاص بك: Claude أو OpenAI أو Gemini أو Groq</string>
     <string name="scout_question_settings_none">غير مُعدّ</string>
     <string name="scout_question_settings_on">مفعّل</string>
-    <string name="scout_question_search_line">اسأل Scout</string>
+    <string name="scout_question_search_line">اسأل DanPlus</string>
     <string name="scout_question_mic_listening">جارٍ الاستماع…</string>
     <string name="scout_question_type_prompt">اكتب سؤالك</string>
     <string name="scout_question_example_1">\"أفلام مثل Inception، لكن بدون الأحلام\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">تعذّرت قراءة الإجابة. حاول مجددًا.</string>
     <string name="scout_question_error_nothing">لم تظهر عناوين مطابقة. جرّب صياغة أخرى.</string>
     <string name="scout_question_error_rejected">رفضت الخدمة الطلب. تحقق من الإعدادات في صفحة الهاتف.</string>
-    <string name="scout_web_title">Scout: اسأل ومفتاح الذكاء الاصطناعي</string>
+    <string name="scout_web_title">DanPlus: اسأل ومفتاح الذكاء الاصطناعي</string>
     <string name="scout_web_question_title">اسأل</string>
     <string name="scout_web_question_placeholder">ماذا تحب أن تشاهد؟</string>
     <string name="scout_web_question_send">اسأل على التلفزيون</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">سريع جدًا، ومجاني في البداية</string>
     <string name="scout_ai_chatgpt_line">GPT. الدفع حسب الاستخدام، رخيص جدًا</string>
     <string name="scout_ai_claude_line">Anthropic. الدفع حسب الاستخدام، أفضل الاختيارات</string>
-    <string name="scout_ai_stored_lead">يستخدم Scout مفتاحك الخاص. يبقى مشفرًا على هذا الجهاز ولا تتم مزامنته مع حسابك.</string>
+    <string name="scout_ai_stored_lead">يستخدم DanPlus مفتاحك الخاص. يبقى مشفرًا على هذا الجهاز ولا تتم مزامنته مع حسابك.</string>
     <string name="scout_ai_add_title">أضف مفتاح %1$s أو غيّره</string>
     <string name="scout_ai_step_1">امسح هذا الرمز بهاتفك</string>
     <string name="scout_ai_step_2">افتح الرابط للحصول على مفتاح</string>

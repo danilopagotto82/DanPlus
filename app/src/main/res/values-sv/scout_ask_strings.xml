@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Valfritt. Använder din egen AI-nyckel: Claude, OpenAI, Gemini eller Groq</string>
     <string name="scout_question_settings_none">Inte konfigurerat</string>
     <string name="scout_question_settings_on">På</string>
-    <string name="scout_question_search_line">Fråga Scout</string>
+    <string name="scout_question_search_line">Fråga DanPlus</string>
     <string name="scout_question_mic_listening">Lyssnar…</string>
     <string name="scout_question_type_prompt">Skriv din fråga</string>
     <string name="scout_question_example_1">\"Filmer som Inception, men utan drömmandet\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Svaret kunde inte läsas. Försök igen.</string>
     <string name="scout_question_error_nothing">Inga matchande titlar kom tillbaka. Försök fråga på ett annat sätt.</string>
     <string name="scout_question_error_rejected">Tjänsten avvisade förfrågan. Kontrollera inställningarna på telefonsidan.</string>
-    <string name="scout_web_title">Scout: fråga och AI-nyckel</string>
+    <string name="scout_web_title">DanPlus: fråga och AI-nyckel</string>
     <string name="scout_web_question_title">Fråga</string>
     <string name="scout_web_question_placeholder">Vad har du lust att titta på?</string>
     <string name="scout_web_question_send">Fråga på TV:n</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Mycket snabb, gratis att börja med</string>
     <string name="scout_ai_chatgpt_line">GPT. Betala efter användning, mycket billig</string>
     <string name="scout_ai_claude_line">Anthropic. Betala efter användning, de bästa förslagen</string>
-    <string name="scout_ai_stored_lead">Scout använder din egen nyckel. Den lagras krypterad på den här enheten och synkas inte till ditt konto.</string>
+    <string name="scout_ai_stored_lead">DanPlus använder din egen nyckel. Den lagras krypterad på den här enheten och synkas inte till ditt konto.</string>
     <string name="scout_ai_add_title">Lägg till eller ändra din %1$s-nyckel</string>
     <string name="scout_ai_step_1">Skanna med telefonen</string>
     <string name="scout_ai_step_2">Följ länken för att få en nyckel</string>

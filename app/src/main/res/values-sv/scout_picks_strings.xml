@@ -11,8 +11,8 @@
     <string name="scout_picks_row_new">Nytt för dig</string>
     <string name="scout_picks_row_trending">Trendar för dig</string>
     <string name="scout_picks_quick_title">Välj fem du älskar</string>
-    <string name="scout_picks_quick_sub">Det ger Scout ett försprång. Ändra dem när som helst under Din smak.</string>
-    <string name="scout_picks_quick_row_sub">Ett snabbt sätt att lära Scout vad du gillar</string>
+    <string name="scout_picks_quick_sub">Det ger DanPlus ett försprång. Ändra dem när som helst under Din smak.</string>
+    <string name="scout_picks_quick_row_sub">Ett snabbt sätt att lära DanPlus vad du gillar</string>
     <string name="scout_picks_quick_count">%1$d av %2$d</string>
     <string name="scout_picks_quick_done">Klar</string>
     <string name="scout_picks_quick_skip">Hoppa över</string>
@@ -28,7 +28,7 @@
     <string name="scout_picks_sort_sub">Ungefär en gång i veckan, med din nyckel. Scouts egna förslag behöver ingen AI.</string>
     <string name="scout_picks_on">På</string>
     <string name="scout_picks_off">Av</string>
-    <string name="scout_picks_sent">Skickas till din AI-tjänst med din egen nyckel: ungefär 100 titlar som Scout hittat åt dig, din smak i ord, titlar du gillade och inte gillade, och genrer du utesluter. Hela din historik får den inte.</string>
+    <string name="scout_picks_sent">Skickas till din AI-tjänst med din egen nyckel: ungefär 100 titlar som DanPlus hittat åt dig, din smak i ord, titlar du gillade och inte gillade, och genrer du utesluter. Hela din historik får den inte.</string>
     <string name="scout_picks_refine_violent">Mindre våldsamt</string>
     <string name="scout_picks_refine_older">Äldre</string>
     <string name="scout_picks_refine_newer">Nyare</string>

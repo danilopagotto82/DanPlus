@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Különc, ötletes és semmihez sem hasonlít.</string>
     <string name="scout_premix_why_world">Vígjátékok, krimik és más, ott készült sorozatok, neked válogatva.</string>
 
-    <string name="scout_premix_own_sub">Válassz ki néhány dolgot. A sorozatokat Scout választja.</string>
+    <string name="scout_premix_own_sub">Válassz ki néhány dolgot. A sorozatokat DanPlus választja.</string>
     <string name="scout_premix_own_decade">Évtized</string>
     <string name="scout_premix_own_kind">Típus</string>
     <string name="scout_premix_own_mood">Hangulat</string>
@@ -94,11 +94,11 @@
         <item quantity="one">%d sorozat kerül be</item>
         <item quantity="other">%d sorozat kerül be</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Csak kevés sorozat felelt meg, ezért Scout hozzáadta a szomszédos évtizedeket.</string>
-    <string name="scout_premix_widened_votes">Csak kevés sorozat felelt meg, ezért Scout ismeretlenebbeket is hozzáadott.</string>
-    <string name="scout_premix_widened_mood">Csak kevés sorozat felelt meg, ezért Scout kihagyta a hangulatot.</string>
+    <string name="scout_premix_widened_decade">Csak kevés sorozat felelt meg, ezért DanPlus hozzáadta a szomszédos évtizedeket.</string>
+    <string name="scout_premix_widened_votes">Csak kevés sorozat felelt meg, ezért DanPlus ismeretlenebbeket is hozzáadott.</string>
+    <string name="scout_premix_widened_mood">Csak kevés sorozat felelt meg, ezért DanPlus kihagyta a hangulatot.</string>
     <string name="scout_premix_too_few">Csak kevés sorozat felel meg. Próbálj másik évtizedet.</string>
-    <string name="scout_premix_no_link_skipped">Nincs forrás ehhez: %1$s, ezért a Scout másik epizódot választott.</string>
+    <string name="scout_premix_no_link_skipped">Nincs forrás ehhez: %1$s, ezért a DanPlus másik epizódot választott.</string>
     <string name="scout_premix_no_link_stopped">Nincs forrás az utolsó 3 epizódhoz. Próbáld ki ezt a Lejátszás gombbal, vagy válaszd az Újrakeverés lehetőséget.</string>
     <string name="scout_premix_none">Ezekre a választásokra nincs találat. Próbálj másik évtizedet vagy típust.</string>
 </resources>

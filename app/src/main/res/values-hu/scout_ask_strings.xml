@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">A választ nem sikerült beolvasni. Próbáld újra.</string>
     <string name="scout_question_error_nothing">Nem érkezett egyező cím. Próbáld meg másképp megfogalmazni.</string>
     <string name="scout_question_error_rejected">A szolgáltatás elutasította a kérést. Ellenőrizd a beállításokat a telefonos oldalon.</string>
-    <string name="scout_web_title">Scout: kérdezés és AI-kulcs</string>
+    <string name="scout_web_title">DanPlus: kérdezés és AI-kulcs</string>
     <string name="scout_web_question_title">Kérdezés</string>
     <string name="scout_web_question_placeholder">Mit néznél meg szívesen?</string>
     <string name="scout_web_question_send">Kérdezés a TV-n</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Nagyon gyors, kezdetben ingyenes</string>
     <string name="scout_ai_chatgpt_line">GPT. Használat szerint fizetős, nagyon olcsó</string>
     <string name="scout_ai_claude_line">Anthropic. Használat szerint fizetős, a legjobb ajánlások</string>
-    <string name="scout_ai_stored_lead">A Scout a saját kulcsodat használja. Titkosítva marad ezen a dobozon, és nem szinkronizálódik a fiókoddal.</string>
+    <string name="scout_ai_stored_lead">A DanPlus a saját kulcsodat használja. Titkosítva marad ezen a dobozon, és nem szinkronizálódik a fiókoddal.</string>
     <string name="scout_ai_add_title">%1$s-kulcs hozzáadása vagy módosítása</string>
     <string name="scout_ai_step_1">Olvasd be a telefonoddal</string>
     <string name="scout_ai_step_2">Kövesd a linket a kulcs megszerzéséhez</string>

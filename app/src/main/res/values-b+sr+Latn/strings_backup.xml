@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">Profili</string>
     <string name="backup_part_profiles_sub">Imena i slike</string>
     <string name="backup_part_settings">Arc podešavanja</string>
-    <string name="backup_part_settings_sub">Scout, sličice, DNS, dugmad daljinskog i drugo</string>
+    <string name="backup_part_settings_sub">DanPlus, sličice, DNS, dugmad daljinskog i drugo</string>
     <string name="backup_part_history">Biblioteka i istorija gledanja</string>
     <string name="backup_part_history_sub">Sačuvani naslovi, Nastavi gledanje i oznake odgledanog</string>
     <string name="backup_part_history_signed_in">Vaš Nuvio nalog ovo već čuva. Vraća se samo na uređaju koji nije prijavljen.</string>

@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Volgt wat je als laatste hebt uitgekeken</string>
     <string name="scout_row_gems">Verborgen pareltjes</string>
     <string name="scout_row_gems_sub">Goed beoordeelde titels die weinig mensen hebben gezien</string>
-    <string name="scout_row_tiles">Scout-tegels</string>
+    <string name="scout_row_tiles">DanPlus-tegels</string>
     <string name="scout_row_tiles_sub">Verras me, stemmingen, decennia</string>
     <string name="scout_ratings_enabled">Titels beoordelen</string>
     <string name="scout_ratings_enabled_sub">Toont de knop Beoordelen, de duimen in het menu bij lang indrukken en de vraag na een film</string>
@@ -38,7 +38,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Druk op OK op een titel om de beoordeling te wijzigen of te wissen</string>
     <string name="scout_row_because_title">Omdat je %1$s keek</string>
-    <string name="scout_tile_surprise">Verras me</string>
     <string name="scout_tile_more">Meer…</string>
     <string name="scout_picker_title">Iets vinden</string>
     <string name="scout_save_row">Opslaan als rij op Start</string>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cinema_session">My cinema session</string>
+    <string name="cinema_session_description">Choose the mood and time available for your selected company.</string>
+    <string name="cinema_quick">Choose for me</string>
+    <string name="cinema_quick_description">The movie that fits you right now.</string>
+    <string name="cinema_choice">THE DANPLUS PICK</string>
+    <string name="cinema_mood">What\'s the mood today?</string>
+    <string name="cinema_any_mood">Any mood</string>
+    <string name="cinema_no_limit">No limit</string>
+    <string name="cinema_minutes">%1$d min</string>
+    <string name="cinema_find">Find my perfect session</string>
+    <string name="cinema_searching">Finding a movie for this session…</string>
+    <string name="cinema_empty">No eligible movie was found for these filters.</string>
+    <string name="cinema_adjust">Adjust the session</string>
+    <string name="cinema_reason">Why did we choose this movie?</string>
+    <string name="cinema_mood_reason">It matches the selected mood (%1$s) and meets the session filters.</string>
+    <string name="cinema_filter_reason">This released movie meets the current filters and running time.</string>
+    <string name="cinema_another">Another pick</string>
+    <string name="cinema_rating">TMDB %1$.1f</string>
+    <string name="cinema_trailer">Trailer</string>
+    <string name="cinema_trailer_loading">Loading trailer…</string>
+    <string name="cinema_trailer_unavailable">Trailer unavailable.</string>
+    <string name="cinema_back_to_pick">Back to the pick</string>
+    <string name="cinema_company">Company</string>
+    <string name="cinema_taste_adventure">Adventure lover</string>
+    <string name="cinema_taste_suspense">Suspense enthusiast</string>
+    <string name="cinema_taste_worlds">Traveler of other worlds</string>
+    <string name="cinema_taste_explorer">Story explorer</string>
+</resources>

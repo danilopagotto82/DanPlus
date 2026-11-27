@@ -11,7 +11,7 @@
     <string name="scout_picks_row_new">Novo za vas</string>
     <string name="scout_picks_row_trending">V trendu za vas</string>
     <string name="scout_picks_quick_title">Izberite pet priljubljenih</string>
-    <string name="scout_picks_quick_sub">Tako ima Scout prednost. Spremenite jih lahko kadar koli v razdelku Vaš okus.</string>
+    <string name="scout_picks_quick_sub">Tako ima DanPlus prednost. Spremenite jih lahko kadar koli v razdelku Vaš okus.</string>
     <string name="scout_picks_quick_row_sub">Hiter način, da Scoutu pokažete, kaj vam je všeč</string>
     <string name="scout_picks_quick_count">%1$d od %2$d</string>
     <string name="scout_picks_quick_done">Končano</string>
@@ -28,7 +28,7 @@
     <string name="scout_picks_sort_sub">Približno enkrat na teden, z vašim ključem. Scoutovi lastni predlogi ne potrebujejo UI.</string>
     <string name="scout_picks_on">Vklopljeno</string>
     <string name="scout_picks_off">Izklopljeno</string>
-    <string name="scout_picks_sent">Pošlje se vaši storitvi UI z vašim ključem: približno 100 naslovov, ki jih je Scout našel za vas, vaš okus z besedami, naslovi, ki so vam bili všeč in niso, ter zvrsti, ki jih izpuščate. Vaše celotne zgodovine ne dobi.</string>
+    <string name="scout_picks_sent">Pošlje se vaši storitvi UI z vašim ključem: približno 100 naslovov, ki jih je DanPlus našel za vas, vaš okus z besedami, naslovi, ki so vam bili všeč in niso, ter zvrsti, ki jih izpuščate. Vaše celotne zgodovine ne dobi.</string>
     <string name="scout_picks_refine_violent">Manj nasilno</string>
     <string name="scout_picks_refine_older">Starejše</string>
     <string name="scout_picks_refine_newer">Novejše</string>

@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Шта желите да гледате?</string>
     <string name="scout_your_taste">Ваш укус</string>
-    <string name="scout_your_taste_sub">Погледајте шта је Scout научио и прилагодите то</string>
+    <string name="scout_your_taste_sub">Погледајте шта је DanPlus научио и прилагодите то</string>
     <string name="scout_q_watching">Шта гледати</string>
     <string name="scout_q_mood">Расположење</string>
     <string name="scout_q_who">Ко гледа</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">Још филтера</string>
     <string name="scout_ask_words">Питајте својим речима</string>
     <string name="scout_tune_it">Прилагоди</string>
-    <string name="scout_tune_more">Још три</string>
     <string name="scout_tune_lighter">Лакше</string>
     <string name="scout_tune_newer">Новије</string>
     <string name="scout_tune_older">Старије</string>
@@ -160,7 +159,7 @@
     <string name="scout_taste_directors">Редитељи и творци</string>
     <string name="scout_taste_actors">Глумци</string>
     <string name="scout_taste_shaping">Наслови који обликују предлоге</string>
-    <string name="scout_taste_learn">Помозите Scout-у да учи</string>
+    <string name="scout_taste_learn">Помозите DanPlus-у да учи</string>
     <string name="scout_taste_seen">Да ли сте гледали %1$s?</string>
     <string name="scout_taste_learn_sub">Повремено оцените наслов и предлози ће се брже побољшати.</string>
     <string name="scout_taste_not_seen">Нисам гледао/ла</string>
@@ -185,7 +184,7 @@
     <string name="scout_genre_thriller">Трилер</string>
     <string name="scout_genre_war">Рат</string>
     <string name="scout_genre_western">Вестерн</string>
-    <string name="scout_licence_icon_title">Икона Scout</string>
+    <string name="scout_licence_icon_title">Икона Surpreenda-me</string>
     <string name="scout_licence_icon_body">Из Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">Оскари: победници</string>
     <string name="scout_award_oscar_nominees">Оскари: номиновани</string>

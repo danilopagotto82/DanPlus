@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Mengikuti yang terakhir Anda selesaikan</string>
     <string name="scout_row_gems">Permata tersembunyi</string>
     <string name="scout_row_gems_sub">Judul bernilai bagus yang jarang ditonton orang</string>
-    <string name="scout_row_tiles">Kotak Scout</string>
+    <string name="scout_row_tiles">Kotak DanPlus</string>
     <string name="scout_row_tiles_sub">Kejutkan saya, suasana hati, dekade</string>
     <string name="scout_ratings_enabled">Nilai judul</string>
     <string name="scout_ratings_enabled_sub">Menampilkan tombol Beri nilai, jempol di menu tekan lama, dan pertanyaan setelah film</string>
@@ -37,7 +37,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Tekan OK pada judul untuk mengubah atau menghapus nilainya</string>
     <string name="scout_row_because_title">Karena Anda menonton %1$s</string>
-    <string name="scout_tile_surprise">Kejutkan saya</string>
     <string name="scout_tile_more">Lainnya…</string>
     <string name="scout_picker_title">Cari sesuatu</string>
     <string name="scout_save_row">Simpan sebagai baris Beranda</string>

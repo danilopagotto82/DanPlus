@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Följer det du senast såg klart</string>
     <string name="scout_row_gems">Dolda pärlor</string>
     <string name="scout_row_gems_sub">Högt betygsatta titlar som få har sett</string>
-    <string name="scout_row_tiles">Scout-rutor</string>
+    <string name="scout_row_tiles">DanPlus-rutor</string>
     <string name="scout_row_tiles_sub">Överraska mig, stämningar, årtionden</string>
     <string name="scout_ratings_enabled">Betygsätt titlar</string>
     <string name="scout_ratings_enabled_sub">Visar knappen Betygsätt, tummarna i långtrycksmenyn och frågan efter en film</string>
@@ -38,7 +38,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Tryck OK på en titel för att ändra eller rensa betyget</string>
     <string name="scout_row_because_title">Eftersom du såg %1$s</string>
-    <string name="scout_tile_surprise">Överraska mig</string>
     <string name="scout_tile_more">Mer…</string>
     <string name="scout_picker_title">Hitta något</string>
     <string name="scout_save_row">Spara som rad på Hem</string>

@@ -3,6 +3,12 @@ package com.nuvio.tv.ui.screens.scout
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.content.Context
+import com.nuvio.tv.core.build.AppFeaturePolicy
+import com.nuvio.tv.core.tmdb.TmdbService
+import com.nuvio.tv.data.local.TmdbSettingsDataStore
+import com.nuvio.tv.data.trailer.TrailerPlaybackSource
+import com.nuvio.tv.data.trailer.TrailerService
+import com.nuvio.tv.data.trailer.lookupTrailerPreview
 import coil3.imageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -29,6 +35,7 @@ import com.nuvio.tv.core.scout.ScoutPicksFinder
 import com.nuvio.tv.core.scout.ScoutTime
 import com.nuvio.tv.core.scout.ScoutTune
 import com.nuvio.tv.core.scout.ScoutWatch
+import com.nuvio.tv.core.scout.scoutOrderCinemaPicks
 import com.nuvio.tv.core.scout.scoutOrderPicks
 import com.nuvio.tv.core.scout.ask.AskFailure
 import com.nuvio.tv.core.scout.ask.AskItem
@@ -187,7 +194,10 @@ class ScoutViewModel @Inject constructor(
     localAvatars: LocalProfileAvatars,
     private val avatars: AvatarRepository,
     private val memberAccess: MemberAccessRepository,
-    private val ratingLimits: RatingLimitGate
+    private val ratingLimits: RatingLimitGate,
+    private val trailerService: TrailerService,
+    private val tmdbService: TmdbService,
+    private val tmdbSettings: TmdbSettingsDataStore
 ) : ViewModel() {
     private val _state = MutableStateFlow(ScoutScreenState())
     private var sessionOwner = profileOwner()
@@ -669,6 +679,67 @@ class ScoutViewModel @Inject constructor(
     fun threeMore() {
         if (!_state.value.surprise) shown += _state.value.row.map { it.key }
         loadRow(0)
+    }
+
+    internal suspend fun cinemaChoice(
+        audience: ScoutAudience,
+        mood: ScoutMood?,
+        maxMinutes: Int?,
+        rejected: Set<String>,
+        configuredSession: Boolean
+    ): ScoutCinemaChoice? {
+        val snapshot = _state.value
+        if (!isCurrent(audience)) return null
+        val answers = snapshot.answers.copy(
+            watch = if (snapshot.answers.watch == ScoutWatch.ANYTHING) ScoutWatch.MOVIE else snapshot.answers.watch,
+            mood = if (configuredSession) mood else snapshot.answers.mood,
+            time = if (configuredSession) ScoutTime.ANY else snapshot.answers.time
+        )
+        val filters = answers.slice().movie ?: return null
+        val today = java.time.LocalDate.now()
+        val display = watchedDisplay.first { it.profileId == audience.owner.profileId && it.loaded }
+        if (!isCurrent(audience)) return null
+
+        val exclusions = finder.exclusions(audience.owner) ?: return null
+        val others = group(audience)
+        if (others.size != audience.others.size || !isCurrent(audience)) return null
+        val pool = finder.pool()
+        for (page in 1..3) {
+            val query = snapshot.advancedSearch
+            val fetched = if (query == null) finder.fetch(answers, page, relaxed = false)
+                else finder.fetchAdvanced(query, answers, page)
+            val candidates = display.visible(fetched).filter { pick ->
+                cinemaCandidateFits(pick, today, rejected)
+            }
+            val allowed = restrictRecommendations(candidates.filterNot { pick ->
+                exclusions.blocks(pick) || others.any { it.exclusions.blocks(pick) }
+            }, audience)
+            val ordered = withContext(Dispatchers.Default) {
+                scoutOrderCinemaPicks(allowed, pool, exclusions, others)
+            }
+            for (pick in ordered) {
+                val detail = finder.detail(pick, withRating = audience.limit != null) ?: continue
+                if (!cinemaRuntimeFits(detail.minutes, filters.withRuntimeGte, filters.withRuntimeLte, maxMinutes)) continue
+                val logo = finder.logo(pick)
+                if (!isCurrent(audience) || _state.value.answers != snapshot.answers ||
+                    _state.value.advancedSearch != snapshot.advancedSearch) return null
+                return ScoutCinemaChoice(ScoutShownPick(pick, detail), logo)
+            }
+        }
+        return null
+    }
+
+    internal fun cinemaAudienceIsCurrent(audience: ScoutAudience): Boolean = isCurrent(audience)
+
+    internal suspend fun cinemaTrailer(audience: ScoutAudience, pick: ScoutPick): TrailerPlaybackSource? {
+        if (!isCurrent(audience) || !tmdbSettings.settings.first().useTrailers) return null
+        val source = if (AppFeaturePolicy.inAppTrailerPlaybackEnabled) {
+            lookupTrailerPreview(
+                trailerService, tmdbService, "tmdb:${pick.tmdbId}", "movie", pick.name,
+                pick.released?.take(4), imdbId = null, ytIds = emptyList()
+            ).source
+        } else null
+        return source.takeIf { isCurrent(audience) }
     }
 
     internal fun discoveryAudience(): ScoutAudience? = audienceFor(_state.value)

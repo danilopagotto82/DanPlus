@@ -11,7 +11,7 @@
     <string name="scout_picks_row_new">Nowości dla Ciebie</string>
     <string name="scout_picks_row_trending">Na czasie dla Ciebie</string>
     <string name="scout_picks_quick_title">Wybierz pięć ulubionych</string>
-    <string name="scout_picks_quick_sub">Dzięki temu Scout szybciej ruszy. Zmienisz je w dowolnej chwili w sekcji Twój gust.</string>
+    <string name="scout_picks_quick_sub">Dzięki temu DanPlus szybciej ruszy. Zmienisz je w dowolnej chwili w sekcji Twój gust.</string>
     <string name="scout_picks_quick_row_sub">Szybki sposób, by pokazać Scoutowi, co lubisz</string>
     <string name="scout_picks_quick_count">%1$d z %2$d</string>
     <string name="scout_picks_quick_done">Gotowe</string>

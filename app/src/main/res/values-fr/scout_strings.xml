@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Suit ce que vous avez terminé récemment</string>
     <string name="scout_row_gems">Pépites cachées</string>
     <string name="scout_row_gems_sub">Des titres bien notés que peu de gens ont vus</string>
-    <string name="scout_row_tiles">Tuiles Scout</string>
+    <string name="scout_row_tiles">Tuiles DanPlus</string>
     <string name="scout_row_tiles_sub">Surprenez-moi, ambiances, décennies</string>
     <string name="scout_ratings_enabled">Noter les titres</string>
     <string name="scout_ratings_enabled_sub">Affiche le bouton Noter, les pouces dans le menu d\'appui long et la question après un film</string>
@@ -39,7 +39,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Appuyez sur OK sur un titre pour modifier ou effacer sa note</string>
     <string name="scout_row_because_title">Parce que vous avez regardé %1$s</string>
-    <string name="scout_tile_surprise">Surprenez-moi</string>
     <string name="scout_tile_more">Plus…</string>
     <string name="scout_picker_title">Trouver quelque chose</string>
     <string name="scout_save_row">Enregistrer comme rangée d\'accueil</string>

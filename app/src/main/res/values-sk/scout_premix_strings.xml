@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Zvláštne, dômyselné a nepodobné ničomu inému.</string>
     <string name="scout_premix_why_world">Komédie, krimi a ďalšie z týchto krajín, vybrané pre vás.</string>
 
-    <string name="scout_premix_own_sub">Vyberte pár vecí. Seriály vyberie Scout.</string>
+    <string name="scout_premix_own_sub">Vyberte pár vecí. Seriály vyberie DanPlus.</string>
     <string name="scout_premix_own_decade">Desaťročie</string>
     <string name="scout_premix_own_kind">Druh</string>
     <string name="scout_premix_own_mood">Nálada</string>
@@ -96,11 +96,11 @@
         <item quantity="many">%d seriálu v mixe</item>
         <item quantity="other">%d seriálov v mixe</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Vyhovuje len pár seriálov, preto Scout pridal susedné desaťročia.</string>
-    <string name="scout_premix_widened_votes">Vyhovuje len pár seriálov, preto Scout pridal menej známe.</string>
-    <string name="scout_premix_widened_mood">Vyhovuje len pár seriálov, preto Scout náladu vynechal.</string>
+    <string name="scout_premix_widened_decade">Vyhovuje len pár seriálov, preto DanPlus pridal susedné desaťročia.</string>
+    <string name="scout_premix_widened_votes">Vyhovuje len pár seriálov, preto DanPlus pridal menej známe.</string>
+    <string name="scout_premix_widened_mood">Vyhovuje len pár seriálov, preto DanPlus náladu vynechal.</string>
     <string name="scout_premix_too_few">Vyhovuje len pár seriálov. Skúste iné desaťročie.</string>
-    <string name="scout_premix_no_link_skipped">Pre %1$s nie sú žiadne zdroje, preto Scout vybral iný diel.</string>
+    <string name="scout_premix_no_link_skipped">Pre %1$s nie sú žiadne zdroje, preto DanPlus vybral iný diel.</string>
     <string name="scout_premix_no_link_stopped">Pre posledné 3 diely nie sú žiadne zdroje. Stlačte Prehrať a skúste tento, alebo Znova zamiešať.</string>
     <string name="scout_premix_none">Týmto voľbám nič nevyhovuje. Skúste iné desaťročie alebo druh.</string>
 </resources>

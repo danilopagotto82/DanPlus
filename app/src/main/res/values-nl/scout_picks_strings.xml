@@ -11,8 +11,8 @@
     <string name="scout_picks_row_new">Nieuw voor jou</string>
     <string name="scout_picks_row_trending">Trending voor jou</string>
     <string name="scout_picks_quick_title">Kies vijf favorieten</string>
-    <string name="scout_picks_quick_sub">Zo heeft Scout meteen een voorsprong. Je kunt ze altijd wijzigen bij Jouw smaak.</string>
-    <string name="scout_picks_quick_row_sub">Een snelle manier om Scout te leren wat je leuk vindt</string>
+    <string name="scout_picks_quick_sub">Zo heeft DanPlus meteen een voorsprong. Je kunt ze altijd wijzigen bij Jouw smaak.</string>
+    <string name="scout_picks_quick_row_sub">Een snelle manier om DanPlus te leren wat je leuk vindt</string>
     <string name="scout_picks_quick_count">%1$d van %2$d</string>
     <string name="scout_picks_quick_done">Klaar</string>
     <string name="scout_picks_quick_skip">Overslaan</string>
@@ -28,7 +28,7 @@
     <string name="scout_picks_sort_sub">Ongeveer eens per week, met je sleutel. Scouts eigen suggesties hebben geen AI nodig.</string>
     <string name="scout_picks_on">Aan</string>
     <string name="scout_picks_off">Uit</string>
-    <string name="scout_picks_sent">Gaat met je sleutel naar je AI-dienst: ongeveer 100 titels die Scout voor je vond, jouw smaak in woorden, titels die je wel en niet leuk vond en genres die je weglaat. Je hele geschiedenis krijgt die dienst niet.</string>
+    <string name="scout_picks_sent">Gaat met je sleutel naar je AI-dienst: ongeveer 100 titels die DanPlus voor je vond, jouw smaak in woorden, titels die je wel en niet leuk vond en genres die je weglaat. Je hele geschiedenis krijgt die dienst niet.</string>
     <string name="scout_picks_refine_violent">Minder gewelddadig</string>
     <string name="scout_picks_refine_older">Ouder</string>
     <string name="scout_picks_refine_newer">Nieuwer</string>

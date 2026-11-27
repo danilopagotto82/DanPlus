@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">מה מתחשק לך לראות?</string>
     <string name="scout_your_taste">הטעם שלך</string>
-    <string name="scout_your_taste_sub">אפשר לראות מה Scout למד ולכוונן אותו</string>
+    <string name="scout_your_taste_sub">אפשר לראות מה DanPlus למד ולכוונן אותו</string>
     <string name="scout_q_watching">מה צופים</string>
     <string name="scout_q_mood">מצב רוח</string>
     <string name="scout_q_who">מי צופה</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">עוד מסננים</string>
     <string name="scout_ask_words">שאלה במילים שלך</string>
     <string name="scout_tune_it">כוונון</string>
-    <string name="scout_tune_more">עוד שלושה</string>
     <string name="scout_tune_lighter">קליל יותר</string>
     <string name="scout_tune_newer">חדש יותר</string>
     <string name="scout_tune_older">ישן יותר</string>
@@ -163,7 +162,7 @@
     <string name="scout_taste_directors">במאים ויוצרים</string>
     <string name="scout_taste_actors">שחקנים</string>
     <string name="scout_taste_shaping">כותרים שמעצבים את ההמלצות</string>
-    <string name="scout_taste_learn">עזרה ל-Scout ללמוד</string>
+    <string name="scout_taste_learn">עזרה ל-DanPlus ללמוד</string>
     <string name="scout_taste_seen">ראית את %1$s?</string>
     <string name="scout_taste_learn_sub">דירוג כותר מדי פעם ישפר את ההמלצות מהר יותר.</string>
     <string name="scout_taste_not_seen">לא ראיתי</string>
@@ -188,7 +187,7 @@
     <string name="scout_genre_thriller">מותחן</string>
     <string name="scout_genre_war">מלחמה</string>
     <string name="scout_genre_western">מערבון</string>
-    <string name="scout_licence_icon_title">סמל Scout</string>
+    <string name="scout_licence_icon_title">סמל Surpreenda-me</string>
     <string name="scout_licence_icon_body">From Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">אוסקר: זוכים</string>
     <string name="scout_award_oscar_nominees">אוסקר: מועמדים</string>

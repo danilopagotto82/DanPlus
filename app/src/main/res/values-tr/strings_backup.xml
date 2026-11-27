@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">Profiller</string>
     <string name="backup_part_profiles_sub">Adlar ve resimler</string>
     <string name="backup_part_settings">Arc ayarları</string>
-    <string name="backup_part_settings_sub">Scout, küçük resimler, DNS, kumanda tuşları ve daha fazlası</string>
+    <string name="backup_part_settings_sub">DanPlus, küçük resimler, DNS, kumanda tuşları ve daha fazlası</string>
     <string name="backup_part_history">Kütüphanem ve izleme geçmişi</string>
     <string name="backup_part_history_sub">Kaydedilen içerikler, İzlemeye Devam Et ve izlendi işaretleri</string>
     <string name="backup_part_history_signed_in">Nuvio hesabınız bunları zaten saklıyor. Yalnızca oturum açılmamış cihazda geri yüklenir.</string>

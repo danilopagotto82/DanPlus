@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="scout_show_in_menu">Show For You in the menu</string>
-    <string name="scout_title">For You</string>
+    <string name="scout_title">Surpreenda-me</string>
     <string name="scout_rate">Rate</string>
     <string name="scout_rate_not_for_me">Not for me</string>
     <string name="scout_rate_like">I like this</string>
@@ -20,7 +20,7 @@
     <string name="scout_row_because_sub">Follows the last things you finished</string>
     <string name="scout_row_gems">Hidden gems</string>
     <string name="scout_row_gems_sub">Well rated titles few people have seen</string>
-    <string name="scout_row_tiles">Scout tiles</string>
+    <string name="scout_row_tiles">DanPlus tiles</string>
     <string name="scout_row_tiles_sub">Surprise me, moods, decades</string>
     <string name="scout_ratings_enabled">Rate titles</string>
     <string name="scout_ratings_enabled_sub">Shows the Rate button, the thumbs in the long-press menu and the question after a film</string>
@@ -40,7 +40,7 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Press OK on a title to change or clear its rating</string>
     <string name="scout_row_because_title">Because you watched %1$s</string>
-    <string name="scout_tile_surprise">Surprise me</string>
+    <string name="scout_tile_surprise">Discover me</string>
     <string name="scout_tile_more">More…</string>
     <string name="scout_picker_title">Find something</string>
     <string name="scout_save_row">Save as a Home row</string>

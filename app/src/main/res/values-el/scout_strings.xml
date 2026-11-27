@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Ακολουθεί ό,τι ολοκληρώσατε τελευταία</string>
     <string name="scout_row_gems">Κρυμμένα διαμάντια</string>
     <string name="scout_row_gems_sub">Τίτλοι με καλή βαθμολογία που λίγοι έχουν δει</string>
-    <string name="scout_row_tiles">Πλαίσια Scout</string>
+    <string name="scout_row_tiles">Πλαίσια DanPlus</string>
     <string name="scout_row_tiles_sub">Εκπλήξτε με, διαθέσεις, δεκαετίες</string>
     <string name="scout_ratings_enabled">Βαθμολόγηση τίτλων</string>
     <string name="scout_ratings_enabled_sub">Εμφανίζει το κουμπί Βαθμολογία, τους αντίχειρες στο μενού παρατεταμένου πατήματος και την ερώτηση μετά από ταινία</string>
@@ -38,7 +38,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Πατήστε OK σε έναν τίτλο για αλλαγή ή διαγραφή της βαθμολογίας</string>
     <string name="scout_row_because_title">Επειδή είδατε %1$s</string>
-    <string name="scout_tile_surprise">Εκπλήξτε με</string>
     <string name="scout_tile_more">Περισσότερα…</string>
     <string name="scout_picker_title">Βρείτε κάτι</string>
     <string name="scout_save_row">Αποθήκευση ως σειρά στην Αρχική</string>

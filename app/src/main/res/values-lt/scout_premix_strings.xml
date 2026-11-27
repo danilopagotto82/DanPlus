@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Keisti, gudrūs ir nepanašūs į nieką kitą.</string>
     <string name="scout_premix_why_world">Komedijos, kriminaliniai ir kiti ten sukurti serialai, parinkti jums.</string>
 
-    <string name="scout_premix_own_sub">Pasirinkite keletą dalykų. Serialus parinks Scout.</string>
+    <string name="scout_premix_own_sub">Pasirinkite keletą dalykų. Serialus parinks DanPlus.</string>
     <string name="scout_premix_own_decade">Dešimtmetis</string>
     <string name="scout_premix_own_kind">Rūšis</string>
     <string name="scout_premix_own_mood">Nuotaika</string>
@@ -96,11 +96,11 @@
         <item quantity="many">Įtraukiamo %d serialo</item>
         <item quantity="other">Įtraukiama %d serialų</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Tiko tik keli serialai, todėl Scout pridėjo gretimus dešimtmečius.</string>
-    <string name="scout_premix_widened_votes">Tiko tik keli serialai, todėl Scout pridėjo mažiau žinomų.</string>
-    <string name="scout_premix_widened_mood">Tiko tik keli serialai, todėl Scout nebeatsižvelgė į nuotaiką.</string>
+    <string name="scout_premix_widened_decade">Tiko tik keli serialai, todėl DanPlus pridėjo gretimus dešimtmečius.</string>
+    <string name="scout_premix_widened_votes">Tiko tik keli serialai, todėl DanPlus pridėjo mažiau žinomų.</string>
+    <string name="scout_premix_widened_mood">Tiko tik keli serialai, todėl DanPlus nebeatsižvelgė į nuotaiką.</string>
     <string name="scout_premix_too_few">Tinka tik keli serialai. Išbandykite kitą dešimtmetį.</string>
-    <string name="scout_premix_no_link_skipped">%1$s šaltinių nėra, todėl Scout pasirinko kitą seriją.</string>
+    <string name="scout_premix_no_link_skipped">%1$s šaltinių nėra, todėl DanPlus pasirinko kitą seriją.</string>
     <string name="scout_premix_no_link_stopped">Paskutinių 3 serijų šaltinių nėra. Paspauskite Leisti, kad išbandytumėte šią, arba Maišyti iš naujo.</string>
     <string name="scout_premix_none">Nieko nerasta pagal šiuos pasirinkimus. Išbandykite kitą dešimtmetį ar rūšį.</string>
 </resources>

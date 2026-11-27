@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Що хочете подивитися?</string>
     <string name="scout_your_taste">Ваш смак</string>
-    <string name="scout_your_taste_sub">Перегляньте, що дізнався Scout, і підкоригуйте</string>
+    <string name="scout_your_taste_sub">Перегляньте, що дізнався DanPlus, і підкоригуйте</string>
     <string name="scout_q_watching">Що дивимося</string>
     <string name="scout_q_mood">Настрій</string>
     <string name="scout_q_who">Хто дивиться</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">Інші фільтри</string>
     <string name="scout_ask_words">Запитайте своїми словами</string>
     <string name="scout_tune_it">Налаштувати</string>
-    <string name="scout_tune_more">Ще три</string>
     <string name="scout_tune_lighter">Легше</string>
     <string name="scout_tune_newer">Новіше</string>
     <string name="scout_tune_older">Старіше</string>
@@ -163,7 +162,7 @@
     <string name="scout_taste_directors">Режисери та творці</string>
     <string name="scout_taste_actors">Актори</string>
     <string name="scout_taste_shaping">Що формує вашу добірку</string>
-    <string name="scout_taste_learn">Допоможіть Scout навчатися</string>
+    <string name="scout_taste_learn">Допоможіть DanPlus навчатися</string>
     <string name="scout_taste_seen">Ви дивилися %1$s?</string>
     <string name="scout_taste_learn_sub">Іноді оцінюйте назви, і добірки покращуватимуться швидше.</string>
     <string name="scout_taste_not_seen">Не дивився(-лась)</string>
@@ -188,7 +187,7 @@
     <string name="scout_genre_thriller">Трилер</string>
     <string name="scout_genre_war">Військовий</string>
     <string name="scout_genre_western">Вестерн</string>
-    <string name="scout_licence_icon_title">Значок Scout</string>
+    <string name="scout_licence_icon_title">Значок Surpreenda-me</string>
     <string name="scout_licence_icon_body">З Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">Оскар: переможці</string>
     <string name="scout_award_oscar_nominees">Оскар: номінанти</string>

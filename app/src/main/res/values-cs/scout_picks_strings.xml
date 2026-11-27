@@ -11,8 +11,8 @@
     <string name="scout_picks_row_new">Novinky pro vás</string>
     <string name="scout_picks_row_trending">Trendy pro vás</string>
     <string name="scout_picks_quick_title">Vyberte pět oblíbených</string>
-    <string name="scout_picks_quick_sub">Scout tak bude mít náskok. Kdykoli je můžete změnit v části Váš vkus.</string>
-    <string name="scout_picks_quick_row_sub">Rychlý způsob, jak Scout naučit, co vás baví</string>
+    <string name="scout_picks_quick_sub">DanPlus tak bude mít náskok. Kdykoli je můžete změnit v části Váš vkus.</string>
+    <string name="scout_picks_quick_row_sub">Rychlý způsob, jak DanPlus naučit, co vás baví</string>
     <string name="scout_picks_quick_count">%1$d z %2$d</string>
     <string name="scout_picks_quick_done">Hotovo</string>
     <string name="scout_picks_quick_skip">Přeskočit</string>
@@ -28,7 +28,7 @@
     <string name="scout_picks_sort_sub">Zhruba jednou týdně, s vaším klíčem. Vlastní tipy Scoutu AI nepotřebují.</string>
     <string name="scout_picks_on">Zapnuto</string>
     <string name="scout_picks_off">Vypnuto</string>
-    <string name="scout_picks_sent">Odesílá se vaší službě AI s vaším klíčem: asi 100 titulů, které pro vás Scout našel, váš vkus slovy, tituly, které se vám líbily a nelíbily, a žánry, které vynecháváte. Celou vaši historii nedostane.</string>
+    <string name="scout_picks_sent">Odesílá se vaší službě AI s vaším klíčem: asi 100 titulů, které pro vás DanPlus našel, váš vkus slovy, tituly, které se vám líbily a nelíbily, a žánry, které vynecháváte. Celou vaši historii nedostane.</string>
     <string name="scout_picks_refine_violent">Méně násilí</string>
     <string name="scout_picks_refine_older">Starší</string>
     <string name="scout_picks_refine_newer">Novější</string>

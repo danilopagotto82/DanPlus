@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Schräg, clever und anders als alles andere.</string>
     <string name="scout_premix_why_world">Comedys, Krimis und mehr von dort, für dich ausgewählt.</string>
 
-    <string name="scout_premix_own_sub">Wähle ein paar Dinge aus. Scout sucht die Serien aus.</string>
+    <string name="scout_premix_own_sub">Wähle ein paar Dinge aus. DanPlus sucht die Serien aus.</string>
     <string name="scout_premix_own_decade">Jahrzehnt</string>
     <string name="scout_premix_own_kind">Art</string>
     <string name="scout_premix_own_mood">Stimmung</string>
@@ -94,11 +94,11 @@
         <item quantity="one">%d Serie ist dabei</item>
         <item quantity="other">%d Serien sind dabei</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Nur wenige Serien passen, deshalb hat Scout die Jahrzehnte davor und danach dazugenommen.</string>
-    <string name="scout_premix_widened_votes">Nur wenige Serien passen, deshalb hat Scout weniger bekannte dazugenommen.</string>
-    <string name="scout_premix_widened_mood">Nur wenige Serien passen, deshalb hat Scout die Stimmung weggelassen.</string>
+    <string name="scout_premix_widened_decade">Nur wenige Serien passen, deshalb hat DanPlus die Jahrzehnte davor und danach dazugenommen.</string>
+    <string name="scout_premix_widened_votes">Nur wenige Serien passen, deshalb hat DanPlus weniger bekannte dazugenommen.</string>
+    <string name="scout_premix_widened_mood">Nur wenige Serien passen, deshalb hat DanPlus die Stimmung weggelassen.</string>
     <string name="scout_premix_too_few">Nur wenige Serien passen. Probier ein anderes Jahrzehnt.</string>
-    <string name="scout_premix_no_link_skipped">Keine Quellen für %1$s, deshalb hat Scout eine andere Folge gewählt.</string>
+    <string name="scout_premix_no_link_skipped">Keine Quellen für %1$s, deshalb hat DanPlus eine andere Folge gewählt.</string>
     <string name="scout_premix_no_link_stopped">Keine Quellen für die letzten 3 Folgen. Drück auf Abspielen, um diese zu versuchen, oder auf Neu mischen.</string>
     <string name="scout_premix_none">Nichts passt zu dieser Auswahl. Probier ein anderes Jahrzehnt oder eine andere Art.</string>
 </resources>

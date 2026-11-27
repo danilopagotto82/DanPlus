@@ -11,8 +11,8 @@
     <string name="scout_picks_row_new">Size özel yeniler</string>
     <string name="scout_picks_row_trending">Size özel trendler</string>
     <string name="scout_picks_quick_title">Sevdiğiniz beş yapımı seçin</string>
-    <string name="scout_picks_quick_sub">Böylece Scout önde başlar. İstediğiniz zaman Zevkiniz bölümünden değiştirin.</string>
-    <string name="scout_picks_quick_row_sub">Scout\'a neyi sevdiğinizi öğretmenin hızlı yolu</string>
+    <string name="scout_picks_quick_sub">Böylece DanPlus önde başlar. İstediğiniz zaman Zevkiniz bölümünden değiştirin.</string>
+    <string name="scout_picks_quick_row_sub">DanPlus\'a neyi sevdiğinizi öğretmenin hızlı yolu</string>
     <string name="scout_picks_quick_count">%1$d / %2$d</string>
     <string name="scout_picks_quick_done">Bitti</string>
     <string name="scout_picks_quick_skip">Atla</string>
@@ -25,10 +25,10 @@
     <string name="scout_picks_words_writing">Yazılıyor…</string>
     <string name="scout_picks_words_remove">Kaldır</string>
     <string name="scout_picks_sort_title">Önerilerimi yapay zeka sıralasın</string>
-    <string name="scout_picks_sort_sub">Haftada yaklaşık bir kez, anahtarınızla. Scout\'un kendi önerileri yapay zeka gerektirmez.</string>
+    <string name="scout_picks_sort_sub">Haftada yaklaşık bir kez, anahtarınızla. DanPlus\'un kendi önerileri yapay zeka gerektirmez.</string>
     <string name="scout_picks_on">Açık</string>
     <string name="scout_picks_off">Kapalı</string>
-    <string name="scout_picks_sent">Anahtarınızla seçtiğiniz yapay zeka hizmetine gider: Scout\'un sizin için bulduğu yaklaşık 100 yapım, sözlerle zevkiniz, beğendiğiniz ve beğenmediğiniz yapımlar ve dışarıda bıraktığınız türler. Tüm geçmişiniz gönderilmez.</string>
+    <string name="scout_picks_sent">Anahtarınızla seçtiğiniz yapay zeka hizmetine gider: DanPlus\'un sizin için bulduğu yaklaşık 100 yapım, sözlerle zevkiniz, beğendiğiniz ve beğenmediğiniz yapımlar ve dışarıda bıraktığınız türler. Tüm geçmişiniz gönderilmez.</string>
     <string name="scout_picks_refine_violent">Daha az şiddet</string>
     <string name="scout_picks_refine_older">Daha eski</string>
     <string name="scout_picks_refine_newer">Daha yeni</string>

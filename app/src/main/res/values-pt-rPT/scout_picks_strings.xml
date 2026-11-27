@@ -11,8 +11,8 @@
     <string name="scout_picks_row_new">Novidades para ti</string>
     <string name="scout_picks_row_trending">Em alta para ti</string>
     <string name="scout_picks_quick_title">Escolhe cinco que adoras</string>
-    <string name="scout_picks_quick_sub">Assim o Scout começa com vantagem. Altera-os quando quiseres em Os teus gostos.</string>
-    <string name="scout_picks_quick_row_sub">Uma forma rápida de ensinar ao Scout de que gostas</string>
+    <string name="scout_picks_quick_sub">Assim o DanPlus começa com vantagem. Altera-os quando quiseres em Os teus gostos.</string>
+    <string name="scout_picks_quick_row_sub">Uma forma rápida de ensinar ao DanPlus de que gostas</string>
     <string name="scout_picks_quick_count">%1$d de %2$d</string>
     <string name="scout_picks_quick_done">Concluído</string>
     <string name="scout_picks_quick_skip">Ignorar</string>
@@ -25,10 +25,10 @@
     <string name="scout_picks_words_writing">A escrever…</string>
     <string name="scout_picks_words_remove">Remover</string>
     <string name="scout_picks_sort_title">Deixar a IA ordenar as minhas sugestões</string>
-    <string name="scout_picks_sort_sub">Cerca de uma vez por semana, com a tua chave. As sugestões do próprio Scout não precisam de IA.</string>
+    <string name="scout_picks_sort_sub">Cerca de uma vez por semana, com a tua chave. As sugestões do próprio DanPlus não precisam de IA.</string>
     <string name="scout_picks_on">Ligado</string>
     <string name="scout_picks_off">Desligado</string>
-    <string name="scout_picks_sent">Vai para o teu serviço de IA com a tua chave: cerca de 100 títulos que o Scout encontrou para ti, os teus gostos por palavras, os títulos de que gostaste e não gostaste, e os géneros que deixas de fora. Não recebe o teu histórico completo.</string>
+    <string name="scout_picks_sent">Vai para o teu serviço de IA com a tua chave: cerca de 100 títulos que o DanPlus encontrou para ti, os teus gostos por palavras, os títulos de que gostaste e não gostaste, e os géneros que deixas de fora. Não recebe o teu histórico completo.</string>
     <string name="scout_picks_refine_violent">Menos violento</string>
     <string name="scout_picks_refine_older">Mais antigo</string>
     <string name="scout_picks_refine_newer">Mais recente</string>

@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">プロフィール</string>
     <string name="backup_part_profiles_sub">名前と画像</string>
     <string name="backup_part_settings">Arcの設定</string>
-    <string name="backup_part_settings_sub">Scout、サムネイル、DNS、リモコンのボタンなど</string>
+    <string name="backup_part_settings_sub">DanPlus、サムネイル、DNS、リモコンのボタンなど</string>
     <string name="backup_part_history">ライブラリと視聴履歴</string>
     <string name="backup_part_history_sub">保存した作品、視聴を続ける、視聴済みマーク</string>
     <string name="backup_part_history_signed_in">Nuvioアカウントに保存済みです。サインインしていないデバイスでのみ復元されます。</string>

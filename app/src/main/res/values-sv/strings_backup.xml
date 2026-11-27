@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">Profiler</string>
     <string name="backup_part_profiles_sub">Namn och bilder</string>
     <string name="backup_part_settings">Arc-inställningar</string>
-    <string name="backup_part_settings_sub">Scout, miniatyrer, DNS, fjärrkontrollknappar och mer</string>
+    <string name="backup_part_settings_sub">DanPlus, miniatyrer, DNS, fjärrkontrollknappar och mer</string>
     <string name="backup_part_history">Bibliotek och tittarhistorik</string>
     <string name="backup_part_history_sub">Sparade titlar, Fortsätt titta och sedd-markeringar</string>
     <string name="backup_part_history_signed_in">Ditt Nuvio-konto sparar redan detta. Återställs bara på en box som inte är inloggad.</string>

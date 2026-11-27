@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Nie udało się odczytać odpowiedzi. Spróbuj ponownie.</string>
     <string name="scout_question_error_nothing">Nie zwrócono pasujących tytułów. Spróbuj zapytać inaczej.</string>
     <string name="scout_question_error_rejected">Usługa odrzuciła żądanie. Sprawdź ustawienia na stronie w telefonie.</string>
-    <string name="scout_web_title">Scout: pytania i klucz AI</string>
+    <string name="scout_web_title">DanPlus: pytania i klucz AI</string>
     <string name="scout_web_question_title">Zapytaj</string>
     <string name="scout_web_question_placeholder">Na co masz ochotę?</string>
     <string name="scout_web_question_send">Zapytaj na TV</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Bardzo szybkie, na start bezpłatnie</string>
     <string name="scout_ai_chatgpt_line">GPT. Płatność za użycie, bardzo tanie</string>
     <string name="scout_ai_claude_line">Anthropic. Płatność za użycie, najlepsze propozycje</string>
-    <string name="scout_ai_stored_lead">Scout używa Twojego własnego klucza. Pozostaje zaszyfrowany na tym urządzeniu i nie jest synchronizowany z Twoim kontem.</string>
+    <string name="scout_ai_stored_lead">DanPlus używa Twojego własnego klucza. Pozostaje zaszyfrowany na tym urządzeniu i nie jest synchronizowany z Twoim kontem.</string>
     <string name="scout_ai_add_title">Dodaj lub zmień swój klucz %1$s</string>
     <string name="scout_ai_step_1">Zeskanuj to telefonem</string>
     <string name="scout_ai_step_2">Wejdź w link, aby zdobyć klucz</string>

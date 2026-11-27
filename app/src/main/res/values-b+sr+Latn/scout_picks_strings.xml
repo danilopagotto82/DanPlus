@@ -11,8 +11,8 @@
     <string name="scout_picks_row_new">Novo za vas</string>
     <string name="scout_picks_row_trending">U trendu za vas</string>
     <string name="scout_picks_quick_title">Izaberite pet koje volite</string>
-    <string name="scout_picks_quick_sub">Tako Scout ima dobar početak. Možete ih promeniti bilo kada u odeljku Vaš ukus.</string>
-    <string name="scout_picks_quick_row_sub">Brz način da naučite Scout šta volite</string>
+    <string name="scout_picks_quick_sub">Tako DanPlus ima dobar početak. Možete ih promeniti bilo kada u odeljku Vaš ukus.</string>
+    <string name="scout_picks_quick_row_sub">Brz način da naučite DanPlus šta volite</string>
     <string name="scout_picks_quick_count">%1$d od %2$d</string>
     <string name="scout_picks_quick_done">Gotovo</string>
     <string name="scout_picks_quick_skip">Preskoči</string>
@@ -28,7 +28,7 @@
     <string name="scout_picks_sort_sub">Otprilike jednom nedeljno, vašim ključem. Scoutovim predlozima AI nije potrebna.</string>
     <string name="scout_picks_on">Uključeno</string>
     <string name="scout_picks_off">Isključeno</string>
-    <string name="scout_picks_sent">Šalje se vašoj AI usluzi sa vašim ključem: oko 100 naslova koje je Scout pronašao za vas, vaš ukus rečima, naslovi koji su vam se dopali i koji nisu i žanrovi koje izostavljate. Ne dobija celu vašu istoriju.</string>
+    <string name="scout_picks_sent">Šalje se vašoj AI usluzi sa vašim ključem: oko 100 naslova koje je DanPlus pronašao za vas, vaš ukus rečima, naslovi koji su vam se dopali i koji nisu i žanrovi koje izostavljate. Ne dobija celu vašu istoriju.</string>
     <string name="scout_picks_refine_violent">Manje nasilno</string>
     <string name="scout_picks_refine_older">Starije</string>
     <string name="scout_picks_refine_newer">Novije</string>

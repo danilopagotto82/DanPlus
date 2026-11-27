@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Opțional. Folosește propria ta cheie AI: Claude, OpenAI, Gemini sau Groq</string>
     <string name="scout_question_settings_none">Neconfigurat</string>
     <string name="scout_question_settings_on">Activat</string>
-    <string name="scout_question_search_line">Întreabă Scout</string>
+    <string name="scout_question_search_line">Întreabă DanPlus</string>
     <string name="scout_question_mic_listening">Ascult…</string>
     <string name="scout_question_type_prompt">Scrie întrebarea</string>
     <string name="scout_question_example_1">\"Filme ca Inception, dar fără visat\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Răspunsul nu a putut fi citit. Încearcă din nou.</string>
     <string name="scout_question_error_nothing">Nu au revenit titluri potrivite. Încearcă să întrebi altfel.</string>
     <string name="scout_question_error_rejected">Serviciul a refuzat cererea. Verifică setările pe pagina din telefon.</string>
-    <string name="scout_web_title">Scout: întrebări și cheie AI</string>
+    <string name="scout_web_title">DanPlus: întrebări și cheie AI</string>
     <string name="scout_web_question_title">Întreabă</string>
     <string name="scout_web_question_placeholder">Ce ai chef să vezi?</string>
     <string name="scout_web_question_send">Întreabă pe TV</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Foarte rapid, gratuit la început</string>
     <string name="scout_ai_chatgpt_line">GPT. Plătești cât folosești, foarte ieftin</string>
     <string name="scout_ai_claude_line">Anthropic. Plătești cât folosești, cele mai bune recomandări</string>
-    <string name="scout_ai_stored_lead">Scout folosește propria ta cheie. Rămâne criptată pe acest dispozitiv și nu este sincronizată cu contul tău.</string>
+    <string name="scout_ai_stored_lead">DanPlus folosește propria ta cheie. Rămâne criptată pe acest dispozitiv și nu este sincronizată cu contul tău.</string>
     <string name="scout_ai_add_title">Adaugă sau schimbă cheia %1$s</string>
     <string name="scout_ai_step_1">Scanează cu telefonul</string>
     <string name="scout_ai_step_2">Urmează linkul ca să obții o cheie</string>

@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Son bitirdiklerinizi takip eder</string>
     <string name="scout_row_gems">Gizli hazineler</string>
     <string name="scout_row_gems_sub">Az kişinin izlediği, yüksek puanlı içerikler</string>
-    <string name="scout_row_tiles">Scout kutuları</string>
+    <string name="scout_row_tiles">DanPlus kutuları</string>
     <string name="scout_row_tiles_sub">Şaşırt beni, ruh halleri, on yıllar</string>
     <string name="scout_ratings_enabled">İçerikleri puanla</string>
     <string name="scout_ratings_enabled_sub">Puanla düğmesini, uzun basma menüsündeki başparmakları ve film sonrası soruyu gösterir</string>
@@ -37,7 +37,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Puanı değiştirmek veya silmek için bir içerikte OK tuşuna basın</string>
     <string name="scout_row_because_title">%1$s izlediğiniz için</string>
-    <string name="scout_tile_surprise">Şaşırt beni</string>
     <string name="scout_tile_more">Daha fazla…</string>
     <string name="scout_picker_title">Bir şey bul</string>
     <string name="scout_save_row">Ana Sayfa satırı olarak kaydet</string>

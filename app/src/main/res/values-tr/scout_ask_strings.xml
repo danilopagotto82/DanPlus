@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">İsteğe bağlı. Kendi YZ anahtarınızı kullanır: Claude, OpenAI, Gemini veya Groq</string>
     <string name="scout_question_settings_none">Kurulmadı</string>
     <string name="scout_question_settings_on">Açık</string>
-    <string name="scout_question_search_line">Scout\'a sor</string>
+    <string name="scout_question_search_line">DanPlus\'a sor</string>
     <string name="scout_question_mic_listening">Dinliyor…</string>
     <string name="scout_question_type_prompt">Sorunuzu yazın</string>
     <string name="scout_question_example_1">\"Inception gibi filmler, ama rüya olmadan\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Yanıt okunamadı. Tekrar deneyin.</string>
     <string name="scout_question_error_nothing">Eşleşen yapım gelmedi. Başka şekilde sormayı deneyin.</string>
     <string name="scout_question_error_rejected">Hizmet isteği reddetti. Telefon sayfasındaki ayarları kontrol edin.</string>
-    <string name="scout_web_title">Scout: sor ve YZ anahtarı</string>
+    <string name="scout_web_title">DanPlus: sor ve YZ anahtarı</string>
     <string name="scout_web_question_title">Sor</string>
     <string name="scout_web_question_placeholder">Ne izlemek istersiniz?</string>
     <string name="scout_web_question_send">TV\'de sor</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Çok hızlı, başlangıçta ücretsiz</string>
     <string name="scout_ai_chatgpt_line">GPT. Kullanıma göre ödeme, çok ucuz</string>
     <string name="scout_ai_claude_line">Anthropic. Kullanıma göre ödeme, en iyi öneriler</string>
-    <string name="scout_ai_stored_lead">Scout kendi anahtarınızı kullanır. Anahtar bu cihazda şifreli kalır ve hesabınızla eşitlenmez.</string>
+    <string name="scout_ai_stored_lead">DanPlus kendi anahtarınızı kullanır. Anahtar bu cihazda şifreli kalır ve hesabınızla eşitlenmez.</string>
     <string name="scout_ai_add_title">%1$s anahtarınızı ekleyin veya değiştirin</string>
     <string name="scout_ai_step_1">Bunu telefonunuzla tarayın</string>
     <string name="scout_ai_step_2">Anahtar almak için bağlantıyı izleyin</string>

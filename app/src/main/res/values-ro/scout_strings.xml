@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Urmărește ce ai terminat ultima dată</string>
     <string name="scout_row_gems">Perle ascunse</string>
     <string name="scout_row_gems_sub">Titluri bine evaluate pe care puțini le-au văzut</string>
-    <string name="scout_row_tiles">Dale Scout</string>
+    <string name="scout_row_tiles">Dale DanPlus</string>
     <string name="scout_row_tiles_sub">Surprinde-mă, stări, decenii</string>
     <string name="scout_ratings_enabled">Evaluează titluri</string>
     <string name="scout_ratings_enabled_sub">Afișează butonul Evaluează, degetele din meniul de apăsare lungă și întrebarea de după film</string>
@@ -39,7 +39,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Apasă OK pe un titlu pentru a schimba sau șterge evaluarea</string>
     <string name="scout_row_because_title">Pentru că ai urmărit %1$s</string>
-    <string name="scout_tile_surprise">Surprinde-mă</string>
     <string name="scout_tile_more">Mai multe…</string>
     <string name="scout_picker_title">Găsește ceva</string>
     <string name="scout_save_row">Salvează ca rând pe Acasă</string>

@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Na čo máte chuť?</string>
     <string name="scout_your_taste">Váš vkus</string>
-    <string name="scout_your_taste_sub">Pozrite sa, čo sa Scout naučil, a upravte to</string>
+    <string name="scout_your_taste_sub">Pozrite sa, čo sa DanPlus naučil, a upravte to</string>
     <string name="scout_q_watching">Čo pozerať</string>
     <string name="scout_q_mood">Nálada</string>
     <string name="scout_q_who">Kto pozerá</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">Ďalšie filtre</string>
     <string name="scout_ask_words">Opýtajte sa vlastnými slovami</string>
     <string name="scout_tune_it">Upraviť</string>
-    <string name="scout_tune_more">Ďalšie tri</string>
     <string name="scout_tune_lighter">Odľahčenejšie</string>
     <string name="scout_tune_newer">Novšie</string>
     <string name="scout_tune_older">Staršie</string>
@@ -188,7 +187,7 @@
     <string name="scout_genre_thriller">Thriller</string>
     <string name="scout_genre_war">Vojnový</string>
     <string name="scout_genre_western">Western</string>
-    <string name="scout_licence_icon_title">Ikona Scout</string>
+    <string name="scout_licence_icon_title">Ikona Surpreenda-me</string>
     <string name="scout_licence_icon_body">Z Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">Oscary: víťazi</string>
     <string name="scout_award_oscar_nominees">Oscary: nominácie</string>

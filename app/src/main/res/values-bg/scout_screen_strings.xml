@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Какво ви се гледа?</string>
     <string name="scout_your_taste">Вашият вкус</string>
-    <string name="scout_your_taste_sub">Вижте какво е научил Scout и го променете</string>
+    <string name="scout_your_taste_sub">Вижте какво е научил DanPlus и го променете</string>
     <string name="scout_q_watching">Какво да гледате</string>
     <string name="scout_q_mood">Настроение</string>
     <string name="scout_q_who">Кой гледа</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">Още филтри</string>
     <string name="scout_ask_words">Попитайте със свои думи</string>
     <string name="scout_tune_it">Настрой</string>
-    <string name="scout_tune_more">Още три</string>
     <string name="scout_tune_lighter">По-леко</string>
     <string name="scout_tune_newer">По-ново</string>
     <string name="scout_tune_older">По-старо</string>
@@ -157,7 +156,7 @@
     <string name="scout_taste_directors">Режисьори и създатели</string>
     <string name="scout_taste_actors">Актьори</string>
     <string name="scout_taste_shaping">Заглавия, които оформят предложенията</string>
-    <string name="scout_taste_learn">Помогнете на Scout да се учи</string>
+    <string name="scout_taste_learn">Помогнете на DanPlus да се учи</string>
     <string name="scout_taste_seen">Гледали ли сте %1$s?</string>
     <string name="scout_taste_learn_sub">Оценявайте понякога заглавия и предложенията ще се подобряват по-бързо.</string>
     <string name="scout_taste_not_seen">Не съм гледал(а)</string>
@@ -182,7 +181,7 @@
     <string name="scout_genre_thriller">Трилър</string>
     <string name="scout_genre_war">Война</string>
     <string name="scout_genre_western">Уестърн</string>
-    <string name="scout_licence_icon_title">Икона на Scout</string>
+    <string name="scout_licence_icon_title">Икона на Surpreenda-me</string>
     <string name="scout_licence_icon_body">От Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">Оскар: победители</string>
     <string name="scout_award_oscar_nominees">Оскар: номинирани</string>

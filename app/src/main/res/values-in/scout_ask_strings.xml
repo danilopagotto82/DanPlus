@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">Opsional. Memakai kunci AI milik Anda sendiri: Claude, OpenAI, Gemini, atau Groq</string>
     <string name="scout_question_settings_none">Belum diatur</string>
     <string name="scout_question_settings_on">Aktif</string>
-    <string name="scout_question_search_line">Tanya Scout</string>
+    <string name="scout_question_search_line">Tanya DanPlus</string>
     <string name="scout_question_mic_listening">Mendengarkan…</string>
     <string name="scout_question_type_prompt">Ketik pertanyaan Anda</string>
     <string name="scout_question_example_1">\"Film seperti Inception, tapi tanpa mimpi\"</string>
@@ -65,7 +65,7 @@
     <string name="scout_question_error_answer">Jawabannya tidak dapat dibaca. Coba lagi.</string>
     <string name="scout_question_error_nothing">Tidak ada judul yang cocok. Coba bertanya dengan cara lain.</string>
     <string name="scout_question_error_rejected">Layanan menolak permintaan. Periksa pengaturan di halaman ponsel.</string>
-    <string name="scout_web_title">Scout: tanya dan kunci AI</string>
+    <string name="scout_web_title">DanPlus: tanya dan kunci AI</string>
     <string name="scout_web_question_title">Tanya</string>
     <string name="scout_web_question_placeholder">Anda ingin menonton apa?</string>
     <string name="scout_web_question_send">Tanya di TV</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">Sangat cepat, gratis untuk memulai</string>
     <string name="scout_ai_chatgpt_line">GPT. Bayar sesuai pemakaian, sangat murah</string>
     <string name="scout_ai_claude_line">Anthropic. Bayar sesuai pemakaian, rekomendasi terbaik</string>
-    <string name="scout_ai_stored_lead">Scout memakai kunci milik Anda sendiri. Kunci disimpan terenkripsi di perangkat ini dan tidak disinkronkan ke akun Anda.</string>
+    <string name="scout_ai_stored_lead">DanPlus memakai kunci milik Anda sendiri. Kunci disimpan terenkripsi di perangkat ini dan tidak disinkronkan ke akun Anda.</string>
     <string name="scout_ai_add_title">Tambah atau ubah kunci %1$s Anda</string>
     <string name="scout_ai_step_1">Pindai dengan ponsel Anda</string>
     <string name="scout_ai_step_2">Buka tautan untuk mendapatkan kunci</string>

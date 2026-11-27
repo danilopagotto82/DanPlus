@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Strane, geniali e diverse da tutto il resto.</string>
     <string name="scout_premix_why_world">Commedie, gialli e altro, prodotti là e scelti per te.</string>
 
-    <string name="scout_premix_own_sub">Scegli alcune cose. Scout sceglie le serie.</string>
+    <string name="scout_premix_own_sub">Scegli alcune cose. DanPlus sceglie le serie.</string>
     <string name="scout_premix_own_decade">Decennio</string>
     <string name="scout_premix_own_kind">Genere</string>
     <string name="scout_premix_own_mood">Stato d\'animo</string>
@@ -95,11 +95,11 @@
         <item quantity="many">Entrano %d serie</item>
         <item quantity="other">Entrano %d serie</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Poche serie corrispondono, quindi Scout ha aggiunto i decenni vicini.</string>
-    <string name="scout_premix_widened_votes">Poche serie corrispondono, quindi Scout ha aggiunto quelle meno conosciute.</string>
-    <string name="scout_premix_widened_mood">Poche serie corrispondono, quindi Scout ha tolto lo stato d\'animo.</string>
+    <string name="scout_premix_widened_decade">Poche serie corrispondono, quindi DanPlus ha aggiunto i decenni vicini.</string>
+    <string name="scout_premix_widened_votes">Poche serie corrispondono, quindi DanPlus ha aggiunto quelle meno conosciute.</string>
+    <string name="scout_premix_widened_mood">Poche serie corrispondono, quindi DanPlus ha tolto lo stato d\'animo.</string>
     <string name="scout_premix_too_few">Poche serie corrispondono. Prova un altro decennio.</string>
-    <string name="scout_premix_no_link_skipped">Nessuna sorgente per %1$s, quindi Scout ha scelto un altro episodio.</string>
+    <string name="scout_premix_no_link_skipped">Nessuna sorgente per %1$s, quindi DanPlus ha scelto un altro episodio.</string>
     <string name="scout_premix_no_link_stopped">Nessuna sorgente per gli ultimi 3 episodi. Premi Riproduci per provare questo, oppure Rimescola.</string>
     <string name="scout_premix_none">Nessuna serie corrisponde a queste scelte. Prova un altro decennio o genere.</string>
 </resources>

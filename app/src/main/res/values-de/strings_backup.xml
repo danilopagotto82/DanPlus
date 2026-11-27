@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">Profile</string>
     <string name="backup_part_profiles_sub">Namen und Bilder</string>
     <string name="backup_part_settings">Arc-Einstellungen</string>
-    <string name="backup_part_settings_sub">Scout, Miniaturbilder, DNS, Fernbedienungstasten und mehr</string>
+    <string name="backup_part_settings_sub">DanPlus, Miniaturbilder, DNS, Fernbedienungstasten und mehr</string>
     <string name="backup_part_history">Bibliothek und Wiedergabeverlauf</string>
     <string name="backup_part_history_sub">Gespeicherte Titel, Weiter ansehen und Gesehen-Markierungen</string>
     <string name="backup_part_history_signed_in">Ihr Nuvio-Konto speichert das bereits. Wiederherstellung nur auf einem nicht angemeldeten Gerät.</string>

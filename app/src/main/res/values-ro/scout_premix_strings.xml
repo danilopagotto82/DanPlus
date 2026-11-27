@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Ciudate, istețe și diferite de orice altceva.</string>
     <string name="scout_premix_why_world">Comedii, crimă și multe altele făcute acolo, alese pentru tine.</string>
 
-    <string name="scout_premix_own_sub">Alege câteva lucruri. Scout alege serialele.</string>
+    <string name="scout_premix_own_sub">Alege câteva lucruri. DanPlus alege serialele.</string>
     <string name="scout_premix_own_decade">Deceniu</string>
     <string name="scout_premix_own_kind">Tip</string>
     <string name="scout_premix_own_mood">Stare</string>
@@ -95,11 +95,11 @@
         <item quantity="few">%d seriale intră</item>
         <item quantity="other">%d de seriale intră</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Se potrivesc doar câteva seriale, așa că Scout a adăugat deceniile vecine.</string>
-    <string name="scout_premix_widened_votes">Se potrivesc doar câteva seriale, așa că Scout a adăugat unele mai puțin cunoscute.</string>
-    <string name="scout_premix_widened_mood">Se potrivesc doar câteva seriale, așa că Scout a lăsat starea deoparte.</string>
+    <string name="scout_premix_widened_decade">Se potrivesc doar câteva seriale, așa că DanPlus a adăugat deceniile vecine.</string>
+    <string name="scout_premix_widened_votes">Se potrivesc doar câteva seriale, așa că DanPlus a adăugat unele mai puțin cunoscute.</string>
+    <string name="scout_premix_widened_mood">Se potrivesc doar câteva seriale, așa că DanPlus a lăsat starea deoparte.</string>
     <string name="scout_premix_too_few">Se potrivesc doar câteva seriale. Încearcă alt deceniu.</string>
-    <string name="scout_premix_no_link_skipped">Nicio sursă pentru %1$s, așa că Scout a ales alt episod.</string>
+    <string name="scout_premix_no_link_skipped">Nicio sursă pentru %1$s, așa că DanPlus a ales alt episod.</string>
     <string name="scout_premix_no_link_stopped">Nicio sursă pentru ultimele 3 episoade. Apasă Redă ca să încerci acest episod, sau Remixează.</string>
     <string name="scout_premix_none">Nimic nu se potrivește cu aceste alegeri. Încearcă alt deceniu sau alt tip.</string>
 </resources>

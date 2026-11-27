@@ -22,7 +22,7 @@
     <string name="backup_part_profiles">प्रोफाइल</string>
     <string name="backup_part_profiles_sub">नाम और तस्वीरें</string>
     <string name="backup_part_settings">Arc सेटिंग्स</string>
-    <string name="backup_part_settings_sub">Scout, थंबनेल, DNS, रिमोट बटन और भी बहुत कुछ</string>
+    <string name="backup_part_settings_sub">DanPlus, थंबनेल, DNS, रिमोट बटन और भी बहुत कुछ</string>
     <string name="backup_part_history">लाइब्रेरी और देखने का इतिहास</string>
     <string name="backup_part_history_sub">सेव किए गए टाइटल, देखना जारी रखें और देखे जाने के निशान</string>
     <string name="backup_part_history_signed_in">आपका Nuvio अकाउंट इन्हें पहले से रखता है। सिर्फ़ बिना साइन इन वाले डिवाइस पर रीस्टोर होते हैं।</string>

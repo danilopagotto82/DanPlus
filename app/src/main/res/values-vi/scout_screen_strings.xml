@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Bạn muốn xem gì?</string>
     <string name="scout_your_taste">Gu của bạn</string>
-    <string name="scout_your_taste_sub">Xem Scout đã học được gì và điều chỉnh</string>
+    <string name="scout_your_taste_sub">Xem DanPlus đã học được gì và điều chỉnh</string>
     <string name="scout_q_watching">Xem gì</string>
     <string name="scout_q_mood">Tâm trạng</string>
     <string name="scout_q_who">Ai đang xem</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">Thêm bộ lọc</string>
     <string name="scout_ask_words">Hỏi bằng lời của bạn</string>
     <string name="scout_tune_it">Tinh chỉnh</string>
-    <string name="scout_tune_more">Thêm ba</string>
     <string name="scout_tune_lighter">Nhẹ nhàng hơn</string>
     <string name="scout_tune_newer">Mới hơn</string>
     <string name="scout_tune_older">Cũ hơn</string>
@@ -154,7 +153,7 @@
     <string name="scout_taste_directors">Đạo diễn và nhà sáng tạo</string>
     <string name="scout_taste_actors">Diễn viên</string>
     <string name="scout_taste_shaping">Tựa phim định hình gợi ý của bạn</string>
-    <string name="scout_taste_learn">Giúp Scout học</string>
+    <string name="scout_taste_learn">Giúp DanPlus học</string>
     <string name="scout_taste_seen">Bạn đã xem %1$s chưa?</string>
     <string name="scout_taste_learn_sub">Thỉnh thoảng đánh giá một tựa và gợi ý sẽ tốt lên nhanh hơn.</string>
     <string name="scout_taste_not_seen">Chưa xem</string>
@@ -179,7 +178,7 @@
     <string name="scout_genre_thriller">Giật gân</string>
     <string name="scout_genre_war">Chiến tranh</string>
     <string name="scout_genre_western">Viễn Tây</string>
-    <string name="scout_licence_icon_title">Biểu tượng Scout</string>
+    <string name="scout_licence_icon_title">Biểu tượng Surpreenda-me</string>
     <string name="scout_licence_icon_body">From Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">Oscar: đoạt giải</string>
     <string name="scout_award_oscar_nominees">Oscar: được đề cử</string>

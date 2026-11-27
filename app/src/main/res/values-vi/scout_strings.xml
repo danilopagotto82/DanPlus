@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Theo những gì bạn vừa xem xong</string>
     <string name="scout_row_gems">Viên ngọc ẩn</string>
     <string name="scout_row_gems_sub">Phim được đánh giá cao nhưng ít người xem</string>
-    <string name="scout_row_tiles">Ô Scout</string>
+    <string name="scout_row_tiles">Ô DanPlus</string>
     <string name="scout_row_tiles_sub">Bất ngờ, tâm trạng, thập niên</string>
     <string name="scout_ratings_enabled">Đánh giá phim</string>
     <string name="scout_ratings_enabled_sub">Hiện nút Đánh giá, ngón tay cái trong menu nhấn giữ và câu hỏi sau khi xem phim</string>
@@ -37,7 +37,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Nhấn OK trên một phim để đổi hoặc xóa đánh giá</string>
     <string name="scout_row_because_title">Vì bạn đã xem %1$s</string>
-    <string name="scout_tile_surprise">Làm tôi bất ngờ</string>
     <string name="scout_tile_more">Thêm…</string>
     <string name="scout_picker_title">Tìm gì đó</string>
     <string name="scout_save_row">Lưu thành hàng trên Trang chủ</string>

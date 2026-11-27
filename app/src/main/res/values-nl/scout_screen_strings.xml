@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">Waar heb je zin in?</string>
     <string name="scout_your_taste">Jouw smaak</string>
-    <string name="scout_your_taste_sub">Bekijk wat Scout heeft geleerd en pas het aan</string>
+    <string name="scout_your_taste_sub">Bekijk wat DanPlus heeft geleerd en pas het aan</string>
     <string name="scout_q_watching">Wat kijken</string>
     <string name="scout_q_mood">Stemming</string>
     <string name="scout_q_who">Wie kijkt er</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">Meer filters</string>
     <string name="scout_ask_words">Vraag het in je eigen woorden</string>
     <string name="scout_tune_it">Bijstellen</string>
-    <string name="scout_tune_more">Nog drie</string>
     <string name="scout_tune_lighter">Luchtiger</string>
     <string name="scout_tune_newer">Nieuwer</string>
     <string name="scout_tune_older">Ouder</string>
@@ -157,7 +156,7 @@
     <string name="scout_taste_directors">Regisseurs en makers</string>
     <string name="scout_taste_actors">Acteurs</string>
     <string name="scout_taste_shaping">Titels die je suggesties bepalen</string>
-    <string name="scout_taste_learn">Help Scout leren</string>
+    <string name="scout_taste_learn">Help DanPlus leren</string>
     <string name="scout_taste_seen">Heb je %1$s gezien?</string>
     <string name="scout_taste_learn_sub">Beoordeel af en toe een titel, dan worden je suggesties sneller beter.</string>
     <string name="scout_taste_not_seen">Niet gezien</string>
@@ -182,7 +181,7 @@
     <string name="scout_genre_thriller">Thriller</string>
     <string name="scout_genre_war">Oorlog</string>
     <string name="scout_genre_western">Western</string>
-    <string name="scout_licence_icon_title">Scout-pictogram</string>
+    <string name="scout_licence_icon_title">Surpreenda-me-pictogram</string>
     <string name="scout_licence_icon_body">Van Material Design Icons, Apache-licentie 2.0.</string>
     <string name="scout_award_oscar_winners">Oscars: winnaars</string>
     <string name="scout_award_oscar_nominees">Oscars: genomineerden</string>

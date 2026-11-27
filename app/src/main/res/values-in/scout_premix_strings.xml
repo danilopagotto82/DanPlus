@@ -81,7 +81,7 @@
     <string name="scout_premix_why_weird">Aneh, cerdik, dan tidak mirip yang lain.</string>
     <string name="scout_premix_why_world">Komedi, kriminal, dan lainnya yang dibuat di sana, dipilih untuk Anda.</string>
 
-    <string name="scout_premix_own_sub">Pilih beberapa hal. Scout yang memilih serialnya.</string>
+    <string name="scout_premix_own_sub">Pilih beberapa hal. DanPlus yang memilih serialnya.</string>
     <string name="scout_premix_own_decade">Dekade</string>
     <string name="scout_premix_own_kind">Jenis</string>
     <string name="scout_premix_own_mood">Suasana hati</string>
@@ -93,11 +93,11 @@
     <plurals name="scout_premix_goes_in">
         <item quantity="other">%d serial masuk</item>
     </plurals>
-    <string name="scout_premix_widened_decade">Hanya sedikit serial yang cocok, jadi Scout menambahkan dekade di sekitarnya.</string>
-    <string name="scout_premix_widened_votes">Hanya sedikit serial yang cocok, jadi Scout menambahkan yang kurang dikenal.</string>
-    <string name="scout_premix_widened_mood">Hanya sedikit serial yang cocok, jadi Scout mengabaikan suasana hati.</string>
+    <string name="scout_premix_widened_decade">Hanya sedikit serial yang cocok, jadi DanPlus menambahkan dekade di sekitarnya.</string>
+    <string name="scout_premix_widened_votes">Hanya sedikit serial yang cocok, jadi DanPlus menambahkan yang kurang dikenal.</string>
+    <string name="scout_premix_widened_mood">Hanya sedikit serial yang cocok, jadi DanPlus mengabaikan suasana hati.</string>
     <string name="scout_premix_too_few">Hanya sedikit serial yang cocok. Coba dekade lain.</string>
-    <string name="scout_premix_no_link_skipped">Tidak ada sumber untuk %1$s, jadi Scout memilih episode lain.</string>
+    <string name="scout_premix_no_link_skipped">Tidak ada sumber untuk %1$s, jadi DanPlus memilih episode lain.</string>
     <string name="scout_premix_no_link_stopped">Tidak ada sumber untuk 3 episode terakhir. Tekan Putar untuk mencoba episode ini, atau Campur ulang.</string>
     <string name="scout_premix_none">Tidak ada yang cocok dengan pilihan ini. Coba dekade atau jenis lain.</string>
 </resources>

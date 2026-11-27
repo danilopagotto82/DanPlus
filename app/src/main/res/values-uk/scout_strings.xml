@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">Слідує за тим, що ви додивилися останнім</string>
     <string name="scout_row_gems">Приховані перлини</string>
     <string name="scout_row_gems_sub">Високо оцінені тайтли, які бачили небагато людей</string>
-    <string name="scout_row_tiles">Плитки Scout</string>
+    <string name="scout_row_tiles">Плитки DanPlus</string>
     <string name="scout_row_tiles_sub">Здивуй мене, настрої, десятиліття</string>
     <string name="scout_ratings_enabled">Оцінювати тайтли</string>
     <string name="scout_ratings_enabled_sub">Показує кнопку Оцінити, пальці в меню довгого натискання та запитання після фільму</string>
@@ -40,7 +40,6 @@
     </plurals>
     <string name="scout_your_thumbs_page_sub">Натисніть OK на тайтлі, щоб змінити або зняти оцінку</string>
     <string name="scout_row_because_title">Бо ви дивилися %1$s</string>
-    <string name="scout_tile_surprise">Здивуй мене</string>
     <string name="scout_tile_more">Ще…</string>
     <string name="scout_picker_title">Знайти щось</string>
     <string name="scout_save_row">Зберегти як ряд на головній</string>

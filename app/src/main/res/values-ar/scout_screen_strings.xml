@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">ماذا ترغب في مشاهدته؟</string>
     <string name="scout_your_taste">ذوقك</string>
-    <string name="scout_your_taste_sub">اطلع على ما تعلمه Scout وعدّله</string>
+    <string name="scout_your_taste_sub">اطلع على ما تعلمه DanPlus وعدّله</string>
     <string name="scout_q_watching">ماذا تشاهد</string>
     <string name="scout_q_mood">المزاج</string>
     <string name="scout_q_who">من يشاهد</string>
@@ -23,7 +23,6 @@
     <string name="scout_more_filters">فلاتر أخرى</string>
     <string name="scout_ask_words">اسأل بكلماتك</string>
     <string name="scout_tune_it">اضبطها</string>
-    <string name="scout_tune_more">ثلاثة أخرى</string>
     <string name="scout_tune_lighter">أخف</string>
     <string name="scout_tune_newer">أحدث</string>
     <string name="scout_tune_older">أقدم</string>
@@ -169,7 +168,7 @@
     <string name="scout_taste_directors">المخرجون والمبتكرون</string>
     <string name="scout_taste_actors">الممثلون</string>
     <string name="scout_taste_shaping">عناوين تشكّل اختياراتك</string>
-    <string name="scout_taste_learn">ساعد Scout على التعلم</string>
+    <string name="scout_taste_learn">ساعد DanPlus على التعلم</string>
     <string name="scout_taste_seen">هل شاهدت %1$s؟</string>
     <string name="scout_taste_learn_sub">قيّم عنوانًا من حين لآخر لتتحسن اختياراتك أسرع.</string>
     <string name="scout_taste_not_seen">لم أشاهده</string>
@@ -194,7 +193,7 @@
     <string name="scout_genre_thriller">إثارة</string>
     <string name="scout_genre_war">حرب</string>
     <string name="scout_genre_western">غرب أمريكي</string>
-    <string name="scout_licence_icon_title">أيقونة Scout</string>
+    <string name="scout_licence_icon_title">أيقونة Surpreenda-me</string>
     <string name="scout_licence_icon_body">From Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">الأوسكار: الفائزون</string>
     <string name="scout_award_oscar_nominees">الأوسكار: المرشحون</string>
