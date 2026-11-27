@@ -126,3 +126,23 @@ Usar perfis sintéticos ou autorizados. Registrar versão, resolução, variante
 | Duna: Parte Dois | Home clássica/moderna → Descobrir → Surpreenda-me, transparência 0/60/100 | Faixa entre cabeçalho e backdrop com arte clara. | Critério UI-13 no ML06/ML08. Arte contínua e relógio legível, sem duplicação de fundo ou recursos. |
 
 O próximo megalote oficial é ML06, após tratar o que continua aberto no ML05-FINAL. Homologação física no ML08.
+
+## ML05-CLOSE — aceite técnico focal
+
+- Base `1eea456`; integração `b5a05eeb342c2a1593b3a42475b2eef3ff937bd2`, árvore `a2176897297b7c486cdc335d82d5c0796da1ef38`. RS-26, DP-S04 e DP-S10 implementados e registrados como **PASS_TESTE_FOCADO**. ML05 encerrado tecnicamente. ML06 é o próximo lote e pode partir deste checkpoint.
+- **RS-26.** Continuar Assistindo aceita data e hora locais no formato indicado. A operação conserva o carimbo no progresso concluído, item assistido e eventos dos trackers. Uma marca preexistente com carimbo igual ou mais recente continua válida. A remoção exige progresso em curso e identidade de filme ou episódio. O filtro preserva entradas concluídas e entradas posteriores à seleção. O Trakt revalida o registro pausado, a identidade da conta e a autorização antes do DELETE. A rotina de histórico e a projeção WeTrakr foram exercitadas com dados sintéticos.
+- **DP-S04.** O seletor reutiliza perfil, avatar e PIN. Vínculo e faixa etária são opcionais. Salvar ou pular encerra a oferta inicial. A edição continua no seletor. As faixas criança e adolescente só podem tornar o limite de cinema mais restritivo. Convidados continuam temporários.
+- **DP-S10.** O convite para confirmar presença fica desativado por padrão. Ao ativá-lo, um filme elegível gera uma confirmação única ao sair após concluir. A correlação exige o ID TMDB ou seu alias IMDb já conhecido, o perfil e a geração atuais. Cancelamento, troca de perfil/conta e eventos duplicados invalidam a confirmação. O recibo fica no perfil anfitrião com os participantes explicitamente selecionados. O fluxo de presença não grava históricos de terceiros nem chama trackers.
+- As chaves `cinema_relation_v1`, `cinema_age_band_v1`, `cinema_onboarding_seen_v1` e `cinema_last_attendance_v1` usam o DataStore privado `scout_cinema_private` por perfil. São dados locais com separação por perfil. O registro do último comparecimento é substituído a cada confirmação explícita. O catálogo de exportação existente não inclui esse armazenamento. Preservar essa responsabilidade na auditoria de backup do ML06.
+- **Validação.** Kotlin/Compose direto em ambiente local, AAPT2 dos dois recursos adicionados, 92 testes JUnit em 11 classes, zero falhas, e `git diff --check`. A rodada inclui reconexão de teste no Trakt, filtro de rewatch, isolamento local, PIN, cancelamento e consumo único da presença, além das regressões WeTrakr. Gradle completo, AndroidTest e homologação física **NÃO TESTADOS**. Nenhum APK ou teste em conta de produção.
+
+### Checklist físico complementar para ML08
+
+Usar o mesmo caso no Shield e no Fire TV. Registrar resolução, fonte, perfil, foco antes/depois e resultado por aparelho. Situação de todos os casos **NÃO TESTADO**.
+
+| Filme ou série | Caminho | Cenário anterior | Resultado esperado |
+| --- | --- | --- | --- |
+| Os Anéis de Poder | Continuar Assistindo → menu do episódio → Marcar como assistido → data anterior → reconectar Trakt | A data podia virar a hora atual e a remoção parcial podia incluir a série. | Data preservada. Remover somente a reprodução parcial do episódio, preservando episódios concluídos e rewatch mais recente. |
+| Interestelar | Continuar Assistindo → remover um rewatch parcial → abrir Detalhes → conferir histórico → trocar perfil | O item parcial e a marca legítima poderiam ser confundidos. | A remoção conserva a conclusão e o histórico original. O outro perfil conserva seus próprios dados. |
+| Toy Story | Surpreenda-me → Minha sessão de cinema → Companhia → perfil protegido → PIN → complementar ou pular | Não havia vínculo/faixa ou onboarding. | PIN errado ou cancelado não abre a ficha. Salvar ou pular dispensa a oferta seguinte. A faixa etária reforça o limite. O convidado continua temporário. |
+| A.I. Inteligência Artificial | Surpreenda-me → Minha sessão de cinema → Companhia → ativar confirmação na escolha → Assistir → concluir | Não havia confirmação de presença. | Confirmar somente os selecionados, com gravação local no perfil anfitrião. Pular, sair cedo, trocar perfil/conta ou repetir o evento não grava presença. Uma reprodução sem adesão segue normalmente. |
