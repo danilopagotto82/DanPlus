@@ -6,7 +6,13 @@ const UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const encoder = new TextEncoder();
 type Json = Record<string, unknown>;
 type Config = { clientId: string; clientSecret: string; ticketSecret: string; owners: string[] };
-type Dependencies = { config: Config; fetch: typeof fetch; now: () => number };
+type Operation = "start" | "poll";
+type Dependencies = {
+    config: Config;
+    fetch: typeof fetch;
+    now: () => number;
+    admit: (owner: string, operation: Operation) => Promise<boolean>;
+};
 class Refusal extends Error {
     readonly status: number;
     readonly code: string;
@@ -80,6 +86,33 @@ async function verifyTicket(config: Config, ticket: string, identity: { owner: s
         typeof payload.exp !== "number" || payload.exp <= now || payload.exp > now + 86400_000) throw new Refusal(403, "expired_or_wrong_account");
     return str(payload.code);
 }
+async function requireAdmission(deps: Dependencies, ownerId: string, operation: Operation) {
+    let allowed: boolean;
+    try {
+        allowed = await deps.admit(ownerId, operation);
+    } catch {
+        throw new Refusal(503, "admission_unavailable");
+    }
+    if (allowed !== true) throw new Refusal(429, "rate_limited");
+}
+
+export function persistentAdmission(fetcher: typeof fetch, base: string, serviceKey: string) {
+    return async (ownerId: string, operation: Operation): Promise<boolean> => {
+        if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(base) || !serviceKey) throw new Error("Admission unavailable");
+        const result = await fetcher(base + "/rest/v1/rpc/danplus_drive_auth_admit", {
+            method: "POST",
+            headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey, "Content-Type": "application/json" },
+            body: JSON.stringify({ p_owner: ownerId, p_operation: operation }),
+            redirect: "error",
+            signal: AbortSignal.timeout(6000),
+        });
+        if (!result.ok) throw new Error("Admission unavailable");
+        const value: unknown = await result.json();
+        if (typeof value !== "boolean") throw new Error("Invalid admission result");
+        return value;
+    };
+}
+
 async function google(deps: Dependencies, path: "device/code" | "token", fields: Record<string, string>) {
     const result = await deps.fetch(GOOGLE + path, {
         method: "POST", body: new URLSearchParams(fields), redirect: "error", signal: AbortSignal.timeout(12000),
@@ -99,6 +132,7 @@ export async function handleDriveAuthorization(req: Request, deps: Dependencies)
         const body = await limitedJson(req, 16384);
         const identity = await owner(req, deps);
         if (body.operation === "start") {
+            await requireAdmission(deps, identity.owner, "start");
             const r = await google(deps, "device/code", { client_id: c.clientId, scope: SCOPE });
             if (!r.ok) throw new Refusal(502, "google_unavailable");
             const expires = seconds(r.data.expires_in);
@@ -110,6 +144,7 @@ export async function handleDriveAuthorization(req: Request, deps: Dependencies)
         }
         if (body.operation === "poll") {
             const code = await verifyTicket(c, str(body.device_code, 12000), identity, deps.now());
+            await requireAdmission(deps, identity.owner, "poll");
             const r = await google(deps, "token", { client_id: c.clientId, client_secret: c.clientSecret, device_code: code,
                 grant_type: "urn:ietf:params:oauth:grant-type:device_code" });
             if (!r.ok) {
@@ -136,5 +171,6 @@ if (import.meta.main) {
             owners: (Deno.env.get("DANPLUS_DRIVE_ALLOWED_OWNERS") ?? "").split(",").map(x => x.trim().toLowerCase()).filter(x => UUID.test(x)),
         },
         fetch, now: Date.now,
+        admit: persistentAdmission(fetch, Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""),
     }));
 }
