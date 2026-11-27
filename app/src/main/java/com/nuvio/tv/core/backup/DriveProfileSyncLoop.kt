@@ -21,6 +21,9 @@ internal class DriveProfileSession(
     val localProfileId: Int,
     val pin: String,
     val coordinator: DriveJournalCoordinator,
+    val automatic: Boolean = true,
+    val lastSuccessfulSync: Long? = null,
+    val recordSuccess: (Long) -> Unit = {},
     val isCurrent: () -> Boolean
 )
 
@@ -32,6 +35,8 @@ internal class DriveProfileSyncLoop(
     private val manual = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     private val _outcome = MutableStateFlow<DriveJournalOutcome?>(null)
     val outcome = _outcome.asStateFlow()
+    private val _lastSuccess = MutableStateFlow<Long?>(null)
+    val lastSuccess = _lastSuccess.asStateFlow()
 
     fun syncNow() { manual.tryEmit(Unit) }
 
@@ -40,6 +45,7 @@ internal class DriveProfileSyncLoop(
     suspend fun run(sessions: Flow<DriveProfileSession?>) {
         sessions.collectLatest { session ->
             _outcome.value = null
+            _lastSuccess.value = session?.takeIf { it.isCurrent() }?.lastSuccessfulSync
             if (session == null || !session.isCurrent()) return@collectLatest
             val settings = scout.observeDriveSettings(session.localProfileId)
             var initial = true
@@ -57,7 +63,8 @@ internal class DriveProfileSyncLoop(
                     emit(Unit)
                 }
             }
-            merge(changes, manual, remoteRefresh).collect {
+            val triggers = if (session.automatic) merge(changes, manual, remoteRefresh) else manual
+            triggers.collect {
                 if (!session.isCurrent()) return@collect
                 try {
                     for (attempt in 0..2) {
@@ -70,6 +77,11 @@ internal class DriveProfileSyncLoop(
                         }
                         if (!session.isCurrent()) break
                         _outcome.value = result
+                        if (result == DriveJournalOutcome.IN_SYNC) {
+                            val now = System.currentTimeMillis()
+                            _lastSuccess.value = now
+                            session.recordSuccess(now)
+                        }
                         if (result != DriveJournalOutcome.AWAITING_REMOTE || attempt == 2) break
                         delay(1_000L shl attempt)
                     }

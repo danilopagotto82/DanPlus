@@ -54,7 +54,7 @@ class DriveBrokerClientTest {
             }
         }.build()
         val client = DriveBrokerClient(http, endpoint, { DriveBrokerHeaders("fixture-key", "fixture-nuvio-key", "fixture-bearer") },
-            { true }, { testScheduler.currentTime })
+            { true }, kotlinx.coroutines.test.StandardTestDispatcher(testScheduler), { testScheduler.currentTime })
         val code = client.start()
         assertEquals("ABCD-EFGH", code.userCode)
         val grant = checkNotNull(client.awaitGrant(code))

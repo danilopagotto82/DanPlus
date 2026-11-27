@@ -1,0 +1,23 @@
+<resources>
+    <string name="drive_sync_title">Google Drive</string>
+    <string name="drive_sync_summary">Syncs four Discover Me preferences. Full backup is manual.</string>
+    <string name="drive_sync_connect">Connect Google Drive</string>
+    <string name="drive_sync_connected">Connected</string>
+    <string name="drive_sync_current">Synced</string>
+    <string name="drive_sync_now">Sync now</string>
+    <string name="drive_sync_auto">Automatic sync</string>
+    <string name="drive_sync_disconnect">Disconnect this TV</string>
+    <string name="drive_sync_revoke">Revoke Google authorization</string>
+    <string name="drive_sync_revoke_warning">This can disconnect other TVs using the same Google account. Your Drive files are kept.</string>
+    <string name="drive_sync_code">Open %1$s on another device and enter %2$s.</string>
+    <string name="drive_sync_unavailable">Unavailable for this account or profile</string>
+    <string name="drive_sync_error">Google Drive unavailable. Try again or reconnect.</string>
+    <string name="drive_sync_invalid">Incorrect PIN or invalid Drive revision</string>
+    <string name="drive_sync_capacity">Revision limit reached. Sync paused to preserve history.</string>
+    <string name="drive_sync_conflict">Conflicting revisions</string>
+    <string name="drive_sync_resolve">Resolve conflicts</string>
+    <string name="drive_sync_keep_local">Keep this TV settings</string>
+    <string name="drive_sync_branch">%1$s · Genre %2$s · Menu %3$s · Emojis %4$s · Watched %5$s</string>
+    <string name="drive_sync_yes">On</string>
+    <string name="drive_sync_no">Off</string>
+</resources>

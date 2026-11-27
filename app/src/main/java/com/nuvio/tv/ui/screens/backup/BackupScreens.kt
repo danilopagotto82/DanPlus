@@ -493,6 +493,7 @@ private fun BackupPinOverlay(
     )
     val heading = stringResource(
         when (step) {
+            is BackupPinStep.Drive -> if (step.first == null) R.string.backup_pin_create_heading else R.string.backup_pin_confirm_heading
             BackupPinStep.Create -> R.string.backup_pin_create_heading
             is BackupPinStep.Confirm -> R.string.backup_pin_confirm_heading
             is BackupPinStep.PortableExport -> if (step.first == null) {
@@ -504,6 +505,7 @@ private fun BackupPinOverlay(
     val support = when {
         !errorMessage.isNullOrEmpty() -> errorMessage
         busy -> stringResource(R.string.backup_pin_checking)
+        step is BackupPinStep.Drive -> stringResource(if (step.first == null) R.string.backup_portable_pin_create else R.string.backup_pin_confirm_support)
         step is BackupPinStep.PortableImport -> stringResource(R.string.backup_portable_pin_open)
         step is BackupPinStep.PortableExport && step.first == null -> stringResource(R.string.backup_portable_pin_create)
         step is BackupPinStep.PortableExport -> stringResource(R.string.backup_pin_confirm_support)
@@ -513,13 +515,13 @@ private fun BackupPinOverlay(
     }
     val backHint = stringResource(
         when (step) {
-            is BackupPinStep.PortableExport, is BackupPinStep.PortableImport -> R.string.action_cancel
+            is BackupPinStep.PortableExport, is BackupPinStep.PortableImport, is BackupPinStep.Drive -> R.string.action_cancel
             is BackupPinStep.Restore -> R.string.backup_pin_restore_back
             else -> R.string.backup_pin_create_back
         }
     )
     val boxes = (pin.length + 1).coerceIn(BackupCrypto.MIN_PIN_LENGTH, BackupCrypto.MAX_PIN_LENGTH)
-    val minimum = if (step is BackupPinStep.PortableExport || step is BackupPinStep.PortableImport) {
+    val minimum = if (step is BackupPinStep.PortableExport || step is BackupPinStep.PortableImport || step is BackupPinStep.Drive) {
         PortableBackupEnvelope.MIN_PIN_LENGTH
     } else BackupCrypto.MIN_PIN_LENGTH
     val canFinish = BackupCrypto.isValidPin(pin) && pin.length >= minimum && !busy

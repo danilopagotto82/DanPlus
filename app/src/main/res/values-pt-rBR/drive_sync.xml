@@ -1,0 +1,23 @@
+<resources>
+    <string name="drive_sync_title">Google Drive</string>
+    <string name="drive_sync_summary">Sincroniza quatro preferências do Descubra-me. O backup integral é manual.</string>
+    <string name="drive_sync_connect">Conectar Google Drive</string>
+    <string name="drive_sync_connected">Conectado</string>
+    <string name="drive_sync_current">Sincronizado</string>
+    <string name="drive_sync_now">Sincronizar agora</string>
+    <string name="drive_sync_auto">Sincronização automática</string>
+    <string name="drive_sync_disconnect">Desconectar esta TV</string>
+    <string name="drive_sync_revoke">Revogar autorização Google</string>
+    <string name="drive_sync_revoke_warning">Isso pode desconectar outras TVs que usam a mesma conta Google. Os arquivos ficam no Drive.</string>
+    <string name="drive_sync_code">Abra %1$s em outro aparelho e informe %2$s.</string>
+    <string name="drive_sync_unavailable">Indisponível para esta conta ou perfil</string>
+    <string name="drive_sync_error">Google Drive indisponível. Tente novamente ou reconecte.</string>
+    <string name="drive_sync_invalid">PIN incorreto ou revisão do Drive inválida</string>
+    <string name="drive_sync_capacity">Limite de revisões atingido. Sincronização pausada para preservar o histórico.</string>
+    <string name="drive_sync_conflict">Revisões em conflito</string>
+    <string name="drive_sync_resolve">Resolver conflitos</string>
+    <string name="drive_sync_keep_local">Manter preferências desta TV</string>
+    <string name="drive_sync_branch">%1$s · Gênero %2$s · Menu %3$s · Emojis %4$s · Assistidos %5$s</string>
+    <string name="drive_sync_yes">Sim</string>
+    <string name="drive_sync_no">Não</string>
+</resources>

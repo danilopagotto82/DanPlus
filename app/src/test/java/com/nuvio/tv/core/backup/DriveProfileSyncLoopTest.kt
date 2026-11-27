@@ -18,6 +18,32 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class DriveProfileSyncLoopTest {
     @Test
+    fun manualOnlySessionWaitsForRequestAndKeepsLastSuccessfulSync() = runTest {
+        val original = DrivePortableSettings(null, scoutInMenu = true, scoutListEmojis = false)
+        val settings = MutableStateFlow(original)
+        val scout = mockk<ScoutStore>()
+        every { scout.observeDriveSettings(3) } returns settings
+        val coordinator = mockk<DriveJournalCoordinator>()
+        coEvery { coordinator.synchronize(any(), any(), any(), any(), any()) } returns DriveJournalOutcome.IN_SYNC
+        val lastSuccess = 1_000L
+        val recorded = mutableListOf<Long>()
+        val profile = DriveProfileSession(DriveCinemaScope("drive", "app", "profile"), 3, "714895126038",
+            coordinator, automatic = false, lastSuccessfulSync = lastSuccess, recordSuccess = { recorded.add(it) }) { true }
+        val loop = DriveProfileSyncLoop(scout, remotePollMs = 60_000L)
+        backgroundScope.launch { loop.run(MutableStateFlow(profile)) }
+        runCurrent()
+        settings.value = original.copy(scoutShowWatched = false)
+        advanceTimeBy(120_000L)
+        runCurrent()
+        coVerify(exactly = 0) { coordinator.synchronize(any(), any(), any(), any(), any()) }
+        assertEquals(lastSuccess, loop.lastSuccess.value)
+        loop.syncNow()
+        runCurrent()
+        coVerify(exactly = 1) { coordinator.synchronize(any(), any(), settings.value, any(), any()) }
+        assertEquals(listOf(checkNotNull(loop.lastSuccess.value)), recorded)
+    }
+
+    @Test
     fun checksRemoteWithoutLocalEditsAndStopsPollingWhenSessionEnds() = runTest {
         val original = DrivePortableSettings(null, scoutInMenu = true, scoutListEmojis = false)
         val scout = mockk<ScoutStore>()

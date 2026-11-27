@@ -6,6 +6,8 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nuvio.tv.R
+import com.nuvio.tv.core.backup.DriveSyncRuntime
+import com.nuvio.tv.core.backup.DriveConflictPreview
 import com.nuvio.tv.core.backup.BackupDocument
 import com.nuvio.tv.core.backup.PortableBackupInput
 import com.nuvio.tv.core.backup.PortableBackupEnvelope
@@ -46,6 +48,7 @@ sealed interface BackupDialog {
 
 sealed interface BackupPinStep {
     data object Create : BackupPinStep
+    data class Drive(val first: String? = null) : BackupPinStep
     data class Confirm(val first: String) : BackupPinStep
     data class PortableExport(val saved: BackupSaved, val first: String? = null) : BackupPinStep
     data class PortableImport(val box: SealedBox) : BackupPinStep
@@ -66,10 +69,67 @@ data class BackupUiState(
 @HiltViewModel
 class BackupViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    private val manager: BackupManager
+    private val manager: BackupManager,
+    private val drive: DriveSyncRuntime
 ) : ViewModel() {
     private val _state = MutableStateFlow(BackupUiState())
     val state: StateFlow<BackupUiState> = _state.asStateFlow()
+
+    internal sealed interface DriveDialog {
+        data object Working : DriveDialog
+        data class Code(val code: String, val url: String) : DriveDialog
+        data class Conflicts(val preview: DriveConflictPreview, val isCurrent: () -> Boolean) : DriveDialog
+        data class ConfirmRevoke(val isCurrent: () -> Boolean) : DriveDialog
+    }
+
+    internal val driveStatus = drive.status
+    internal val driveOutcome = drive.outcome
+    internal val driveLastSuccess = drive.lastSuccess
+    private val _driveDialog = MutableStateFlow<DriveDialog?>(null)
+    internal val driveDialog = _driveDialog.asStateFlow()
+    private var driveJob: kotlinx.coroutines.Job? = null
+
+    internal fun connectDrive() = _state.update { it.copy(pin = BackupPinStep.Drive(), pinError = null) }
+    internal fun syncDriveNow() = drive.syncNow()
+    internal fun driveAutomatic(enabled: Boolean) = driveAction { drive.setAutomatic(enabled) }
+    internal fun disconnectDrive(revoke: Boolean = false) {
+        val valid = if (revoke) (_driveDialog.value as? DriveDialog.ConfirmRevoke)?.isCurrent ?: return
+            else drive.confirmSession()
+        driveAction { drive.disconnect(revoke, valid) }
+    }
+    internal fun confirmDriveRevoke() { _driveDialog.value = DriveDialog.ConfirmRevoke(drive.confirmSession()) }
+    internal fun closeDriveDialog() {
+        driveJob?.cancel()
+        _driveDialog.value = null
+    }
+    internal fun openDriveConflict() = startDriveAction {
+        val valid = drive.confirmSession()
+        val preview = drive.previewConflict()
+        if (preview == null || !valid()) driveError() else _driveDialog.value = DriveDialog.Conflicts(preview, valid)
+    }
+    internal fun chooseDriveConflict(conflict: DriveDialog.Conflicts, revision: String?) =
+        driveAction { drive.resolveConflict(conflict.preview, revision, conflict.isCurrent) }
+
+    private fun driveAction(action: suspend () -> Boolean) = startDriveAction {
+        if (!action()) driveError() else _driveDialog.value = null
+    }
+    private fun startDriveAction(action: suspend () -> Unit) {
+        if (driveJob?.isActive == true) return
+        driveJob = viewModelScope.launch {
+            _driveDialog.value = DriveDialog.Working
+            try {
+                action()
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                driveError()
+            }
+        }
+    }
+    private fun driveError() {
+        _driveDialog.value = null
+        showMessage(context.getString(R.string.drive_sync_error))
+    }
 
     val sections: List<BackupSection> get() = manager.sections
 
@@ -124,6 +184,16 @@ class BackupViewModel @Inject constructor(
     fun pinEntered(pin: String) {
         if (_state.value.busy) return
         when (val step = _state.value.pin) {
+            is BackupPinStep.Drive -> when {
+                step.first == null -> _state.update { it.copy(pin = step.copy(first = pin), pinError = null) }
+                step.first != pin -> _state.update {
+                    it.copy(pin = BackupPinStep.Drive(), pinError = context.getString(R.string.backup_pin_mismatch))
+                }
+                else -> {
+                    dismissPin()
+                    driveAction { drive.connect(pin) { _driveDialog.value = DriveDialog.Code(it.userCode, it.url.toString()) } }
+                }
+            }
             BackupPinStep.Create -> _state.update { it.copy(pin = BackupPinStep.Confirm(pin), pinError = null) }
             is BackupPinStep.Confirm -> if (step.first == pin) {
                 _state.update { it.copy(pin = null, pinError = null) }
@@ -162,7 +232,7 @@ class BackupViewModel @Inject constructor(
                 _state.update { it.copy(pin = null, pinError = null) }
                 runBackup(null)
             }
-            is BackupPinStep.PortableExport, is BackupPinStep.PortableImport -> dismissPin()
+            is BackupPinStep.PortableExport, is BackupPinStep.PortableImport, is BackupPinStep.Drive -> dismissPin()
             is BackupPinStep.Restore -> {
                 _state.update { it.copy(pin = null, pinError = null) }
                 val rest = step.parts - BackupPart.SECRETS

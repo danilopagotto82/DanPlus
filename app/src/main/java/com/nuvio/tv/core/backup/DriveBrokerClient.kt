@@ -36,6 +36,7 @@ internal class DriveBrokerClient(
     private val endpoint: HttpUrl,
     private val headers: () -> DriveBrokerHeaders?,
     private val isCurrent: () -> Boolean,
+    private val io: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
     private val now: () -> Long = { TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) }
 ) {
     init { require(endpoint == driveBrokerEndpoint("https://" + endpoint.host)) }
@@ -81,7 +82,7 @@ internal class DriveBrokerClient(
         }
     }
 
-    private suspend fun request(body: JSONObject): Pair<Int, JSONObject> = withContext(Dispatchers.IO) {
+    private suspend fun request(body: JSONObject): Pair<Int, JSONObject> = withContext(io) {
         check(isCurrent())
         val auth = checkNotNull(headers())
         val request = Request.Builder().url(endpoint)

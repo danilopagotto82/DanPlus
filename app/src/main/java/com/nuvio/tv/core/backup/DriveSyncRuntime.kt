@@ -29,21 +29,30 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-internal class DriveStoredGrant(
-    val actor: String, val scope: DriveCinemaScope, val clientId: String, val refresh: String, val pin: String
+internal data class DriveStoredGrant(
+    val actor: String,
+    val scope: DriveCinemaScope,
+    val clientId: String,
+    val refresh: String,
+    val pin: String,
+    val automatic: Boolean = true,
+    val lastSuccessfulSync: Long? = null
 ) {
+    override fun toString() = "DriveStoredGrant"
+
     fun matches(actor: String, owner: String, profile: String) =
         this.actor == actor && scope.appAccount == owner && scope.profile == profile
-    fun rotated(token: String) = DriveStoredGrant(actor, scope, clientId, token, pin)
     fun encode(): String = JSONObject().put("actor", actor).put("drive", scope.driveAccount)
         .put("owner", scope.appAccount).put("profile", scope.profile).put("client", clientId)
-        .put("refresh", refresh).put("pin", pin).toString()
+        .put("refresh", refresh).put("pin", pin).put("automatic", automatic)
+        .put("lastSuccessfulSync", lastSuccessfulSync).toString()
     companion object {
         fun decode(text: String): DriveStoredGrant {
             val j = JSONObject(text)
             return DriveStoredGrant(j.getString("actor"), DriveCinemaScope(j.getString("drive"),
                 j.getString("owner"), j.getString("profile")), j.getString("client"),
-                j.getString("refresh"), j.getString("pin")).also {
+                j.getString("refresh"), j.getString("pin"), j.optBoolean("automatic", true),
+                j.optLong("lastSuccessfulSync").takeIf { it > 0 }).also {
                 require(it.pin.length >= 12 && BackupCrypto.isValidPin(it.pin) &&
                     it.refresh.isNotBlank() && it.clientId.isNotBlank() && it.scope.driveAccount.isNotBlank())
             }
@@ -71,11 +80,23 @@ class DriveGrantVault @Inject constructor(@ApplicationContext context: Context) 
         _revision.value++
         true
     }
-    internal fun rotate(id: Int, before: DriveStoredGrant, after: DriveStoredGrant, current: () -> Boolean) = synchronized(lock) {
+    internal fun rotate(id: Int, before: DriveStoredGrant, token: String, current: () -> Boolean) = synchronized(lock) {
         check(current())
         val saved = checkNotNull(grants.read(id)?.let { DriveStoredGrant.decode(it) })
         check(saved.scope == before.scope && saved.actor == before.actor && saved.refresh == before.refresh)
-        grants.write(id, after.encode())
+        grants.write(id, saved.copy(refresh = token).encode())
+    }
+    internal fun recordSuccess(id: Int, time: Long, current: () -> Boolean) = synchronized(lock) {
+        if (!current()) return@synchronized
+        val saved = grants.read(id)?.let { DriveStoredGrant.decode(it) } ?: return@synchronized
+        grants.write(id, saved.copy(lastSuccessfulSync = time).encode())
+    }
+    internal fun setAutomatic(id: Int, enabled: Boolean, current: () -> Boolean): Boolean = synchronized(lock) {
+        if (!current()) return@synchronized false
+        val saved = grants.read(id)?.let { DriveStoredGrant.decode(it) } ?: return@synchronized false
+        grants.write(id, saved.copy(automatic = enabled).encode())
+        _revision.value++
+        true
     }
     override fun removeProfile(profileId: Int): Unit = synchronized(lock) {
         grants.write(profileId, null)
@@ -98,7 +119,7 @@ class DriveGrantVault @Inject constructor(@ApplicationContext context: Context) 
     }
 }
 
-internal data class DriveSyncStatus(val available: Boolean = false, val connected: Boolean = false)
+internal data class DriveSyncStatus(val available: Boolean = false, val connected: Boolean = false, val automatic: Boolean = false)
 
 @Singleton
 class DriveSyncRuntime @Inject constructor(
@@ -111,6 +132,7 @@ class DriveSyncRuntime @Inject constructor(
     private val vault: DriveGrantVault
 ) {
     private val endpoint = driveBrokerEndpoint(BuildConfig.DANPLUS_D12_SUPABASE_URL)
+        ?.takeIf { it.host == "wnzmojaliguncdbtuula.supabase.co" }
     private val configured = endpoint != null && BuildConfig.DANPLUS_D12_SUPABASE_KEY.startsWith("sb_publishable_") &&
         !server.isCustom && server.backendUrl.trimEnd('/') == "https://api.nuvio.tv"
     private val http = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false)
@@ -123,6 +145,7 @@ class DriveSyncRuntime @Inject constructor(
     private val _status = MutableStateFlow(DriveSyncStatus())
     internal val status = _status.asStateFlow()
     internal val outcome = loop.outcome
+    internal val lastSuccess = loop.lastSuccess
     private val operation = Mutex()
 
     private class Binding(val actor: String, val owner: String, val id: Int, val remoteProfile: String,
@@ -151,8 +174,11 @@ class DriveSyncRuntime @Inject constructor(
                     val coordinator = DriveJournalCoordinator(
                         GoogleDriveRevisionStore(http, driveNamespace(grant.scope), token, valid),
                         ProtectedDriveJournalProgress(context, binding.id, valid))
-                    _status.value = DriveSyncStatus(available = true, connected = true)
-                    sessions.value = DriveProfileSession(grant.scope, binding.id, grant.pin, coordinator, valid)
+                    _status.value = DriveSyncStatus(available = true, connected = true, automatic = grant.automatic)
+                    sessions.value = DriveProfileSession(grant.scope, binding.id, grant.pin, coordinator,
+                        grant.automatic, grant.lastSuccessfulSync, { time ->
+                            runCatching { vault.recordSuccess(binding.id, time, valid) }
+                        }, valid)
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
@@ -165,6 +191,10 @@ class DriveSyncRuntime @Inject constructor(
 
     internal fun setVisible(value: Boolean) { visible.value = value }
     internal fun syncNow() = loop.syncNow()
+    internal fun confirmSession(): () -> Boolean {
+        val selected = sessions.value
+        return { selected != null && sessions.value === selected && selected.isCurrent() }
+    }
 
     private suspend fun binding(): Binding? {
         if (!configured || !visible.value || !profiles.activeProfileReady.value || !authManager.hasLiveSession()) return null
@@ -199,10 +229,20 @@ class DriveSyncRuntime @Inject constructor(
         withContext(Dispatchers.IO) { vault.save(b.id, stored) { current(b) } }
     }
 
-    internal suspend fun disconnect(revoke: Boolean): Boolean = operation.withLock {
+    internal suspend fun setAutomatic(enabled: Boolean): Boolean = operation.withLock {
+        val b = binding() ?: return@withLock false
+        withContext(Dispatchers.IO) {
+            val grant = vault.load(b.id) ?: return@withContext false
+            if (!grant.matches(b.actor, b.owner, b.remoteProfile)) return@withContext false
+            vault.setAutomatic(b.id, enabled) { current(b) }
+        }
+    }
+
+    internal suspend fun disconnect(revoke: Boolean, confirmed: () -> Boolean): Boolean = operation.withLock {
+        if (!confirmed()) return@withLock false
         val b = binding() ?: return@withLock false
         val grant = withContext(Dispatchers.IO) { vault.load(b.id) } ?: return@withLock false
-        if (!grant.matches(b.actor, b.owner, b.remoteProfile) || !current(b)) return@withLock false
+        if (!grant.matches(b.actor, b.owner, b.remoteProfile) || !current(b) || !confirmed()) return@withLock false
         if (revoke) google.revoke(grant.refresh)
         withContext(Dispatchers.IO) { vault.disconnect(b.id, grant) { current(b) } }
     }
@@ -215,11 +255,11 @@ class DriveSyncRuntime @Inject constructor(
         }
     }
 
-    internal suspend fun resolveConflict(preview: DriveConflictPreview, selected: String?): Boolean {
+    internal suspend fun resolveConflict(preview: DriveConflictPreview, selected: String?, confirmed: () -> Boolean): Boolean {
         val session = sessions.value ?: return false
-        if (!session.isCurrent()) return false
+        if (!session.isCurrent() || !confirmed()) return false
         val result = withContext(Dispatchers.IO) {
-            session.coordinator.resolveConflict(session.scope, session.pin, preview, selected, session.isCurrent) {
+            session.coordinator.resolveConflict(session.scope, session.pin, preview, selected, { session.isCurrent() && confirmed() }) {
                 scout.observeDriveSettings(session.localProfileId).first()
             }
         }
@@ -241,9 +281,8 @@ class DriveSyncRuntime @Inject constructor(
                 if (driveAccountId(http, refreshed.accessToken) { current(b) } != stored.scope.driveAccount) return@withLock null
                 if (!current(b)) return@withLock null
                 if (refreshed.refreshToken != stored.refresh) {
-                    val updated = stored.rotated(refreshed.refreshToken)
-                    vault.rotate(b.id, stored, updated) { current(b) }
-                    stored = updated
+                    vault.rotate(b.id, stored, refreshed.refreshToken) { current(b) }
+                    stored = stored.copy(refresh = refreshed.refreshToken)
                 }
                 access = refreshed.accessToken
                 until = now + (refreshed.expiresInSeconds - 60).coerceAtLeast(0) * 1000
