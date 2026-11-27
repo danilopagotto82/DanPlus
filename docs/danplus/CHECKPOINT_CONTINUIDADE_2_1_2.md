@@ -19,3 +19,23 @@
 ## Continuidade
 
 Aguardar revisão do coordenador e a janela autorizada para comparação do candidato em TV. A matriz mantém a situação de todos os IDs dos megalotes posteriores.
+
+## ML02 — Ações de título e avaliações públicas
+
+- Base validada `acf45f79e4612e10cee28d703f1291c88aade51e`. ML01 aprovado tecnicamente pelo coordenador. Seus cinco registros foram preservados.
+- Implementação `8128b1a183240f7b762916da1c8ef7d112bbf1cd`. Árvore `9542579795635c196e4d436e88924869c8a006ef`.
+- `:app:testFullDebugUnitTest` offline passou com 91 testes, 0 falhas e 0 ignorados em 13 classes. XML em `app/build/test-results/testFullDebugUnitTest/`.
+- `git diff --check` passou. Execução sem APK, instalação, publicação ou alterações em contas reais. AndroidTest e DPAD físico pendentes.
+
+### Disposição por ID
+
+- **UI-10 · PASS_TESTE_FOCADO.** Pressão longa oferece Indicar em Início, Continuar Assistindo, Descobrir, Busca, Biblioteca, coleções e catálogos aplicáveis. A ação abre o seletor MUD-006. Enviar requer seleção de destinatário e o acionamento explícito do botão. Metadados da mesma obra preservam as chaves de episódios. Testes — PosterRecommendationMetaTest, PosterOptionsControllerShowTest, ProfileRecommendationRulesTest, DanexusRecommendationsStoreTest, RecommendationSendReceiptTest. Pendente — Verificar DPAD, Back e retorno ao pôster em cada superfície. Fazer homologação de envio apenas com perfis sintéticos em ambiente autorizado.
+- **UI-12A · PASS_TESTE_FOCADO.** A chamada da seção foi retirada. A aba Avaliações ficou no local atual, com as demais ações. O diff preserva os arquivos de armazenamento Trakt, de preferências e de notas do Descubra-me. Testes — TraktPersonalRatingRepositoryTest, TraktRatingEpisodeIdentityTest, ScoutRatingTest, ScoutRatingSyncLogicTest. Pendente — Verificar em TV um filme e uma série, inclusive navegação pelo trecho em que aparecia o botão.
+- **UI-12B · PASS_TESTE_FOCADO.** TMDB confirmou tt7631058 ↔ 84773 nos dois sentidos e retornou HTTP 200 com oito episódios votados em cada T1–T3. SeriesGraph público retornou HTTP 200. O host de referência do Tapframe falhou no DNS da estação. Com as fontes configuradas, cada episódio recebe uma nota com a origem identificada. A aba distingue carregamento, ausência, erro e ocultação por preferência. Testes — ImdbEpisodeRatingsRepositoryTest, EpisodeRatingsIdentityTest, ImdbRatingVisibilityTest, EpisodeSynopsisUnderRowTest. Pendente — Homologar a aba e os cards em Shield/Fire com Os Anéis de Poder. Conferir T1–T3, DPAD, privacidade de notas ocultas, fonte, contraste e respostas lentas. Revalidar Tapframe se houver endpoint oficial configurado.
+
+### Diagnóstico de provedores
+
+- GETs de metadados públicos de Os Anéis de Poder confirmaram TMDB `84773` e IMDb `tt7631058`. As T1–T3 tiveram 8/8 episódios votados no TMDB. O SeriesGraph público retornou 8/8 na T1 e T2 e 6/8 na T3. O host de referência Tapframe ficou sem resposta HTTP nesta estação por falha DNS. As duas URLs parceiras estão vazias no `FullDebug`. [API do TMDB](https://developer.themoviedb.org/reference/tv-season-details) · [Resposta pública do SeriesGraph](https://seriesgraph.com/api/shows/84773/season-ratings)
+- Com a chave TMDB existente, a alternativa oficial consulta uma temporada por vez. Apenas médias com votos e episódios correspondentes entram no fallback. Os valores mantêm a fonte por episódio, sem média entre provedores. Notas sem escala identificada vindas do addon mantêm rótulo e cor neutra. A leitura Trakt de avaliações pessoais segue reservada à implementação anterior.
+
+ML03 ainda não iniciado. Aguardar a revisão do coordenador e a janela autorizada de teste físico.
