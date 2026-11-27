@@ -85,7 +85,8 @@ internal fun MediaMetadataChips(
         MediaSeriesStatus.CANCELLED -> stringResource(R.string.e05_grade_cancelled)
         null -> null
     }
-    val labels = listOfNotNull(year, duration, rating, item.ageRating?.trim()?.takeIf(String::isNotEmpty), episodes, seasons, state)
+    val certification = item.ageRating?.trim()?.takeIf(String::isNotEmpty)
+    val labels = listOfNotNull(year, duration, rating, certification, episodes, seasons, state)
     if (labels.isEmpty()) return
     val foreground = if (onArtwork) Color.White else NuvioTheme.colors.TextPrimary
     val background = if (onArtwork) Color.Black.copy(alpha = .72f) else foreground.copy(alpha = .12f)
@@ -96,13 +97,23 @@ internal fun MediaMetadataChips(
         maxLines = maxLines
     ) {
         labels.distinct().forEach { label ->
+            val chipBackground = when (label) {
+                rating -> Color(0xFF34291A)
+                certification -> Color(0xFF293548)
+                else -> background
+            }
+            val chipForeground = when (label) {
+                rating -> Color(0xFFFFE2A0)
+                certification -> Color.White
+                else -> foreground
+            }
             Text(
                 text = label,
-                color = foreground,
+                color = chipForeground,
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.background(background, RoundedCornerShape(5.dp))
+                modifier = Modifier.background(chipBackground, RoundedCornerShape(5.dp))
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             )
         }
@@ -117,7 +128,7 @@ internal fun MediaGenres(genres: List<String>, modifier: Modifier = Modifier, on
     Text(
         text = labels.joinToString(" · ") { localizedGenreLabel(context, it) },
         style = MaterialTheme.typography.labelLarge,
-        color = if (onArtwork) Color(0xFFDCE7F4) else NuvioTheme.colors.TextSecondary,
+        color = if (onArtwork) Color(0xFFC3D4EB) else NuvioTheme.colors.TextSecondary,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = modifier

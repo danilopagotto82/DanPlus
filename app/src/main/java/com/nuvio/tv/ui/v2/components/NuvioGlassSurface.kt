@@ -88,7 +88,8 @@ fun Modifier.nuvioGlass(
     shape: Shape = RoundedCornerShape(20.dp),
     hazeState: HazeState? = null,
     trailingEdgeOnly: Boolean = false,
-    neutralBackdrop: Boolean = false
+    neutralBackdrop: Boolean = false,
+    cinematicPageSurface: Boolean = false
 ): Modifier {
     val appearance = LocalV2Appearance.current
     val clearGlass = usesClearGlassTheme()
@@ -149,6 +150,10 @@ fun Modifier.nuvioGlass(
             else if (dark) listOf(Color(0xFF102332).copy(alpha = alpha), Color(0xFF040D16).copy(alpha = alpha))
             else listOf(Color(0xFF202225).copy(alpha = alpha), Color(0xFF0C0E11).copy(alpha = alpha)))
     }
+    val pageTones = if (cinematicPageSurface && !playback && !neutralBackdrop) {
+        com.nuvio.tv.ui.v2.appearance.cinematicTones()
+    } else null
+    val pageBackground = remember(pageTones) { pageTones?.surfaceBrush(pageTones.opacity) }
     val edge = remember(tokens, dark, playbackGlass, clearGlass) {
         if (clearGlass) Brush.verticalGradient(listOf(
             Color.White.copy(alpha = .28f), Color.White.copy(alpha = .045f), Color.White.copy(alpha = .14f)
@@ -162,7 +167,7 @@ fun Modifier.nuvioGlass(
     val smokeFillAlpha = if (smoke != null) smokedGlassFillAlpha(bodyAlpha, transparency) else 0f
     return clip(shape)
             .v2GlassBlur(role, tokens, source, refreshVideo = (popupBackdrop?.liveTrailers ?: 0) > 0)
-            .background(background, shape)
+            .background(pageBackground ?: background, shape)
             .drawWithCache {
                 val outline = shape.createOutline(size, layoutDirection, this)
                 val stroke = Stroke(1.dp.toPx())
@@ -195,10 +200,12 @@ fun Modifier.nuvioGlass(
                         GlassTintMode.ACCENT -> resolvedAccent.copy(alpha = if (focused) .20f else .09f)
                         GlassTintMode.ARTWORK -> artworkColor.copy(alpha = if (focused) .20f else .09f)
                     }
-                    if (tintMode == GlassTintMode.ACCENT) {
-                        drawOutline(outline, accentBrush, alpha = if (focused) .20f else .09f)
-                    } else {
-                        drawOutline(outline, tint)
+                    if (pageTones == null) {
+                        if (tintMode == GlassTintMode.ACCENT) {
+                            drawOutline(outline, accentBrush, alpha = if (focused) .20f else .09f)
+                        } else {
+                            drawOutline(outline, tint)
+                        }
                     }
                     if (focused && !neutralGlass) drawOutline(outline, accentBrush, alpha = .16f)
                     if (playback || (cinematic && tokens.edgeLayers > 1)) {

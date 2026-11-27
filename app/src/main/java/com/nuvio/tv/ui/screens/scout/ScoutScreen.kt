@@ -296,11 +296,11 @@ fun ScoutScreen(
     if (state.pinFor == null) BoxWithConstraints(Modifier.fillMaxSize().background(NuvioTheme.colors.Background)) {
         val compact = maxHeight < COMPACT_PAGE
         val tallest = maxHeight * .31f
-        ScoutBackdrop(
+        if (!mixesOpen) ScoutBackdrop(
             picture = if (onTaste) taste?.summary?.backdrops?.firstOrNull() else state.hero?.pick?.backdrop.takeUnless { hiddenHero },
             wide = onTaste
         )
-        if (mixesOpen) Box(Modifier.matchParentSize().background(NuvioTheme.colors.Background)) {
+        if (mixesOpen) Box(Modifier.matchParentSize()) {
             ScoutBackdrop(readyState?.focusedTile?.art)
         }
         BoxWithConstraints(
@@ -651,7 +651,7 @@ private fun ScoutTopWords(
 @Composable
 private fun ScoutLengthDialog(answers: ScoutAnswers, onChoose: (ScoutTime) -> Unit, onDismiss: () -> Unit) {
     val first = remember { FocusRequester() }
-    NuvioDialog(onDismiss = onDismiss, title = stringResource(R.string.scout_q_how_long)) {
+    NuvioDialog(onDismiss = onDismiss, title = stringResource(R.string.scout_q_how_long), cinematicPageSurface = true) {
         Column(verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)) {
             ScoutTime.choicesFor(answers.watch).forEach { time ->
                 ScoutOptionRow(
@@ -676,7 +676,8 @@ private fun ScoutWhoDialog(
     onDismiss: () -> Unit
 ) {
     val first = remember { FocusRequester() }
-    NuvioDialog(onDismiss = onDismiss, title = stringResource(R.string.scout_q_who), subtitle = stringResource(R.string.scout_who_hint)) {
+    NuvioDialog(onDismiss = onDismiss, title = stringResource(R.string.scout_q_who),
+        subtitle = stringResource(R.string.scout_who_hint), cinematicPageSurface = true) {
         Column(verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)) {
             profiles.sortedBy { it.id != activeId }.forEachIndexed { index, profile ->
                 val own = profile.id == activeId
@@ -752,7 +753,7 @@ private fun ScoutHeroBlock(
             modifier = Modifier.fillMaxWidth(.62f)
         )
         pick.overview?.takeIf { it.isNotBlank() }?.let { overview ->
-            ScoutSynopsis(overview, modifier = Modifier.fillMaxWidth(.5f), maxLines = if (compact) 1 else 2)
+            ScoutSynopsis(pick.name, overview, modifier = Modifier.fillMaxWidth(.5f), maxLines = if (compact) 1 else 2)
         }
         val detail = shown.detail
         MediaMetadataChips(

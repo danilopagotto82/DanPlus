@@ -6,12 +6,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,22 +30,28 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.nuvio.tv.R
 import com.nuvio.tv.core.image.sizedHomeArtworkUrl
 import com.nuvio.tv.domain.model.MetaPreview
+import com.nuvio.tv.ui.components.CollectionFeatureArtwork
+import com.nuvio.tv.ui.components.MediaSynopsis
 import com.nuvio.tv.ui.components.MediaGenres
 import com.nuvio.tv.ui.components.MediaMetadataChips
 import com.nuvio.tv.ui.screens.scout.ScoutChip
 import com.nuvio.tv.ui.theme.NuvioTheme
 import com.nuvio.tv.ui.util.localizedContentType
+import com.nuvio.tv.ui.v2.appearance.cinematicTones
 
 @Composable
 internal fun FolderSidePreview(
@@ -47,39 +60,68 @@ internal fun FolderSidePreview(
     modifier: Modifier = Modifier
 ) {
     val colors = NuvioTheme.colors
+    val tones = cinematicTones()
     val shape = RoundedCornerShape(NuvioTheme.radii.lg)
-    val wash = remember(colors.Secondary) {
-        Brush.verticalGradient(listOf(colors.Secondary.copy(alpha = .14f), Color.Transparent))
-    }
-    Column(
-        modifier.background(colors.BackgroundCard, shape)
-            .background(wash, shape)
-            .border(1.dp, colors.Secondary.copy(alpha = .26f), shape)
-            .padding(NuvioTheme.spacing.lg),
-        verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)
+    val description = item?.description?.takeIf(String::isNotBlank)
+    BoxWithConstraints(
+        modifier.clip(shape)
+            .background(tones.surfaceBrush(tones.opacity))
+            .border(1.dp, colors.TextPrimary.copy(alpha = .17f), shape)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
-        if (item != null) {
-            FolderTitleArtwork(item, logoHeight = 64.dp, centered = true)
-            FolderPreviewDivider()
+        if (item == null) return@BoxWithConstraints
+        val compact = maxHeight < 340.dp
+        Column(Modifier.fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            FolderTitleArtwork(item, logoHeight = if (compact) 45.dp else 62.dp,
+                centered = true, preferredLogo = credits?.logo)
             MediaMetadataChips(item, episodeCount = credits?.episodeCount)
             MediaGenres(item.genres.ifEmpty { listOf(localizedContentType(item.apiType)) })
-            FolderPreviewDivider()
-            item.description?.takeIf { it.isNotBlank() }?.let {
-                Text(it, color = colors.TextPrimary, style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 4, overflow = TextOverflow.Ellipsis)
+            if (description != null) {
                 FolderPreviewDivider()
-            }
-            val director = credits?.director ?: item.director.firstOrNull { it.isNotBlank() }
-            val cast = credits?.cast.orEmpty()
-            if (director != null || cast.isNotEmpty()) {
-                Text(stringResource(R.string.dan_folder_credits), style = MaterialTheme.typography.titleSmall)
-                director?.let {
-                    Text(stringResource(R.string.dan_folder_director, it), style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Box(Modifier.weight(1f, fill = false)) {
+                    MediaSynopsis(item.name, description, maxLines = Int.MAX_VALUE,
+                        adaptiveHeight = true, style = MaterialTheme.typography.bodyLarge)
                 }
-                if (cast.isNotEmpty()) {
-                    Text(cast.joinToString(" · "), style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            credits?.creator?.takeIf(String::isNotBlank)?.let {
+                Text(stringResource(R.string.dan_folder_creator, it), color = colors.TextPrimary,
+                    style = MaterialTheme.typography.bodyMedium, maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis)
+            }
+            val director = credits?.director ?: item.director.firstOrNull(String::isNotBlank)
+                ?.takeIf { item.apiType == "movie" }
+            director?.let {
+                Text(stringResource(R.string.dan_folder_director, it), color = colors.TextPrimary,
+                    style = MaterialTheme.typography.bodyMedium, maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis)
+            }
+            val cast = credits?.cast.orEmpty()
+            if (cast.isNotEmpty()) {
+                FolderPreviewDivider()
+                Text(stringResource(R.string.pause_cast_label), color = colors.TextPrimary,
+                    style = MaterialTheme.typography.titleSmall)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    cast.forEach { person ->
+                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            val shape = RoundedCornerShape(6.dp)
+                            val portraitHeight = if (compact) 40.dp else 56.dp
+                            Box(Modifier.width(if (compact) 34.dp else 44.dp).height(portraitHeight)
+                                .clip(shape).background(colors.TextPrimary.copy(alpha = .09f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Person, null, Modifier.size(20.dp), tint = colors.TextSecondary)
+                                AsyncImage(
+                                    model = person.photo?.takeIf(String::isNotBlank)
+                                        ?.replace("https://image.tmdb.org/t/p/w500/", "https://image.tmdb.org/t/p/w185/"),
+                                    contentDescription = null,
+                                    modifier = Modifier.matchParentSize(),
+                                    contentScale = ContentScale.Crop,
+                                    alignment = Alignment.TopCenter
+                                )
+                            }
+                            Text(person.name, color = colors.TextPrimary, style = MaterialTheme.typography.labelLarge,
+                                textAlign = TextAlign.Center, maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
                 }
             }
         }
@@ -99,26 +141,28 @@ internal fun FolderShowcase(
     onOpen: (MetaPreview, String) -> Unit
 ) {
     val colors = NuvioTheme.colors
+    val tones = cinematicTones()
+    val context = LocalContext.current
     val shape = RoundedCornerShape(NuvioTheme.radii.xl)
-    val scrim = remember(colors.Background) {
-        Brush.horizontalGradient(
-            listOf(colors.Background, colors.Background.copy(alpha = .84f), colors.Background.copy(alpha = .36f))
-        )
+    val image = item.backdropUrl?.takeIf(String::isNotBlank)
+    val request = remember(context, image) {
+        image?.let { ImageRequest.Builder(context).data(sizedHomeArtworkUrl(it, 780)).size(780, 440).build() }
     }
     Box(
         Modifier.fillMaxWidth().padding(horizontal = NuvioTheme.spacing.xxxl)
-            .height(270.dp).clip(shape).background(colors.BackgroundCard)
+            .height(270.dp).clip(shape).background(tones.base)
             .border(1.dp, colors.Secondary.copy(alpha = .35f), shape)
     ) {
-        val image = item.backdropUrl?.takeIf { it.isNotBlank() }
-        AsyncImage(
-            model = image?.let { sizedHomeArtworkUrl(it, 780) },
-            contentDescription = null,
-            modifier = Modifier.matchParentSize(),
-            contentScale = com.nuvio.tv.ui.components.CollectionBannerScale,
-            alignment = Alignment.TopEnd
-        )
-        Box(Modifier.matchParentSize().background(scrim))
+        CollectionFeatureArtwork(request, tones.base,
+            Modifier.align(Alignment.CenterEnd).fillMaxWidth(.82f).fillMaxHeight())
+        Box(Modifier.matchParentSize()
+            .background(Brush.horizontalGradient(
+                0f to tones.base, .36f to tones.base.copy(alpha = .82f), .68f to tones.base.copy(alpha = .70f),
+                .88f to tones.base.copy(alpha = .10f), 1f to Color.Transparent
+            ))
+            .background(Brush.verticalGradient(
+                0f to tones.top.copy(alpha = .13f), .44f to Color.Transparent, 1f to tones.base.copy(alpha = .76f)
+            )))
         Column(
             Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)
@@ -128,8 +172,7 @@ internal fun FolderShowcase(
                 MediaMetadataChips(item, onArtwork = true)
                 MediaGenres(item.genres, onArtwork = true)
                 item.description?.takeIf { it.isNotBlank() }?.let {
-                    Text(it, color = colors.TextPrimary, style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    MediaSynopsis(item.name, it, color = Color.White)
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)) {
@@ -143,21 +186,31 @@ internal fun FolderShowcase(
 }
 
 @Composable
-private fun FolderTitleArtwork(item: MetaPreview, logoHeight: Dp = 58.dp, centered: Boolean = false) {
-    val logo = item.logo?.takeIf { it.isNotBlank() }
-    var failed by remember(logo) { mutableStateOf(false) }
-    if (logo != null && !failed) {
-        AsyncImage(
-            model = sizedHomeArtworkUrl(logo, 500),
-            contentDescription = item.name,
-            modifier = Modifier.fillMaxWidth().height(logoHeight),
-            contentScale = ContentScale.Fit,
-            alignment = if (centered) Alignment.Center else Alignment.CenterStart,
-            onError = { failed = true }
-        )
-    } else {
-        Text(item.name, style = MaterialTheme.typography.headlineMedium, color = NuvioTheme.colors.TextPrimary,
-            modifier = Modifier.fillMaxWidth(), textAlign = if (centered) TextAlign.Center else TextAlign.Start,
-            maxLines = 2, overflow = TextOverflow.Ellipsis)
+private fun FolderTitleArtwork(
+    item: MetaPreview,
+    logoHeight: Dp,
+    centered: Boolean = false,
+    preferredLogo: String? = null
+) {
+    val logo = preferredLogo ?: item.logo?.takeIf(String::isNotBlank)
+    var loaded by remember(logo, item.id, item.apiType) { mutableStateOf(false) }
+    val alignment = if (centered) Alignment.Center else Alignment.CenterStart
+    Box(Modifier.fillMaxWidth().heightIn(min = logoHeight), contentAlignment = alignment) {
+        if (!loaded) {
+            Text(item.name, style = MaterialTheme.typography.headlineMedium, color = NuvioTheme.colors.TextPrimary,
+                modifier = Modifier.fillMaxWidth(), textAlign = if (centered) TextAlign.Center else TextAlign.Start,
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        if (logo != null) {
+            AsyncImage(
+                model = sizedHomeArtworkUrl(logo, 500),
+                contentDescription = item.name,
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Fit,
+                alignment = alignment,
+                onSuccess = { loaded = true },
+                onError = { loaded = false }
+            )
+        }
     }
 }

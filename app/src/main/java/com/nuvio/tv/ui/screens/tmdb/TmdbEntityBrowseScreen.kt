@@ -1,5 +1,6 @@
 package com.nuvio.tv.ui.screens.tmdb
 
+import androidx.compose.foundation.layout.fillMaxHeight
 import com.nuvio.tv.ui.theme.NuvioTheme
 
 import androidx.activity.compose.BackHandler
@@ -220,16 +221,10 @@ private fun TmdbEntityBrowseContent(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         // Background image layer
-        if (backgroundRequest != null) {
-            AsyncImage(
-                model = backgroundRequest,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = com.nuvio.tv.ui.components.CollectionBannerScale,
-                alignment = Alignment.TopCenter,
-                alpha = 0.14f
-            )
-        }
+        val tones = com.nuvio.tv.ui.v2.appearance.cinematicTones()
+        Box(Modifier.matchParentSize().background(tones.base))
+        com.nuvio.tv.ui.components.CollectionFeatureArtwork(backgroundRequest, tones.base,
+            Modifier.align(Alignment.CenterEnd).fillMaxWidth(.86f).fillMaxHeight(), alpha = .19f)
 
         if (data.rails.isEmpty()) {
             EmptyScreenState(
@@ -341,8 +336,8 @@ private fun rememberBackgroundRequest(
         }?.items?.firstOrNull()?.background ?: data.rails.firstOrNull()?.items?.firstOrNull()?.background
         backgroundItem?.let {
             ImageRequest.Builder(context)
-                .data(it)
-                .crossfade(true)
+                .data(com.nuvio.tv.core.image.sizedHomeArtworkUrl(it, 780))
+                .size(780, 440)
                 .build()
         }
     }

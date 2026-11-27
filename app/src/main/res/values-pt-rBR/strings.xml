@@ -4542,6 +4542,7 @@
     <string name="report_sent_list_title">Relatórios enviados</string>
     <string name="report_sent_list_empty">Os relatórios que você enviar aparecerão aqui.</string>
     <string name="dan_folder_credits">Elenco e direção</string>
+    <string name="dan_folder_creator">Criação: %1$s</string>
     <string name="dan_folder_director">Direção: %1$s</string>
     <string name="report_sent_copy_hint">Selecione um relatório para copiar o protocolo.</string>
     <string name="report_sent_copied">Protocolo copiado</string>

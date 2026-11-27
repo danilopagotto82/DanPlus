@@ -115,6 +115,28 @@ class TmdbMetadataServiceTest {
     }
 
     @Test
+    fun `cancelling preview enrichment lets an active details caller finish`() = runTest {
+        val api = mockk<TmdbApi>()
+        var requests = 0
+        coEvery { api.getMovieDetails(10, any(), "en") } coAnswers {
+            if (++requests == 1) awaitCancellation()
+            Response.success(TmdbDetailsResponse(id = 10, title = "Hero", overview = "Synopsis"))
+        }
+        coEvery { api.getMovieImages(any(), any(), any()) } returns Response.success(TmdbImagesResponse())
+        coEvery { api.getMovieCredits(any(), any(), any()) } returns Response.success(TmdbCreditsResponse())
+        coEvery { api.getMovieReleaseDates(any(), any()) } returns Response.success(TmdbMovieReleaseDatesResponse())
+        coEvery { api.getMovieVideos(any(), any(), any()) } returns Response.success(TmdbVideosResponse(id = 10))
+        val service = TmdbMetadataService(api, StandardTestDispatcher(testScheduler))
+        val preview = async { service.fetchEnrichment("10", ContentType.MOVIE) }
+        val details = async { service.fetchEnrichment("10", ContentType.MOVIE) }
+        runCurrent()
+        assertEquals(1, requests)
+        preview.cancel()
+        assertEquals("Synopsis", details.await()?.description)
+        assertEquals(2, requests)
+    }
+
+    @Test
     fun `details hero publishes before secondary requests and cancellation does not poison cache`() = runTest {
         val api = mockk<TmdbApi>()
         coEvery { api.getMovieDetails(any(), any(), any()) } returns Response.success(

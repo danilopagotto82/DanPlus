@@ -2239,6 +2239,7 @@
     <string name="report_sent_list_title">Sent reports</string>
     <string name="report_sent_list_empty">Reports you send will be listed here.</string>
     <string name="dan_folder_credits">Cast and direction</string>
+    <string name="dan_folder_creator">Created by %1$s</string>
     <string name="dan_folder_director">Directed by %1$s</string>
     <string name="report_sent_copy_hint">Select a report to copy its code.</string>
     <string name="report_sent_copied">Report code copied</string>

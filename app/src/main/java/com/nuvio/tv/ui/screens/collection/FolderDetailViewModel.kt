@@ -1,5 +1,8 @@
 package com.nuvio.tv.ui.screens.collection
 
+import kotlinx.coroutines.ensureActive
+import com.nuvio.tv.core.tmdb.TmdbEnrichment
+import com.nuvio.tv.domain.model.MetaCastMember
 import com.nuvio.tv.data.mediaserver.ServerCatalog
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
@@ -70,7 +73,21 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import javax.inject.Inject
 
-internal data class FolderPreviewCredits(val director: String?, val cast: List<String>, val episodeCount: Int? = null)
+internal data class FolderPreviewCredits(
+    val director: String? = null,
+    val creator: String? = null,
+    val cast: List<MetaCastMember> = emptyList(),
+    val episodeCount: Int? = null,
+    val logo: String? = null
+)
+
+internal fun TmdbEnrichment.toFolderPreviewCredits(logo: String? = null) = FolderPreviewCredits(
+    director = directors.firstOrNull(String::isNotBlank),
+    creator = creators.firstOrNull(String::isNotBlank),
+    cast = castMembers,
+    episodeCount = episodeCount,
+    logo = logo
+)
 
 data class FolderDetailUiState(
     val folder: CollectionFolder? = null,
@@ -1321,18 +1338,23 @@ class FolderDetailViewModel @Inject constructor(
         return mapOf("genre" to genre)
     }
 
-    private fun savePreviewCredits(item: MetaPreview, directors: List<String>, actors: List<String>, episodeCount: Int? = null) {
+    private fun savePreviewCredits(item: MetaPreview, credits: FolderPreviewCredits) {
         val key = item.apiType to item.id
-        val director = directors.firstOrNull { it.isNotBlank() }
-        val cast = actors.filter { it.isNotBlank() }.distinct().take(3)
-        if (director == null && cast.isEmpty() && episodeCount == null) return
         _previewCredits.update { previews ->
-            val previous = previews[key]
+            val previous = previews[key] ?: FolderPreviewCredits()
             previews + (key to FolderPreviewCredits(
-                previous?.director ?: director, previous?.cast?.takeIf { it.isNotEmpty() } ?: cast,
-                episodeCount ?: previous?.episodeCount
+                director = previous.director ?: credits.director,
+                creator = previous.creator ?: credits.creator,
+                cast = (previous.cast + credits.cast).asSequence().filter { it.name.isNotBlank() }
+                    .distinctBy { it.name.trim() }.take(3).toList(),
+                episodeCount = credits.episodeCount ?: previous.episodeCount,
+                logo = previous.logo ?: credits.logo
             ))
         }
+    }
+
+    internal fun onPreviewFocus(item: MetaPreview?) {
+        if (item == null) enrichFocusJob?.cancel() else onItemFocused(item)
     }
 
     fun onItemFocused(item: MetaPreview) {
@@ -1389,19 +1411,14 @@ class FolderDetailViewModel @Inject constructor(
                 return@launch
             }
 
-            var enrichment: com.nuvio.tv.core.tmdb.TmdbEnrichment? = null
-            if (tmdbEnabled) {
-                val tmdbId = runCatching { tmdbService.ensureTmdbId(item.id, item.apiType) }.getOrNull()
-                if (tmdbId != null) {
-                    enrichment = runCatching {
-                        tmdbMetadataService.fetchEnrichment(
-                            tmdbId = tmdbId,
-                            contentType = item.type,
-                            language = tmdbSettings.language
-                        )
-                    }.getOrNull()
-                }
+            val tmdbId = if (tmdbEnabled) {
+                runCatching { tmdbService.ensureTmdbId(item.id, item.apiType, item.imdbId) }.getOrNull()
+                    .also { ensureActive() }
+            } else null
+            val enrichment = tmdbId?.let { id ->
+                tmdbMetadataService.fetchEnrichment(id, item.type, tmdbSettings.language)
             }
+            ensureActive()
 
             if (enrichment == null && !externalMetaEnabled) {
                 // Mark as failed so the UI can show addon data immediately.
@@ -1411,51 +1428,50 @@ class FolderDetailViewModel @Inject constructor(
                 if (_enrichingItemId.value == item.id) _enrichingItemId.value = null
                 return@launch
             }
-            enrichedItemIds.add(item.id)
+            if (!previewOnly) enrichedItemIds.add(item.id)
 
-            // Apply TMDB enrichment if available.
             if (enrichment != null) {
-                val finalEnrichment = enrichment
-                if (previewOnly) {
-                    savePreviewCredits(item, finalEnrichment.director, finalEnrichment.castMembers.map { it.name }, finalEnrichment.episodeCount)
-                }
-
                 updateItemInTabs(item.id) { merged ->
                     var result = merged
-                if (finalEnrichment != null) {
                     if (tmdbSettings.useBasicInfo) {
                         val isModern = _uiState.value.homeLayout == HomeLayout.MODERN
                         result = result.copy(
-                            name = if (isModern) finalEnrichment.localizedTitle ?: result.name else result.name,
-                            description = finalEnrichment.description ?: result.description,
-                            genres = if (finalEnrichment.genres.isNotEmpty()) finalEnrichment.genres else result.genres
+                            name = if (isModern) enrichment.localizedTitle ?: result.name else result.name,
+                            description = enrichment.description ?: result.description,
+                            genres = enrichment.genres.ifEmpty { result.genres }
                         )
                     }
                     if (tmdbSettings.useArtwork) {
                         result = result.copy(
-                            background = finalEnrichment.backdrop ?: result.background,
-                            logo = finalEnrichment.logo ?: result.logo
+                            background = enrichment.backdrop ?: result.background,
+                            logo = if (previewOnly) result.logo else enrichment.logo ?: result.logo
                         )
                     }
                     if (tmdbSettings.useDetails) {
                         result = result.copy(
-                            runtime = finalEnrichment.runtimeMinutes?.toString() ?: result.runtime,
-                            ageRating = finalEnrichment.ageRating ?: result.ageRating,
-                            status = finalEnrichment.status ?: result.status,
-                            releaseInfo = if (previewOnly) finalEnrichment.releaseInfo ?: result.releaseInfo else result.releaseInfo
+                            runtime = enrichment.runtimeMinutes?.toString() ?: result.runtime,
+                            ageRating = enrichment.ageRating ?: result.ageRating,
+                            status = enrichment.status ?: result.status,
+                            releaseInfo = if (previewOnly) enrichment.releaseInfo ?: result.releaseInfo else result.releaseInfo,
+                            imdbRating = if (previewOnly) result.imdbRating ?: enrichment.rating?.toFloat() else result.imdbRating
                         )
                     }
-                    // Propagate TMDB-fetched localized trailer YT ids onto the item
-                    // so the trailer pipeline can use them as a fallback when the
-                    // direct TMDB videos lookup misses the user locale (e.g. Trakt
-                    // list items that didn't carry trailers from their addon).
-                    val enrichedYtIds = finalEnrichment.trailers.mapNotNull { it.ytId }.distinct()
+                    // The trailer pipeline can reuse localized IDs when its direct lookup misses.
+                    val enrichedYtIds = enrichment.trailers.mapNotNull { it.ytId }.distinct()
                     if (enrichedYtIds.isNotEmpty() && result.trailerYtIds.isEmpty()) {
                         result = result.copy(trailerYtIds = enrichedYtIds)
                     }
+                    result
                 }
-                result
-            }
+                if (previewOnly) {
+                    val credits = enrichment.toFolderPreviewCredits()
+                    savePreviewCredits(item, credits)
+                    if (tmdbSettings.useArtwork) {
+                        val focusLogo = tmdbMetadataService.fetchFocusDockLogo(checkNotNull(tmdbId), item.type, enrichment.language)
+                        ensureActive()
+                        if (focusLogo != null) savePreviewCredits(item, credits.copy(logo = focusLogo))
+                    }
+                }
             }
 
             // If the trailer pipeline already ran for this item without a hit and
@@ -1489,11 +1505,15 @@ class FolderDetailViewModel @Inject constructor(
             if (needsExternalAddon && externalMetaEnabled) {
                 val metaResult = metaRepository.getMetaFromAllAddons(item.apiType, item.id, item.sourceAddonBaseUrl)
                     .first { it is NetworkResult.Success || it is NetworkResult.Error }
+                ensureActive()
                 when {
                     metaResult is NetworkResult.Success -> {
                         val meta = metaResult.data
                         if (previewOnly) {
-                            savePreviewCredits(item, meta.director, meta.castMembers.map { it.name }.ifEmpty { meta.cast })
+                            savePreviewCredits(item, FolderPreviewCredits(
+                                director = meta.director.firstOrNull(String::isNotBlank)?.takeIf { item.apiType == "movie" },
+                                cast = meta.castMembers.ifEmpty { meta.cast.map { MetaCastMember(it) } }
+                            ))
                         }
                         if (artworkStillMissing) {
                             // Only apply artwork — TMDB already provided the rest.

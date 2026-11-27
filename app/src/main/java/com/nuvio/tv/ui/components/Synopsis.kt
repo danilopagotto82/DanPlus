@@ -171,7 +171,8 @@ fun SynopsisDescription(
 fun SynopsisOverlay(
     title: String,
     description: String,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    cinematic: Boolean = false
 ) {
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
@@ -224,7 +225,9 @@ fun SynopsisOverlay(
             modifier = Modifier
                 .fillMaxSize()
                 .then(if (LocalV2Appearance.current != null) {
-                    Modifier.nuvioGlass(GlassRole.MODAL)
+                    Modifier.nuvioGlass(GlassRole.MODAL, cinematicPageSurface = cinematic)
+                } else if (cinematic) {
+                    Modifier.background(com.nuvio.tv.ui.v2.appearance.cinematicTones().surfaceBrush())
                 } else {
                     Modifier.background(Brush.linearGradient(listOf(Color(0xFF070707), Color(0xFF101010), Color(0xFF151515))))
                 })

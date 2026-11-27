@@ -80,7 +80,8 @@ internal const val SCOUT_TILE_IMAGE_WIDTH = 780
 @Composable
 internal fun BoxScope.ScoutBackdrop(picture: String?, wide: Boolean = false) {
     val context = LocalContext.current
-    val page = NuvioTheme.colors.Background
+    val tones = com.nuvio.tv.ui.v2.appearance.cinematicTones()
+    val page = tones.base
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val model = remember(context, picture) {
         picture?.let { ImageRequest.Builder(context).data(sizedHomeArtworkUrl(it, SCOUT_BACKDROP_WIDTH)).crossfade(true).build() }
@@ -90,12 +91,14 @@ internal fun BoxScope.ScoutBackdrop(picture: String?, wide: Boolean = false) {
         contentDescription = null,
         contentScale = ContentScale.Crop,
         alignment = BiasAlignment(0f, -.4f),
-        modifier = Modifier.matchParentSize().behindTopNavigation().background(page)
+        alpha = 1f - (tones.opacity - .72f),
+        modifier = Modifier.matchParentSize().behindTopNavigation().background(tones.surfaceBrush())
     )
     val across = if (wide) {
         listOf(0f to page.copy(alpha = .98f), .56f to page.copy(alpha = .93f), .74f to page.copy(alpha = .55f), .92f to page.copy(alpha = .08f), 1f to page.copy(alpha = .08f))
     } else {
-        listOf(0f to page.copy(alpha = .97f), .3f to page.copy(alpha = .8f), .54f to page.copy(alpha = .22f), .68f to Color.Transparent, 1f to Color.Transparent)
+        listOf(0f to page, .30f to page.copy(alpha = .88f), .54f to page.copy(alpha = .70f),
+            .70f to page.copy(alpha = .24f), .93f to Color.Transparent, 1f to Color.Transparent)
     }
     val stops = if (rtl) across.map { (at, colour) -> 1f - at to colour }.reversed() else across
     Box(
@@ -104,6 +107,7 @@ internal fun BoxScope.ScoutBackdrop(picture: String?, wide: Boolean = false) {
             .behindTopNavigation()
             .background(Brush.horizontalGradient(*stops.toTypedArray()))
             .background(Brush.verticalGradient(0f to page.copy(alpha = .86f), .09f to page.copy(alpha = .5f), .19f to Color.Transparent))
+            .background(Brush.verticalGradient(.15f to Color.Transparent, .60f to tones.top.copy(alpha = .14f), 1f to Color.Transparent))
             .background(Brush.verticalGradient(.42f to Color.Transparent, .74f to page.copy(alpha = .9f), 1f to page))
     )
 }

@@ -213,7 +213,7 @@ fun FolderDetailScreen(
                     tabFocusState = tabFocusStates[uiState.selectedTabIndex] ?: FolderDetailGridFocusState(),
                     onSelectTab = viewModel::selectTab,
                     onNavigateToDetail = onNavigateToDetail,
-                    onPreviewFocus = viewModel::onItemFocused,
+                    onPreviewFocus = viewModel::onPreviewFocus,
                     previewCredits = previewCredits,
                     isItemWatched = isItemWatched,
                     onLoadMore = { viewModel.loadMoreItems(uiState.selectedTabIndex) },
@@ -359,7 +359,7 @@ private fun TabbedGridContent(
     onItemLongPress: (MetaPreview, String) -> Unit = { _, _ -> },
     scoutAction: (@Composable () -> Unit)? = null,
     previewCredits: State<Map<Pair<String, String>, FolderPreviewCredits>>,
-    onPreviewFocus: (MetaPreview) -> Unit = {}
+    onPreviewFocus: (MetaPreview?) -> Unit = {}
 ) {
     val tabFocusRequesters = remember(uiState.tabs.size) { uiState.tabs.indices.map { FocusRequester() } }
     var gridHasFocus by remember { mutableStateOf(false) }
@@ -463,7 +463,7 @@ private fun TabbedGridContent(
             val posterCardStyle = rememberPosterCardStyle(uiState.posterCardWidthDp, uiState.posterCardCornerRadiusDp)
             val itemFocusRequesters = remember(uiState.selectedTabIndex) { mutableMapOf<String, FocusRequester>() }
             val previewGrid = uiState.viewMode == FolderViewMode.PREVIEW_GRID
-            var focusedPreviewKey by remember(uiState.selectedTabIndex) { mutableStateOf<String?>(null) }
+            var focusedPreviewKey by remember(uiState.selectedTabIndex) { mutableStateOf<Pair<String, String>?>(null) }
             var lastFocusedItemKey by remember(
                 uiState.selectedTabIndex,
                 tabFocusState.focusedItemKey
@@ -536,9 +536,15 @@ private fun TabbedGridContent(
             Row(Modifier.fillMaxSize()) {
                 if (previewGrid) {
                     val preview = remember(items, focusedPreviewKey) {
-                        focusedPreviewKey?.let { key -> items.firstOrNull { it.id == key } } ?: items.firstOrNull()
+                        focusedPreviewKey?.let { key -> items.firstOrNull { it.apiType == key.first && it.id == key.second } }
+                            ?: items.firstOrNull()
                     }
-                    LaunchedEffect(preview?.id, preview?.apiType) { preview?.let(onPreviewFocus) }
+                    val focusedPreview = preview?.takeIf { gridHasFocus && focusedPreviewKey != null }
+                    val onFocus by androidx.compose.runtime.rememberUpdatedState(onPreviewFocus)
+                    LaunchedEffect(focusedPreview?.id, focusedPreview?.apiType) { onFocus(focusedPreview) }
+                    DisposableEffect(Unit) {
+                        onDispose { onFocus(null) }
+                    }
                     FolderSidePreview(
                         item = preview,
                         credits = preview?.let { previewCredits.value[it.apiType to it.id] },
@@ -581,7 +587,7 @@ private fun TabbedGridContent(
                             onFocused = {
                                 lastFocusedItemKey = itemKey
                                 if (previewGrid) {
-                                    focusedPreviewKey = item.id
+                                    focusedPreviewKey = item.apiType to item.id
                                 }
                             },
                             onClick = {
@@ -1069,7 +1075,6 @@ private fun FollowLayoutContent(
                     folder = uiState.folder ?: return,
                     tabFocusState = FolderDetailGridFocusState(),
                     previewCredits = previewCredits,
-                    onPreviewFocus = onItemFocus,
                     onSelectTab = onSelectTab,
                     onNavigateToDetail = onNavigateToDetail,
                     isItemWatched = isItemWatched,

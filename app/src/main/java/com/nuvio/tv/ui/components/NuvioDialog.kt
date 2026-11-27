@@ -64,6 +64,7 @@ fun NuvioDialog(
     backgroundContent: @Composable BoxScope.() -> Unit = {},
     /** V2 only: a near solid surface when the box draws no blur, for dialogs that appear over busy pages. */
     solidWithoutBlur: Boolean = false,
+    cinematicPageSurface: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     var isReady by remember { mutableStateOf(!suppressFirstKeyUp) }
@@ -77,7 +78,10 @@ fun NuvioDialog(
     val containerShape = RoundedCornerShape(containerCornerRadius)
     val solid = solidWithoutBlur && !com.nuvio.tv.ui.v2.quality.LocalGlassTokens.current.liveBlur
     val backgroundModifier = if (v2) {
-        Modifier.nuvioGlass(GlassRole.MODAL, shape = containerShape, neutralBackdrop = solid)
+        Modifier.nuvioGlass(GlassRole.MODAL, shape = containerShape, neutralBackdrop = solid,
+            cinematicPageSurface = cinematicPageSurface)
+    } else if (cinematicPageSurface && containerBrush == null) {
+        Modifier.background(com.nuvio.tv.ui.v2.appearance.cinematicTones().surfaceBrush(), containerShape)
     } else if (containerBrush == null) {
         Modifier.background(Color.Black.copy(alpha = 0.85f), containerShape)
     } else {

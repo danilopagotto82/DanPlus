@@ -99,7 +99,6 @@ import com.nuvio.tv.ui.util.rememberLongPressKeyTracker
 import com.nuvio.tv.ui.v2.appearance.LocalV2Appearance
 import com.nuvio.tv.ui.v2.appearance.V2Atmosphere
 import com.nuvio.tv.ui.v2.components.GlassRole
-import com.nuvio.tv.ui.v2.components.NuvioGlassSurface
 import com.nuvio.tv.ui.v2.components.nuvioControlSurface
 import com.nuvio.tv.ui.v2.components.nuvioGlass
 import com.nuvio.tv.ui.v2.components.nuvioV2Focus
@@ -179,8 +178,12 @@ fun CalendarScreen(
         }
     }
 
-    Box(Modifier.fillMaxSize().background(NuvioTheme.colors.Background)) {
-        if (v2 != null) V2Atmosphere(background = v2.settingsBackground)
+    val tones = com.nuvio.tv.ui.v2.appearance.cinematicTones()
+    Box(Modifier.fillMaxSize().background(tones.surfaceBrush())) {
+        if (v2 != null) {
+            V2Atmosphere(background = v2.settingsBackground)
+            Box(Modifier.matchParentSize().background(tones.surfaceBrush(tones.opacity - .50f)))
+        }
         if (v2 == null && viewMode == CalendarViewMode.WEEK && uiState.phase == CalendarPhase.READY) {
             CalendarPageBackdrop(backdrop)
         }
@@ -385,7 +388,7 @@ private fun CalendarHeader(
 @Composable
 private fun CalendarPageBackdrop(url: String?) {
     if (url.isNullOrBlank()) return
-    val background = NuvioTheme.colors.Background
+    val background = com.nuvio.tv.ui.v2.appearance.cinematicTones().base
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.align(Alignment.TopEnd).fillMaxWidth(0.72f).fillMaxHeight(0.72f)) {
             CalendarArtImage(url = url, modifier = Modifier.fillMaxSize())
@@ -966,9 +969,9 @@ internal fun CalendarSidePanel(
     val shape = RoundedCornerShape(if (v2) NuvioTheme.radii.xxl else NuvioTheme.radii.md)
     val container: @Composable (@Composable () -> Unit) -> Unit = { content ->
         if (v2) {
-            NuvioGlassSurface(GlassRole.PANEL, modifier, shape = shape) { content() }
+            Box(modifier.nuvioGlass(GlassRole.PANEL, shape = shape, cinematicPageSurface = true)) { content() }
         } else {
-            Box(modifier.clip(shape).background(NuvioTheme.colors.BackgroundCard)) { content() }
+            Box(modifier.clip(shape).background(com.nuvio.tv.ui.v2.appearance.cinematicTones().surfaceBrush())) { content() }
         }
     }
     val row = focus?.row ?: return
@@ -1192,7 +1195,8 @@ private fun CalendarOptionsDialog(
     NuvioDialog(
         onDismiss = onDismiss,
         title = row.name ?: stringResource(R.string.calendar_unknown_title),
-        subtitle = stringResource(R.string.calendar_options_subtitle)
+        subtitle = stringResource(R.string.calendar_options_subtitle),
+        cinematicPageSurface = true
     ) {
         PanelActionRow(
             label = stringResource(if (row.isFilm) R.string.calendar_action_open_film else R.string.calendar_action_open_show),

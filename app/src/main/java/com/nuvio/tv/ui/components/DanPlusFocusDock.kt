@@ -43,12 +43,13 @@ import com.nuvio.tv.domain.model.MetaCastMember
 @Composable
 internal fun DanPlusFocusDock(item: MetaPreview, artwork: BrowseArtwork, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val panel = Color(0xFF0B1725)
+    val tones = com.nuvio.tv.ui.v2.appearance.cinematicTones()
+    val panel = tones.base
     val shape = RoundedCornerShape(14.dp)
     val backdrop = remember(context, artwork.backdrop) {
         artwork.backdrop?.let { ImageRequest.Builder(context).data(it).size(780, 320).build() }
     }
-    val logo = artwork.logo
+    val logo = artwork.logo ?: item.logo?.takeIf(String::isNotBlank)
     val logoRequest = remember(context, logo) {
         logo?.let { ImageRequest.Builder(context).data(it).size(320, 108).build() }
     }
@@ -64,22 +65,23 @@ internal fun DanPlusFocusDock(item: MetaPreview, artwork: BrowseArtwork, modifie
         status = details?.status ?: item.status,
         seasonCount = details?.seasonCount?.takeIf { it > 0 } ?: item.seasonCount
     )
-    val directors = artwork.cachedCredits?.directorMembers.orEmpty()
-        .ifEmpty { item.director.filter(String::isNotBlank).map { MetaCastMember(it) } }
-    val actors = artwork.cachedCredits?.castMembers.orEmpty()
+    val credits = artwork.cachedCredits
+    val directors = credits?.directors.orEmpty()
+        .ifEmpty { item.director.takeIf { item.apiType == "movie" }.orEmpty() }
+    val actors = credits?.castMembers.orEmpty()
     Box(
         modifier.fillMaxWidth().padding(bottom = 12.dp).heightIn(min = 150.dp)
-            .clip(shape).background(panel).border(1.dp, Color(0xFF33445B), shape)
+            .clip(shape).background(tones.surfaceBrush(tones.opacity)).border(1.dp, Color.White.copy(alpha = .16f), shape)
     ) {
         AsyncImage(backdrop, null, Modifier.matchParentSize(), contentScale = ContentScale.Crop,
-            alignment = Alignment.TopEnd, alpha = .76f)
+            alignment = Alignment.TopEnd, alpha = .76f - (tones.opacity - .72f))
         Box(Modifier.matchParentSize().background(Brush.horizontalGradient(
-            0f to panel, .57f to panel.copy(alpha = .94f), 1f to panel.copy(alpha = .34f)
+            0f to panel, .66f to panel.copy(alpha = .94f), 1f to panel.copy(alpha = .38f)
         )))
         Column(
             modifier = Modifier.align(Alignment.CenterStart).fillMaxWidth(.78f)
                 .padding(horizontal = 18.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
             if (logoRequest != null) {
                 Box(Modifier.widthIn(max = 260.dp).fillMaxWidth().heightIn(min = 38.dp), contentAlignment = Alignment.CenterStart) {
@@ -96,10 +98,16 @@ internal fun DanPlusFocusDock(item: MetaPreview, artwork: BrowseArtwork, modifie
                 lastAirYear = details?.lastAirYear, onArtwork = true)
             MediaGenres(displayItem.genres, onArtwork = true)
             displayItem.description?.takeIf(String::isNotBlank)?.let {
-                Text(it, color = Color.White, style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+                MediaSynopsis(item.name, it, color = Color.White)
             }
-            CreditLine(stringResource(R.string.pause_direction_label), directors, 2)
+            val creators = credits?.creators.orEmpty()
+            if (creators.isEmpty()) {
+                CreditLine(stringResource(R.string.pause_direction_label), directors.map { MetaCastMember(it) }, 2)
+            } else {
+                Text(stringResource(R.string.dan_folder_creator, creators.take(2).joinToString(" · ")),
+                    color = Color.White, style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             CreditLine(stringResource(R.string.pause_cast_label), actors, 3)
         }
     }

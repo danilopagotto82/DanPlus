@@ -185,18 +185,24 @@ class TmdbMetadataService(
         withContext(ioDispatcher) {
             val normalizedLanguage = normalizeTmdbLanguage(language)
             val cacheKey = "$tmdbId:${contentType.name}:$normalizedLanguage"
-            enrichmentCache[cacheKey]?.let {
-                onHeroReady?.invoke(it.heroContent())
-                return@withContext it
-            }
-            enrichmentInFlight[cacheKey]?.let {
-                return@withContext it.await()?.also { ready -> onHeroReady?.invoke(ready.heroContent()) }
-            }
-
             val numericId = tmdbId.toIntOrNull() ?: return@withContext null
             val requestDeferred = CompletableDeferred<TmdbEnrichment?>()
-            enrichmentInFlight.putIfAbsent(cacheKey, requestDeferred)?.let { existing ->
-                return@withContext existing.await()?.also { ready -> onHeroReady?.invoke(ready.heroContent()) }
+            while (true) {
+                enrichmentCache[cacheKey]?.let {
+                    onHeroReady?.invoke(it.heroContent())
+                    return@withContext it
+                }
+                val existing = enrichmentInFlight.putIfAbsent(cacheKey, requestDeferred) ?: break
+                val cached = try {
+                    existing.await()
+                } catch (cancelled: CancellationException) {
+                    // A different screen can still need the title after the grid loses focus.
+                    currentCoroutineContext().ensureActive()
+                    enrichmentInFlight.remove(cacheKey, existing)
+                    continue
+                }
+                cached?.let { onHeroReady?.invoke(it.heroContent()) }
+                return@withContext cached
             }
             val tmdbType = when (contentType) {
                 ContentType.SERIES, ContentType.TV -> "tv"
@@ -623,6 +629,8 @@ class TmdbMetadataService(
                     alternativeTitles = altTitles,
                     trailers = trailers,
                     episodeCount = details?.episodeCount?.takeIf { tmdbType == "tv" && it > 0 },
+                    creators = creator,
+                    directors = director,
                     seasonPosters = details?.seasons.orEmpty().mapNotNull { season ->
                         val number = season.seasonNumber?.takeIf { it >= 0 } ?: return@mapNotNull null
                         buildImageUrl(season.posterPath, "w185")?.let { number to it }
@@ -1997,7 +2005,9 @@ data class TmdbEnrichment(
     val alternativeTitles: List<String> = emptyList(),
     val trailers: List<MetaTrailer> = emptyList(),
     val episodeCount: Int? = null,
-    val seasonPosters: Map<Int, String> = emptyMap()
+    val seasonPosters: Map<Int, String> = emptyMap(),
+    val creators: List<String> = emptyList(),
+    val directors: List<String> = emptyList()
 )
 
 data class TmdbEpisodeEnrichment(

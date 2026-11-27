@@ -64,7 +64,8 @@ fun PosterOptionsDialog(
     NuvioDialog(
         onDismiss = onDismiss,
         title = title,
-        subtitle = stringResource(R.string.home_poster_dialog_subtitle)
+        subtitle = stringResource(R.string.home_poster_dialog_subtitle),
+        cinematicPageSurface = true
     ) {
         PanelActionRow(
             label = stringResource(R.string.cw_action_go_to_details),
