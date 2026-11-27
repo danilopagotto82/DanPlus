@@ -18,6 +18,8 @@ O Supabase injeta `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` no servidor. O bu
 
 ## Aplicação e deploy após autorização específica
 
+Em 27/11/2026, o proprietário autorizou estes dois passos no staging. O Supabase registrou o SQL do arquivo local `20261127195424` como migration remota `20261127201623` e publicou `danplus-drive-auth` v1. Não reaplique o arquivo. No teste inicial, GET retornou 405 e o POST anônimo retornou 503 `not_configured`. Conclua os quatro campos do painel antes de testar consentimento. O host e a chave publicável de staging foram provisionados no arquivo privado da cópia efetiva.
+
 1. No SQL Editor do staging, confira projeto e objetos alvo. Aplique exclusivamente o arquivo [20261127195424_danplus_drive_auth_admission.sql](../../supabase/migrations/20261127195424_danplus_drive_auth_admission.sql) e registre a execução. A migration cria um schema privado e um RPC com execução restrita ao `service_role`. Teste chamadas negadas e permitidas usando clientes fictícios e confirme concorrência com conexões independentes na mesma janela.
 2. Publique somente a função `danplus-drive-auth`, com a validação de JWT do gateway desativada para esta função. O JWT vem do Nuvio e a função autentica o usuário com o emissor oficial, resolve o proprietário e verifica a lista de admissão a cada requisição. Use o comando a partir da raiz do checkout com a sessão da CLI autenticada no Supabase. [Deploy por CLI](https://supabase.com/docs/guides/functions/deploy)
 
