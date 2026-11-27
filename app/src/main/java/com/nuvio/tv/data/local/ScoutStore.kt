@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
+import com.nuvio.tv.core.backup.DrivePortableSettings
 import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.core.scout.sync.ImportChange
 import com.nuvio.tv.core.scout.sync.OutAction
@@ -134,6 +135,35 @@ class ScoutStore @Inject constructor(
             if (ageBand == null) values.remove(cinemaAgeBand) else values[cinemaAgeBand] = ageBand
         }
     }
+
+    internal fun observeDriveSettings(profileId: Int): Flow<DrivePortableSettings> =
+        factory.get(profileId, FEATURE).data.map { it.driveSnapshot() }.distinctUntilChanged()
+
+    internal suspend fun applyDriveSettings(
+        profileId: Int,
+        expected: DrivePortableSettings,
+        replacement: DrivePortableSettings,
+        isCurrent: () -> Boolean
+    ): Boolean {
+        var applied = false
+        factory.get(profileId, FEATURE).edit { prefs ->
+            if (!isCurrent() || prefs.driveSnapshot() != expected) return@edit
+            if (replacement.favoriteGenre == null) prefs.remove(cinemaGenre)
+            else prefs[cinemaGenre] = replacement.favoriteGenre.toString()
+            prefs[showInMenu] = replacement.scoutInMenu
+            prefs[listEmojis] = replacement.scoutListEmojis
+            prefs[showWatched] = replacement.scoutShowWatched
+            applied = true
+        }
+        return applied
+    }
+
+    private fun Preferences.driveSnapshot() = DrivePortableSettings(
+        this[cinemaGenre]?.toIntOrNull()?.takeIf { it == 18 || it == 28 || it == 35 },
+        this[showInMenu] ?: true,
+        this[listEmojis] ?: false,
+        this[showWatched] ?: true
+    )
 
     internal fun observeCinemaGenre(profileId: Int): Flow<Int?> =
         factory.get(profileId, FEATURE).data.map { it[cinemaGenre]?.toIntOrNull() }.distinctUntilChanged()
