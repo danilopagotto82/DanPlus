@@ -73,6 +73,10 @@ import androidx.tv.material3.Text
 import com.nuvio.tv.ui.screens.home.ContinueWatchingItem
 import com.nuvio.tv.ui.screens.home.canMarkWatched
 import com.nuvio.tv.ui.screens.home.showsEpisodeCode
+import com.nuvio.tv.ui.screens.profile.DanexusPosterRecommendDialog
+import com.nuvio.tv.ui.screens.profile.continueWatchingRecommendationItem
+import com.nuvio.tv.ui.screens.scout.ScoutAddToMixLine
+import com.nuvio.tv.ui.screens.scout.scoutMixPreview
 import com.nuvio.tv.ui.v2.appearance.LocalV2Appearance
 import com.nuvio.tv.ui.v2.components.nuvioV2Focus
 import com.nuvio.tv.ui.theme.NuvioTheme
@@ -1202,6 +1206,13 @@ fun ContinueWatchingOptionsDialog(
     onHideFromComingUp: (() -> Unit)? = null,
     onMarkWatched: (() -> Unit)? = null
 ) {
+    val mixItem = remember(item) { scoutMixPreview(item) }
+    val recommendation = remember(item, mixItem) { continueWatchingRecommendationItem(item, mixItem) }
+    var recommending by remember(recommendation?.id, recommendation?.apiType) { mutableStateOf(false) }
+    if (recommending && recommendation != null) {
+        DanexusPosterRecommendDialog(recommendation, recommendation.sourceAddonBaseUrl, onDismiss)
+        return
+    }
     val isPlayEnabled = LocalPlaybackAvailability.current.canStream(item)
     val title = when (item) {
         is ContinueWatchingItem.InProgress -> item.progress.name
@@ -1224,6 +1235,10 @@ fun ContinueWatchingOptionsDialog(
             onClick = onDetails,
             focusRequester = detailsFocusRequester
         )
+
+        if (recommendation != null) {
+            PanelActionRow(label = stringResource(R.string.d12_recommend_action), onClick = { recommending = true })
+        }
 
         if (showPlayManually && isPlayEnabled) {
             PanelActionRow(
@@ -1260,9 +1275,7 @@ fun ContinueWatchingOptionsDialog(
             )
         }
 
-        remember(item) { com.nuvio.tv.ui.screens.scout.scoutMixPreview(item) }?.let {
-            com.nuvio.tv.ui.screens.scout.ScoutAddToMixLine(it, onDone = onDismiss)
-        }
+        mixItem?.let { ScoutAddToMixLine(it, onDone = onDismiss) }
     }
 }
 

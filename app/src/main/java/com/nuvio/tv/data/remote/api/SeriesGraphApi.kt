@@ -17,7 +17,8 @@ data class SeriesGraphEpisodeRatingDto(
 
 @JsonClass(generateAdapter = true)
 data class SeriesGraphSeasonRatingsDto(
-    @field:Json(name = "episodes") val episodes: List<SeriesGraphEpisodeRatingDto>? = null
+    @field:Json(name = "episodes") val episodes: List<SeriesGraphEpisodeRatingDto>? = null,
+    @field:Json(name = "season_number") val seasonNumber: Int? = null
 )
 
 interface SeriesGraphApi {

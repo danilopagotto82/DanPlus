@@ -1,6 +1,7 @@
 package com.nuvio.tv.ui.screens.detail
 
 import com.nuvio.tv.core.tracking.TrackingMembershipRemovalConfirmation
+import com.nuvio.tv.domain.model.EpisodeRatingsResult
 import com.nuvio.tv.domain.model.DetailImdbRatingsVisibility
 import com.nuvio.tv.domain.model.EpisodeOptionsOverlayStyle
 import com.nuvio.tv.domain.model.Meta
@@ -75,11 +76,9 @@ data class MetaDetailsUiState(
     val collection: List<MetaPreview> = emptyList(),
     val collectionName: String? = null,
     val relatedWatchedStatus: Map<String, Boolean> = emptyMap(),
-    val episodeImdbRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
+    val episodeRatingsBySeason: Map<Int, EpisodeRatingsResult> = emptyMap(),
     val parentalGuide: List<com.nuvio.tv.data.repository.ParentalGuideEntry> = emptyList(),
     val parentalGuidePending: Boolean = false,
-    val isEpisodeRatingsLoading: Boolean = false,
-    val episodeRatingsError: String? = null,
     val mdbListRatings: MDBListRatings? = null,
     val mdbListRatingOrder: List<String> = com.nuvio.tv.domain.model.MDBListSettings.DEFAULT_RATING_ORDER,
     val isMdbListRatingsActive: Boolean = false,

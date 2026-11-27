@@ -2846,6 +2846,10 @@
     <string name="account_unlink">Unlink</string>
 
     <!-- EpisodeRatingsSection -->
+    <string name="ratings_episode_loading">Loading</string>
+    <string name="ratings_episode_no_score">No rating</string>
+    <string name="ratings_hidden">Ratings are hidden until the episodes are watched.</string>
+    <string name="ratings_source_addon">Add-on</string>
     <string name="ratings_loading">Loading episode ratings...</string>
     <string name="ratings_unavailable">Episode ratings are unavailable.</string>
     <string name="ratings_load_error">Unable to load episode ratings.</string>

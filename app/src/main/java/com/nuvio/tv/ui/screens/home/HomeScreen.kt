@@ -58,6 +58,7 @@ import com.nuvio.tv.ui.components.LocalStartupSplashEnabled
 import com.nuvio.tv.ui.components.shouldShowHomeStartupLoader
 import com.nuvio.tv.ui.components.NuvioDialog
 import com.nuvio.tv.ui.components.PanelActionRow
+import com.nuvio.tv.ui.components.posteroptions.PosterOptionsDialog
 import com.nuvio.tv.ui.components.PlayerPanelRow
 import com.nuvio.tv.ui.components.PosterCardStyle
 import com.nuvio.tv.ui.components.rememberPosterCardStyle
@@ -505,7 +506,7 @@ fun HomeScreen(
         val isSeries = item.apiType.equals("series", ignoreCase = true) ||
             item.apiType.equals("tv", ignoreCase = true) ||
             item.apiType.equals("anime", ignoreCase = true)
-        HomePosterOptionsDialog(
+        PosterOptionsDialog(
             title = item.name,
             isInLibrary = uiState.posterLibraryMembership[statusKey] == true,
             isLibraryPending = statusKey in uiState.posterLibraryPending,
@@ -515,7 +516,9 @@ fun HomeScreen(
             isWatched = movieWatchedStatus[statusKey] == true,
             isWatchedPending = statusKey in uiState.movieWatchedPending,
             scoutTitle = com.nuvio.tv.domain.model.ScoutTitle(item.id, item.apiType, item.name, item.poster),
-            mixItem = item,
+            posterItem = item,
+            recommendationAddonUrl = selectedPoster.addonBaseUrl,
+            cinematicPageSurface = false,
             onDismiss = { posterOptionsTarget = null },
             onDetails = {
                 onNavigateToDetail(item.id, item.apiType, selectedPoster.addonBaseUrl)
@@ -804,77 +807,6 @@ private fun ModernHomeRoute(
             }
         }
     )
-}
-
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-private fun HomePosterOptionsDialog(
-    title: String,
-    isInLibrary: Boolean,
-    isLibraryPending: Boolean,
-    showManageLists: Boolean,
-    isMovie: Boolean,
-    isSeries: Boolean = false,
-    isWatched: Boolean,
-    isWatchedPending: Boolean,
-    onDismiss: () -> Unit,
-    onDetails: () -> Unit,
-    onToggleLibrary: () -> Unit,
-    onManageLists: () -> Unit,
-    onToggleWatched: () -> Unit,
-    scoutTitle: com.nuvio.tv.domain.model.ScoutTitle? = null,
-    mixItem: com.nuvio.tv.domain.model.MetaPreview? = null
-) {
-    val primaryFocusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(Unit) {
-        primaryFocusRequester.requestFocus()
-    }
-
-    NuvioDialog(
-        onDismiss = onDismiss,
-        title = title,
-        subtitle = stringResource(R.string.home_poster_dialog_subtitle)
-    ) {
-        PanelActionRow(
-            label = stringResource(R.string.cw_action_go_to_details),
-            onClick = onDetails,
-            focusRequester = primaryFocusRequester
-        )
-
-        PanelActionRow(
-            label = if (isInLibrary) {
-                stringResource(R.string.hero_remove_from_library)
-            } else {
-                stringResource(R.string.hero_add_to_library)
-            },
-            onClick = onToggleLibrary,
-            enabled = !isLibraryPending
-        )
-
-        if (showManageLists) {
-            PanelActionRow(
-                label = stringResource(R.string.library_manage_lists),
-                onClick = onManageLists,
-                enabled = !isLibraryPending
-            )
-        }
-
-        if (isMovie || isSeries) {
-            PanelActionRow(
-                label = if (isWatched) {
-                    stringResource(R.string.hero_mark_unwatched)
-                } else {
-                    stringResource(R.string.hero_mark_watched)
-                },
-                onClick = onToggleWatched,
-                enabled = !isWatchedPending
-            )
-        }
-
-        scoutTitle?.let { com.nuvio.tv.ui.scout.ScoutPosterRateLine(it, onDone = onDismiss) }
-        mixItem?.let { com.nuvio.tv.ui.screens.scout.ScoutAddToMixLine(it, onDone = onDismiss) }
-    }
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)

@@ -71,6 +71,8 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import coil3.request.transformations
 import com.nuvio.tv.R
+import com.nuvio.tv.domain.model.EpisodeRating
+import com.nuvio.tv.domain.model.EpisodeRatingSource
 import com.nuvio.tv.domain.model.EpisodeOptionsOverlayStyle
 import com.nuvio.tv.domain.model.Video
 import com.nuvio.tv.ui.components.ImdbRatingSourceLabel
@@ -135,7 +137,7 @@ internal fun isEpisodeOverlayActionEnabled(
 @Composable
 internal fun EpisodeOptionsOverlay(
     episode: Video,
-    imdbRating: Double? = null,
+    publicRating: EpisodeRating? = null,
     isWatched: Boolean,
     blurUnwatchedEpisodes: Boolean = false,
     style: EpisodeOptionsOverlayStyle = EpisodeOptionsOverlayStyle.ARTWORK,
@@ -226,9 +228,11 @@ internal fun EpisodeOptionsOverlay(
             )
         )
     }
-    val ratingLabel = remember(imdbRating) {
-        imdbRating?.takeIf { it > 0.0 }?.let { String.format(Locale.US, "%.1f", it) }
+    val ratingLocale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0] ?: Locale.getDefault()
+    val ratingLabel = remember(publicRating, ratingLocale) {
+        publicRating?.let { String.format(ratingLocale, "%.1f", it.value) }
     }
+    val ratingSource = publicRating?.source
     val episodeLabel = when {
         episode.season != null && episode.episode != null -> {
             stringResource(R.string.season_episode_format, episode.season, episode.episode)
@@ -428,11 +432,16 @@ internal fun EpisodeOptionsOverlay(
                                     horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    ImdbRatingSourceLabel(
-                                        logoModifier = Modifier.size(30.dp),
-                                        textStyle = MaterialTheme.typography.titleMedium,
-                                        textColor = mutedTextColor
-                                    )
+                                    if (ratingSource == EpisodeRatingSource.IMDB) {
+                                        ImdbRatingSourceLabel(
+                                            logoModifier = Modifier.size(30.dp),
+                                            textStyle = MaterialTheme.typography.titleMedium,
+                                            textColor = mutedTextColor
+                                        )
+                                    } else if (ratingSource != null) {
+                                        Text(episodeRatingSourceLabel(ratingSource),
+                                            style = MaterialTheme.typography.titleMedium, color = mutedTextColor)
+                                    }
                                     Text(
                                         text = rating,
                                         style = MaterialTheme.typography.titleMedium,

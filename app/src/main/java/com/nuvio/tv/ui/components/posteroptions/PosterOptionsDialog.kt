@@ -8,7 +8,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
@@ -23,6 +26,7 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.nuvio.tv.R
+import com.nuvio.tv.core.danexus.ProfileRecommendationRules
 import com.nuvio.tv.core.tracking.TrackingMembershipRemovalImpact
 import com.nuvio.tv.core.tracking.TrackingMembershipRemovalConfirmation
 import com.nuvio.tv.core.tracking.LOCAL_LIBRARY_LIST_KEY
@@ -33,6 +37,7 @@ import com.nuvio.tv.domain.model.LibrarySourceMode
 import com.nuvio.tv.ui.components.NuvioDialog
 import com.nuvio.tv.ui.components.PanelActionRow
 import com.nuvio.tv.ui.components.PlayerPanelRow
+import com.nuvio.tv.ui.screens.profile.DanexusPosterRecommendDialog
 import com.nuvio.tv.ui.theme.NuvioTheme
 
 @OptIn(ExperimentalTvMaterial3Api::class)
@@ -53,8 +58,16 @@ fun PosterOptionsDialog(
     onToggleWatched: () -> Unit,
     scoutTitle: com.nuvio.tv.domain.model.ScoutTitle? = null,
     onMoreLike: (() -> Unit)? = null,
-    mixItem: com.nuvio.tv.domain.model.MetaPreview? = null
+    posterItem: com.nuvio.tv.domain.model.MetaPreview? = null,
+    recommendationAddonUrl: String? = null,
+    cinematicPageSurface: Boolean = true
 ) {
+    val recommendation = posterItem?.takeIf { ProfileRecommendationRules.isSupportedType(it.apiType) }
+    var recommending by remember(recommendation?.id, recommendation?.apiType) { mutableStateOf(false) }
+    if (recommending && recommendation != null) {
+        DanexusPosterRecommendDialog(recommendation, recommendationAddonUrl, onDismiss)
+        return
+    }
     val primaryFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
@@ -65,7 +78,7 @@ fun PosterOptionsDialog(
         onDismiss = onDismiss,
         title = title,
         subtitle = stringResource(R.string.home_poster_dialog_subtitle),
-        cinematicPageSurface = true
+        cinematicPageSurface = cinematicPageSurface
     ) {
         PanelActionRow(
             label = stringResource(R.string.cw_action_go_to_details),
@@ -103,12 +116,16 @@ fun PosterOptionsDialog(
             )
         }
 
+        if (recommendation != null) {
+            PanelActionRow(label = stringResource(R.string.d12_recommend_action), onClick = { recommending = true })
+        }
+
         if (onMoreLike != null) {
             PanelActionRow(label = stringResource(R.string.scout_pick_more_like), onClick = onMoreLike)
         }
 
         scoutTitle?.let { com.nuvio.tv.ui.scout.ScoutPosterRateLine(it, onDone = onDismiss) }
-        mixItem?.let { com.nuvio.tv.ui.screens.scout.ScoutAddToMixLine(it, onDone = onDismiss) }
+        posterItem?.let { com.nuvio.tv.ui.screens.scout.ScoutAddToMixLine(it, onDone = onDismiss) }
     }
 }
 
@@ -197,7 +214,8 @@ fun PosterOptionsHost(
             isWatched = state.isWatched,
             isWatchedPending = state.isWatchedPending,
             scoutTitle = com.nuvio.tv.domain.model.ScoutTitle(target.id, target.apiType, target.name, target.poster),
-            mixItem = target,
+            posterItem = target,
+            recommendationAddonUrl = state.addonBaseUrl,
             onMoreLike = onMoreLike?.let { more -> { more(target); controller.dismiss() } },
             onDismiss = { controller.dismiss() },
             onDetails = {

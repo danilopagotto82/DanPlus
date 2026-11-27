@@ -2390,6 +2390,10 @@
     <string name="account_unlink">Desvincular</string>
 
     <!-- EpisodeRatingsSection -->
+    <string name="ratings_episode_loading">Carregando</string>
+    <string name="ratings_episode_no_score">Sem nota</string>
+    <string name="ratings_hidden">As avaliações aparecem depois que os episódios são assistidos.</string>
+    <string name="ratings_source_addon">Addon</string>
     <string name="ratings_loading">Carregando avaliações…</string>
     <string name="ratings_unavailable">Avaliações indisponíveis para estes episódios.</string>
     <string name="ratings_load_error">Não foi possível carregar as avaliações.</string>

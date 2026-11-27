@@ -131,6 +131,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
+import com.nuvio.tv.domain.model.EpisodeRatingsResult
 import com.nuvio.tv.domain.model.ContentType
 import com.nuvio.tv.domain.model.DetailImdbRatingsVisibility
 import com.nuvio.tv.domain.model.EpisodeOptionsOverlayStyle
@@ -958,9 +959,8 @@ fun MetaDetailsScreen(
                     collection = uiState.collection,
                     collectionName = uiState.collectionName,
                     relatedWatchedStatus = uiState.relatedWatchedStatus,
-                    episodeImdbRatings = uiState.episodeImdbRatings,
-                    isEpisodeRatingsLoading = uiState.isEpisodeRatingsLoading,
-                    episodeRatingsError = uiState.episodeRatingsError,
+                    episodeRatingsBySeason = uiState.episodeRatingsBySeason,
+                    onLoadRatingSeason = viewModel::loadEpisodeRatingsSeason,
                     heroSourceSignal = heroSourceSignal,
                     heroSourceLineEnabled = heroSourceLineEnabled,
                     mdbListRatingOrder = uiState.mdbListRatingOrder,
@@ -1304,9 +1304,8 @@ private fun MetaDetailsContent(
     collection: List<MetaPreview>,
     collectionName: String?,
     relatedWatchedStatus: Map<String, Boolean> = emptyMap(),
-    episodeImdbRatings: Map<Pair<Int, Int>, Double>,
-    isEpisodeRatingsLoading: Boolean,
-    episodeRatingsError: String?,
+    episodeRatingsBySeason: Map<Int, EpisodeRatingsResult>,
+    onLoadRatingSeason: suspend (Int) -> Unit,
     heroSourceSignal: State<com.nuvio.tv.core.stream.SourcePrefetchSignal?>,
     heroSourceLineEnabled: Boolean = false,
     mdbListRatingOrder: List<String> = com.nuvio.tv.domain.model.MDBListSettings.DEFAULT_RATING_ORDER,
@@ -1958,14 +1957,20 @@ private fun MetaDetailsContent(
     }
     val hasTrailerSection = brazilianTrailers.isNotEmpty()
     val showEpisodeImdbRatings = detailImdbRatingsVisibility.showEpisodeRatings
-    val visibleEpisodeImdbRatings = remember(
+    LaunchedEffect(meta.id, meta.apiType, secondaryReady, showEpisodeImdbRatings, selectedSeason, episodesForSeason.isNotEmpty()) {
+        if (secondaryReady && showEpisodeImdbRatings && episodesForSeason.isNotEmpty()) {
+            onLoadRatingSeason(selectedSeason)
+        }
+    }
+    val visibleEpisodeRatings = remember(
         secondaryReady,
-        episodeImdbRatings,
+        episodeRatingsBySeason,
         detailImdbRatingsVisibility,
         episodeProgressMap,
         watchedEpisodes
     ) {
-        if (!secondaryReady) emptyMap() else episodeImdbRatings.filterKeys { episodeKey ->
+        if (!secondaryReady) emptyMap() else episodeRatingsBySeason.values
+            .flatMap { it.ratings.entries }.associate { it.toPair() }.filterKeys { episodeKey ->
             val isWatched = episodeProgressMap[episodeKey]?.isCompleted() == true ||
                 watchedEpisodes.contains(episodeKey)
             detailImdbRatingsVisibility.showEpisodeRating(isWatched)
@@ -2730,7 +2735,7 @@ private fun MetaDetailsContent(
                             EpisodesRow(
                                 episodes = episodesForSeason,
                                 episodeProgressMap = episodeProgressMap,
-                                episodeRatings = visibleEpisodeImdbRatings,
+                                episodeRatings = visibleEpisodeRatings,
                                 watchedEpisodes = watchedEpisodes,
                                 episodeWatchedPendingKeys = episodeWatchedPendingKeys,
                                 blurUnwatchedEpisodes = blurUnwatchedEpisodes,
@@ -2813,12 +2818,6 @@ private fun MetaDetailsContent(
                 if (showParentalGuide) {
                     detailSection(key = "parental_guide", contentType = "parental_guide", immediate = revealSecondaryImmediately) {
                         ParentalGuideSlot(entries = parentalGuide)
-                    }
-                }
-
-                if (meta.apiType == "movie" || (isSeries && episodesForSeason.isNotEmpty())) {
-                    detailSection(key = "trakt_personal_rating", contentType = "action", immediate = revealSecondaryImmediately) {
-                        TraktPersonalRatingRow(meta, episodesForSeason.takeIf { isSeries }.orEmpty())
                     }
                 }
 
@@ -3014,9 +3013,9 @@ private fun MetaDetailsContent(
                                 PeopleSectionTab.RATINGS -> {
                                     EpisodeRatingsSection(
                                         episodes = meta.videos,
-                                        ratings = visibleEpisodeImdbRatings,
-                                        isLoading = isEpisodeRatingsLoading,
-                                        error = episodeRatingsError,
+                                        ratings = visibleEpisodeRatings,
+                                        ratingsBySeason = episodeRatingsBySeason,
+                                        onLoadRatingSeason = onLoadRatingSeason,
                                         title = if (hasVisiblePeopleTabs) "" else strTabRatings,
                                         upFocusRequester = if (hasVisiblePeopleTabs) {
                                             ratingsTabFocusRequester

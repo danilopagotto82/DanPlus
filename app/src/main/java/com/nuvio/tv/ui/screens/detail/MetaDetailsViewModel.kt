@@ -26,6 +26,8 @@ import com.nuvio.tv.data.local.TraktSettingsDataStore
 import com.nuvio.tv.data.local.TmdbSettingsDataStore
 import com.nuvio.tv.data.repository.rankedEntries
 import com.nuvio.tv.data.repository.ImdbEpisodeRatingsRepository
+import com.nuvio.tv.data.repository.canonicalRatingsImdbId
+import com.nuvio.tv.domain.model.EpisodeRatingsResult
 import com.nuvio.tv.data.trailer.TrailerPlaybackFailures
 import com.nuvio.tv.data.trailer.lookupTrailerPreview
 import com.nuvio.tv.data.trailer.YouTubeUnplayableReason
@@ -79,6 +81,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -442,7 +445,6 @@ class MetaDetailsViewModel @Inject constructor(
     private var collectionJob: Job? = null
 
     val lastFocusedEpisodeIdBySeason = androidx.compose.runtime.mutableStateMapOf<Int, String>()
-    private var episodeRatingsJob: Job? = null
     private var parentalGuideJob: Job? = null
     private var trailerLookupKey: Triple<String, String?, List<String>>? = null
     private var parentalGuideImdbId: String? = null
@@ -1080,9 +1082,7 @@ class MetaDetailsViewModel @Inject constructor(
                 it.copy(
                     isLoading = true,
                     error = null,
-                    episodeImdbRatings = emptyMap(),
-                    isEpisodeRatingsLoading = false,
-                    episodeRatingsError = null,
+                    episodeRatingsBySeason = emptyMap(),
                     mdbListRatings = null,
                     isMdbListRatingsActive = isMdbListActive,
                     tmdbRating = null,
@@ -1435,8 +1435,6 @@ class MetaDetailsViewModel @Inject constructor(
         }
         loadParentalGuide(enriched)
         if (isServerItem) return
-        // Episode ratings and MDBList are independent — launch both without waiting.
-        loadEpisodeRatingsAsync(enriched)
         viewModelScope.launch { loadMDBListRatings(enriched) }
     }
 
@@ -1820,113 +1818,37 @@ class MetaDetailsViewModel @Inject constructor(
         }
     }
 
-    private fun loadEpisodeRatingsAsync(meta: Meta) {
-        episodeRatingsJob?.cancel()
+    internal suspend fun loadEpisodeRatingsSeason(season: Int) {
+        val state = _uiState.value
+        val meta = state.meta ?: return
+        if (season <= 0 || state.episodeRatingsBySeason[season]?.failed == false ||
+            meta.videos.none { it.season == season && (it.episode ?: 0) > 0 }) return
 
-        val isSeries = meta.type == ContentType.SERIES || meta.type == ContentType.TV || meta.apiType in listOf("series", "tv")
-        if (!isSeries) {
-            _uiState.update {
-                it.copy(
-                    episodeImdbRatings = emptyMap(),
-                    isEpisodeRatingsLoading = false,
-                    episodeRatingsError = null
-                )
+        val supplied = episodeRatingsIdentity(meta.id, meta.imdbId, itemId)
+        val isSeries = resolveTmdbContentType(meta) in listOf(ContentType.SERIES, ContentType.TV)
+        val publicResult = if (!isServerItem && isSeries) try {
+            val hasTmdbKey = tmdbService.apiKey().isNotBlank()
+            val tmdb = supplied.tmdb ?: supplied.imdb?.takeIf { hasTmdbKey }?.let { tmdbService.imdbToTmdb(it, "tv") }
+            val imdb = if (supplied.tmdb != null && hasTmdbKey &&
+                (imdbEpisodeRatingsRepository.primaryConfigured || supplied.imdb != null)) {
+                canonicalRatingsImdbId(tmdbService.tmdbToImdb(supplied.tmdb, "tv")) ?: supplied.imdb
+            } else supplied.imdb
+            if (imdb != null && supplied.imdb != null && imdb != supplied.imdb) EpisodeRatingsResult()
+            else {
+                val candidates = episodeRatingsCandidates(meta.videos, season, EpisodeRatingsIdentity(imdb, tmdb))
+                imdbEpisodeRatingsRepository.getSeasonRatings(imdb, tmdb, season, candidates.keys)
             }
-            return
-        }
-
-        episodeRatingsJob = viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    episodeImdbRatings = emptyMap(),
-                    isEpisodeRatingsLoading = true,
-                    episodeRatingsError = null
-                )
-            }
-
-            // Ratings the addon supplied on meta.videos[].rating. The repository below
-            // still wins wherever it has an entry.
-            val addonRatings: Map<Pair<Int, Int>, Double> = meta.videos.mapNotNull { video ->
-                val season = video.season ?: return@mapNotNull null
-                val episode = video.episode ?: return@mapNotNull null
-                val rating = video.rating ?: return@mapNotNull null
-                (season to episode) to rating
-            }.toMap()
-
-            try {
-                val tmdbContentType = resolveTmdbContentType(meta)
-                if (tmdbContentType !in listOf(ContentType.SERIES, ContentType.TV)) {
-                    _uiState.update {
-                        it.copy(
-                            episodeImdbRatings = addonRatings,
-                            isEpisodeRatingsLoading = false,
-                            episodeRatingsError = null
-                        )
-                    }
-                    return@launch
-                }
-
-                val tmdbLookupType = tmdbContentType.toApiString()
-                val tmdbIdString = tmdbService.ensureTmdbId(meta.id, tmdbLookupType, fallbackImdbId = meta.imdbId)
-                    ?: tmdbService.ensureTmdbId(itemId, itemType, fallbackImdbId = meta.imdbId)
-                val tmdbId = tmdbIdString?.toIntOrNull()
-                val imdbId = extractImdbId(meta.id) ?: extractImdbId(itemId) ?: meta.imdbId
-
-                if (tmdbId == null && imdbId == null) {
-                    _uiState.update { state ->
-                        if (state.meta == null || state.meta.id != meta.id) {
-                            state
-                        } else {
-                            state.copy(
-                                episodeImdbRatings = addonRatings,
-                                isEpisodeRatingsLoading = false,
-                                episodeRatingsError = if (addonRatings.isEmpty()) {
-                                    localizedContext.getString(R.string.ratings_unavailable)
-                                } else {
-                                    null
-                                }
-                            )
-                        }
-                    }
-                    return@launch
-                }
-
-                val ratings = imdbEpisodeRatingsRepository.getEpisodeRatings(
-                    imdbId = imdbId,
-                    tmdbId = tmdbId
-                )
-
-                _uiState.update { state ->
-                    if (state.meta == null || state.meta.id != meta.id) {
-                        state
-                    } else {
-                        state.copy(
-                            episodeImdbRatings = addonRatings + ratings,
-                            isEpisodeRatingsLoading = false,
-                            episodeRatingsError = null
-                        )
-                    }
-                }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Exception) {
-                Log.w(TAG, "Failed to load episode ratings for ${meta.id}: ${error.message}")
-                _uiState.update { state ->
-                    if (state.meta == null || state.meta.id != meta.id) {
-                        state
-                    } else {
-                        state.copy(
-                            episodeImdbRatings = addonRatings,
-                            isEpisodeRatingsLoading = false,
-                            episodeRatingsError = if (addonRatings.isEmpty()) {
-                                localizedContext.getString(R.string.ratings_load_error)
-                            } else {
-                                null
-                            }
-                        )
-                    }
-                }
-            }
+        } catch (_: CancellationException) {
+            currentCoroutineContext().ensureActive()
+            // A different screen can cancel a shared TMDB ID lookup while this screen is still visible.
+            EpisodeRatingsResult(failed = true)
+        } else EpisodeRatingsResult()
+        currentCoroutineContext().ensureActive()
+        val addon = addonEpisodeRatings(episodeRatingsCandidates(meta.videos, season, supplied), season)
+        val result = publicResult.copy(ratings = addon + publicResult.ratings)
+        _uiState.update { current ->
+            if (current.meta?.id != meta.id || current.meta?.apiType != meta.apiType) current
+            else current.copy(episodeRatingsBySeason = current.episodeRatingsBySeason + (season to result))
         }
     }
 

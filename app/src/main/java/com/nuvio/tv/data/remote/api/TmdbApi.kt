@@ -637,7 +637,10 @@ data class TmdbEpisode(
     @Json(name = "runtime") val runtime: Int? = null,
     @Json(name = "season_number") val seasonNumber: Int? = null,
     @Json(name = "episode_type") val episodeType: String? = null,
-    @Json(name = "id") val id: Long? = null
+    @Json(name = "id") val id: Long? = null,
+    @Json(name = "show_id") val showId: Int? = null,
+    @Json(name = "vote_average") val voteAverage: Double? = null,
+    @Json(name = "vote_count") val voteCount: Int? = null
 )
 
 @JsonClass(generateAdapter = true)

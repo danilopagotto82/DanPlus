@@ -2,153 +2,188 @@ package com.nuvio.tv.data.repository
 
 import android.util.Log
 import com.nuvio.tv.BuildConfig
+import com.nuvio.tv.core.tmdb.TmdbApiKey
 import com.nuvio.tv.data.remote.api.ImdbTapframeApi
 import com.nuvio.tv.data.remote.api.SeriesGraphApi
+import com.nuvio.tv.data.remote.api.SeriesGraphSeasonRatingsDto
+import com.nuvio.tv.data.remote.api.TmdbApi
+import com.nuvio.tv.domain.model.EpisodeRating
+import com.nuvio.tv.domain.model.EpisodeRatingSource
+import com.nuvio.tv.domain.model.EpisodeRatingsResult
+import com.nuvio.tv.domain.model.isPublicEpisodeScore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import java.util.concurrent.ConcurrentHashMap
+import retrofit2.Response
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val TAG = "ImdbEpisodeRatingsRepo"
+private val imdbTitlePattern = Regex("tt[0-9]+(?::[0-9]+:[0-9]+)?", RegexOption.IGNORE_CASE)
+
+internal fun canonicalRatingsImdbId(raw: String?): String? = raw?.trim()?.let { id ->
+    val unprefixed = if (id.startsWith("imdb:", ignoreCase = true)) id.substringAfter(':') else id
+    unprefixed.takeIf(imdbTitlePattern::matches)?.substringBefore(':')?.lowercase()
+}
 
 @Singleton
 class ImdbEpisodeRatingsRepository @Inject constructor(
     private val imdbTapframeApi: ImdbTapframeApi,
-    private val seriesGraphApi: SeriesGraphApi
+    private val seriesGraphApi: SeriesGraphApi,
+    private val tmdbApi: TmdbApi
 ) {
-    private data class CacheEntry(
-        val ratings: Map<Pair<Int, Int>, Double>,
-        val expiresAtMs: Long
+    private data class Key(val source: EpisodeRatingSource, val id: String, val season: Int = 0)
+    private data class ProviderResult(
+        val ratings: Map<Pair<Int, Int>, EpisodeRating> = emptyMap(),
+        val failed: Boolean = false,
+        val unreachable: Boolean = false
     )
-
-    private val tag = "ImdbEpisodeRatingsRepo"
-    private val cacheTtlMs = 30L * 60L * 1000L
-    private val cache = ConcurrentHashMap<String, CacheEntry>()
-    private val inFlight = mutableMapOf<String, kotlinx.coroutines.Deferred<Map<Pair<Int, Int>, Double>>>()
-    private val inFlightMutex = Mutex()
+    private data class CacheEntry(val result: ProviderResult, val expiresAt: Long)
+    private class Request(val result: Deferred<ProviderResult>, var consumers: Int = 0)
+    private val cache = LinkedHashMap<Key, CacheEntry>(16, .75f, true)
+    private val inFlight = mutableMapOf<Key, Request>()
+    private val lock = Any()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     internal var primaryConfigured = BuildConfig.IMDB_TAPFRAME_API_BASE_URL.isNotBlank()
+    internal var seriesGraphConfigured = BuildConfig.IMDB_RATINGS_API_BASE_URL.isNotBlank()
+    internal var tmdbKey: () -> String = { TmdbApiKey.value }
     internal val primaryOutage = HostOutage()
 
-    suspend fun getEpisodeRatings(
-        imdbId: String?,
-        tmdbId: Int?
-    ): Map<Pair<Int, Int>, Double> {
-        val normalizedImdbId = imdbId
-            ?.trim()
-            ?.takeIf { it.startsWith("tt", ignoreCase = true) }
-            ?.substringBefore(':')
-        val normalizedTmdbId = tmdbId?.takeIf { it > 0 }
-        if (normalizedImdbId == null && normalizedTmdbId == null) return emptyMap()
+    // The Home caller has its existing IMDb-oriented display. TMDB is used only by the
+    // source-aware details screens.
+    suspend fun getEpisodeRatings(imdbId: String?, tmdbId: Int?): Map<Pair<Int, Int>, Double> {
+        val primary = primaryRatings(imdbId)
+        if (primary.ratings.isNotEmpty()) return primary.ratings.mapValues { it.value.value }
+        val fallback = seriesGraphRatings(tmdbId)
+        markPrimaryOutage(primary, fallback.ratings.isNotEmpty())
+        return fallback.ratings.mapValues { it.value.value }
+    }
 
-        val cacheKey = when {
-            !normalizedImdbId.isNullOrBlank() -> "imdb:$normalizedImdbId"
-            else -> "tmdb:$normalizedTmdbId"
+    suspend fun getSeasonRatings(imdbId: String?, tmdbId: Int?, season: Int, episodes: Set<Int>): EpisodeRatingsResult {
+        val wanted = episodes.filter { season > 0 && it > 0 }.mapTo(hashSetOf()) { season to it }
+        if (wanted.isEmpty()) return EpisodeRatingsResult()
+        val primary = primaryRatings(imdbId)
+        val primarySeason = primary.ratings.filterKeys { it in wanted }
+        if (primarySeason.size == wanted.size) return EpisodeRatingsResult(primarySeason)
+        val graph = seriesGraphRatings(tmdbId)
+        val providerRatings = graph.ratings.filterKeys { it in wanted } + primarySeason
+        val tmdb = if (providerRatings.size == wanted.size) ProviderResult() else tmdbRatings(tmdbId, season)
+        markPrimaryOutage(primary, graph.ratings.isNotEmpty() || tmdb.ratings.isNotEmpty())
+        val scores = tmdb.ratings.filterKeys { it in wanted } + providerRatings
+        return EpisodeRatingsResult(scores, scores.size < wanted.size && (primary.failed || graph.failed || tmdb.failed))
+    }
+
+    private fun markPrimaryOutage(primary: ProviderResult, networkUp: Boolean) {
+        if (primary.unreachable) primaryOutage.markDown(networkUp, TAG)
+    }
+
+    private suspend fun primaryRatings(imdbId: String?): ProviderResult {
+        val id = canonicalRatingsImdbId(imdbId) ?: return ProviderResult()
+        if (!primaryConfigured) return ProviderResult()
+        if (primaryOutage.isDown()) return ProviderResult(failed = true)
+        val source = EpisodeRatingSource.IMDB
+        return fetch(Key(source, id)) {
+            val response = imdbTapframeApi.getSeasonRatings(id)
+            response.toResult(source) { ratingsFromGraph(it, source) }
         }
+    }
 
-        val now = System.currentTimeMillis()
-        cache[cacheKey]?.let { cached ->
-            if (cached.expiresAtMs > now) return cached.ratings
-            cache.remove(cacheKey)
+    private suspend fun seriesGraphRatings(tmdbId: Int?): ProviderResult {
+        val id = tmdbId?.takeIf { it > 0 && seriesGraphConfigured } ?: return ProviderResult()
+        val source = EpisodeRatingSource.SERIES_GRAPH
+        return fetch(Key(source, id.toString())) {
+            seriesGraphApi.getSeasonRatings(id).toResult(source) { ratingsFromGraph(it, source) }
         }
+    }
 
-        val deferred = inFlightMutex.withLock {
-            inFlight[cacheKey] ?: scope.async {
-                try {
-                    fetchEpisodeRatings(
-                        imdbId = normalizedImdbId,
-                        tmdbId = normalizedTmdbId
-                    ).also { result ->
-                        cache[cacheKey] = CacheEntry(
-                            ratings = result,
-                            expiresAtMs = System.currentTimeMillis() + cacheTtlMs
-                        )
+    private suspend fun tmdbRatings(tmdbId: Int?, season: Int): ProviderResult {
+        val id = tmdbId?.takeIf { it > 0 } ?: return ProviderResult()
+        val apiKey = tmdbKey().takeIf(String::isNotBlank) ?: return ProviderResult()
+        val source = EpisodeRatingSource.TMDB
+        return fetch(Key(source, id.toString(), season)) {
+            tmdbApi.getTvSeasonDetails(id, season, apiKey).toResult(source) { body ->
+                if (body.seasonNumber != null && body.seasonNumber != season) return@toResult emptyMap()
+                uniqueRatings(body.episodes.orEmpty().mapNotNull { episode ->
+                    val number = episode.episodeNumber?.takeIf { it > 0 } ?: return@mapNotNull null
+                    val episodeSeason = episode.seasonNumber ?: body.seasonNumber
+                    if (episodeSeason != season || (episode.showId != null && episode.showId != id)) return@mapNotNull null
+                    val score = episode.voteAverage?.takeIf { it.isPublicEpisodeScore() && (episode.voteCount ?: 0) > 0 }
+                        ?: return@mapNotNull null
+                    (season to number) to EpisodeRating(score, source)
+                })
+            }
+        }
+    }
+
+    private fun <T> Response<T>.toResult(
+        source: EpisodeRatingSource,
+        decode: (T) -> Map<Pair<Int, Int>, EpisodeRating>
+    ): ProviderResult {
+        if (isSuccessful) return ProviderResult(body()?.let(decode).orEmpty())
+        errorBody()?.close()
+        if (code() == 404) return ProviderResult()
+        Log.w(TAG, "$source episode ratings HTTP ${code()}")
+        return ProviderResult(failed = true)
+    }
+
+    private suspend fun fetch(key: Key, load: suspend () -> ProviderResult): ProviderResult {
+        val request = synchronized(lock) {
+            cache[key]?.let { entry ->
+                if (entry.expiresAt > System.currentTimeMillis()) return entry.result
+                cache.remove(key)
+            }
+            inFlight.getOrPut(key) {
+                Request(scope.async(start = CoroutineStart.LAZY) {
+                    try {
+                        load()
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        // Retrofit exceptions can include a credential in a request URL.
+                        Log.w(TAG, "${key.source} episode ratings failed: ${error.javaClass.simpleName}")
+                        ProviderResult(failed = true, unreachable = HostOutage.isUnreachable(error))
                     }
-                } finally {
-                    inFlightMutex.withLock {
-                        inFlight.remove(cacheKey)
-                    }
+                })
+            }.also { it.consumers++ }
+        }
+        try {
+            val result = request.result.await()
+            synchronized(lock) {
+                if (!result.failed && key !in cache) {
+                    val ttl = if (result.ratings.isEmpty()) 2L else 30L
+                    cache[key] = CacheEntry(result, System.currentTimeMillis() + ttl * 60_000)
+                    if (cache.size > 128) cache.remove(cache.keys.first())
                 }
-            }.also { created ->
-                inFlight[cacheKey] = created
             }
-        }
-
-        return deferred.await()
-    }
-
-    private suspend fun fetchEpisodeRatings(
-        imdbId: String?,
-        tmdbId: Int?
-    ): Map<Pair<Int, Int>, Double> {
-        var primaryUnreachable = false
-        if (!imdbId.isNullOrBlank() && primaryConfigured && !primaryOutage.isDown()) {
-            val primary = fetchFromImdbTapframe(imdbId) { primaryUnreachable = true }
-            if (primary.isNotEmpty()) return primary
-            if (!primaryUnreachable) Log.w(tag, "Primary episode ratings empty for imdbId=$imdbId, trying fallback.")
-        }
-
-        if (tmdbId != null && tmdbId > 0) {
-            val fallback = fetchFromSeriesGraph(tmdbId)
-            if (primaryUnreachable) primaryOutage.markDown(networkUp = fallback.isNotEmpty(), tag = tag)
-            return fallback
-        }
-
-        if (primaryUnreachable) primaryOutage.markDown(networkUp = false, tag = tag)
-        return emptyMap()
-    }
-
-    private suspend fun fetchFromImdbTapframe(
-        imdbId: String,
-        onUnreachable: () -> Unit
-    ): Map<Pair<Int, Int>, Double> {
-        return try {
-            val response = imdbTapframeApi.getSeasonRatings(imdbId)
-            if (!response.isSuccessful) {
-                Log.w(tag, "Failed primary season ratings for imdbId=$imdbId (${response.code()})")
-                return emptyMap()
-            }
-            toRatingsMap(response.body().orEmpty())
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            if (HostOutage.isUnreachable(e)) {
-                onUnreachable()
-            } else {
-                Log.w(tag, "Error fetching primary season ratings for imdbId=$imdbId", e)
-            }
-            emptyMap()
-        }
-    }
-
-    private suspend fun fetchFromSeriesGraph(tmdbId: Int): Map<Pair<Int, Int>, Double> {
-        return try {
-            val response = seriesGraphApi.getSeasonRatings(tmdbId)
-            if (!response.isSuccessful) {
-                Log.w(tag, "Failed fallback season ratings for tmdbId=$tmdbId (${response.code()})")
-                return emptyMap()
-            }
-            toRatingsMap(response.body().orEmpty())
-        } catch (e: Exception) {
-            Log.w(tag, "Error fetching fallback season ratings for tmdbId=$tmdbId", e)
-            emptyMap()
-        }
-    }
-
-    private fun toRatingsMap(payload: List<com.nuvio.tv.data.remote.api.SeriesGraphSeasonRatingsDto>): Map<Pair<Int, Int>, Double> {
-        return buildMap {
-            payload.forEach { season ->
-                season.episodes.orEmpty().forEach { episode ->
-                    val seasonNumber = episode.seasonNumber ?: return@forEach
-                    val episodeNumber = episode.episodeNumber ?: return@forEach
-                    val voteAverage = episode.voteAverage ?: return@forEach
-                    put(seasonNumber to episodeNumber, voteAverage)
+            return result
+        } finally {
+            synchronized(lock) {
+                if (--request.consumers == 0) {
+                    inFlight.remove(key)
+                    request.result.cancel()
                 }
             }
         }
     }
 }
+
+private fun ratingsFromGraph(
+    payload: List<SeriesGraphSeasonRatingsDto>, source: EpisodeRatingSource
+): Map<Pair<Int, Int>, EpisodeRating> = uniqueRatings(payload.flatMap { group ->
+    group.episodes.orEmpty().mapNotNull { episode ->
+        val season = (episode.seasonNumber ?: group.seasonNumber)?.takeIf { it > 0 } ?: return@mapNotNull null
+        if (group.seasonNumber != null && group.seasonNumber != season) return@mapNotNull null
+        val number = episode.episodeNumber?.takeIf { it > 0 } ?: return@mapNotNull null
+        val raw = episode.voteAverage?.takeIf(Double::isPublicEpisodeScore) ?: return@mapNotNull null
+        (season to number) to EpisodeRating(raw, source)
+    }
+})
+
+private fun uniqueRatings(ratings: List<Pair<Pair<Int, Int>, EpisodeRating>>): Map<Pair<Int, Int>, EpisodeRating> =
+    ratings.groupBy({ it.first }, { it.second }).mapNotNull { (episode, values) ->
+        values.distinct().singleOrNull()?.let { episode to it }
+    }.toMap()

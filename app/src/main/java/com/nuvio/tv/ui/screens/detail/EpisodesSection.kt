@@ -92,6 +92,8 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import coil3.request.transformations
 import com.nuvio.tv.R
+import com.nuvio.tv.domain.model.EpisodeRating
+import com.nuvio.tv.domain.model.EpisodeRatingSource
 import com.nuvio.tv.domain.model.Video
 import com.nuvio.tv.domain.model.EpisodeOptionsOverlayStyle
 import com.nuvio.tv.ui.components.FocusMarqueeText
@@ -436,7 +438,7 @@ fun SeasonTabs(
 fun EpisodesRow(
     episodes: List<Video>,
     episodeProgressMap: Map<Pair<Int, Int>, com.nuvio.tv.domain.model.WatchProgress> = emptyMap(),
-    episodeRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
+    episodeRatings: Map<Pair<Int, Int>, EpisodeRating> = emptyMap(),
     watchedEpisodes: Set<Pair<Int, Int>> = emptySet(),
     episodeWatchedPendingKeys: Set<String> = emptySet(),
     blurUnwatchedEpisodes: Boolean = false,
@@ -604,7 +606,7 @@ fun EpisodesRow(
             ) { episode ->
                 val seasonEp = remember(episode.season, episode.episode) { episode.season?.let { s -> episode.episode?.let { e -> s to e } } }
                 val progress = remember(seasonEp, episodeProgressMap) { seasonEp?.let { episodeProgressMap[it] } }
-                val imdbRating = remember(seasonEp, episodeRatings) { seasonEp?.let { episodeRatings[it] } }
+                val publicRating = remember(seasonEp, episodeRatings) { seasonEp?.let { episodeRatings[it] } }
                 val isMarkedWatched = remember(seasonEp, watchedEpisodes) { seasonEp?.let { watchedEpisodes.contains(it) } ?: false }
                 val episodeFocusRequester = remember(episode.id) { episodeFocusRequesters.getOrPut(episode.id) { FocusRequester() } }
                 val episodeOnClick = remember(episode, onEpisodeClick) { { onEpisodeClick(episode) } }
@@ -620,7 +622,7 @@ fun EpisodesRow(
                 EpisodeCard(
                     episode = episode,
                     watchProgress = progress,
-                    imdbRating = imdbRating,
+                    publicRating = publicRating,
                     isMarkedWatched = isMarkedWatched,
                     blurUnwatched = blurUnwatchedEpisodes,
                     suppressMarquee = isOverlayOpen,
@@ -664,7 +666,7 @@ fun EpisodesRow(
 
         EpisodeOptionsOverlay(
             episode = selectedEpisode,
-            imdbRating = selectedEpisode.season?.let { season ->
+            publicRating = selectedEpisode.season?.let { season ->
                 selectedEpisode.episode?.let { episode -> episodeRatings[season to episode] }
             },
             isWatched = selectedWatched,
@@ -728,7 +730,7 @@ fun EpisodesRow(
 private fun EpisodeCard(
     episode: Video,
     watchProgress: com.nuvio.tv.domain.model.WatchProgress? = null,
-    imdbRating: Double? = null,
+    publicRating: EpisodeRating? = null,
     isMarkedWatched: Boolean = false,
     blurUnwatched: Boolean = false,
     suppressMarquee: Boolean = false,
@@ -750,9 +752,11 @@ private fun EpisodeCard(
     val runtimeLabel = remember(episode.runtime) {
         episode.runtime?.takeIf { it > 0 }?.let(::formatEpisodeRuntime)
     }
-    val ratingLabel = remember(imdbRating) {
-        imdbRating?.takeIf { it > 0.0 }?.let { String.format(Locale.US, "%.1f", it) }
+    val ratingLocale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0] ?: Locale.getDefault()
+    val ratingLabel = remember(publicRating, ratingLocale) {
+        publicRating?.let { String.format(ratingLocale, "%.1f", it.value) }
     }
+    val ratingSource = publicRating?.source
     val description = remember(episode.overview) { episode.overview?.trim().orEmpty() }
     val isWatched = remember(watchProgress, isMarkedWatched) { watchProgress?.isCompleted() == true || isMarkedWatched }
     val shouldBlur = remember(blurUnwatched, isWatched) { blurUnwatched && !isWatched }
@@ -986,7 +990,9 @@ private fun EpisodeCard(
                         )
                     }
                     ratingLabel?.let { rating ->
-                        Text("★ $rating", style = typography.labelSmall, color = textSecondary, maxLines = 1)
+                        val sourceLabel = ratingSource?.let { episodeRatingSourceLabel(it) }.orEmpty()
+                        Text("$sourceLabel $rating", style = typography.labelSmall, color = textSecondary,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -1130,13 +1136,16 @@ private fun EpisodeCard(
                                 horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                ImdbRatingSourceLabel(
-                                    logoModifier = Modifier
-                                        .width(cardMetrics.imdbLogoWidth)
-                                        .height(cardMetrics.imdbLogoHeight),
-                                    textStyle = metaLabelStyle,
-                                    textColor = textSecondary
-                                )
+                                if (ratingSource == EpisodeRatingSource.IMDB) {
+                                    ImdbRatingSourceLabel(
+                                        logoModifier = Modifier.width(cardMetrics.imdbLogoWidth).height(cardMetrics.imdbLogoHeight),
+                                        textStyle = metaLabelStyle,
+                                        textColor = textSecondary
+                                    )
+                                } else if (ratingSource != null) {
+                                    Text(episodeRatingSourceLabel(ratingSource), style = metaLabelStyle,
+                                        maxLines = 1, color = textSecondary)
+                                }
                                 Text(
                                     text = rating,
                                     style = ratingStyle,

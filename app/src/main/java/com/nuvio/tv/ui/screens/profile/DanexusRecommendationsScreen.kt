@@ -45,6 +45,7 @@ import com.nuvio.tv.core.danexus.ProfileRecommendation
 import com.nuvio.tv.core.danexus.ProfileRecommendationRules
 import com.nuvio.tv.core.danexus.RecommendationProfile
 import com.nuvio.tv.domain.model.Meta
+import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.ui.components.NuvioDialog
 import com.nuvio.tv.ui.components.ProfileAvatarCircle
 import com.nuvio.tv.ui.components.rememberBrowseArtwork
@@ -53,10 +54,25 @@ import com.nuvio.tv.ui.v2.appearance.LocalV2Appearance
 import com.nuvio.tv.ui.v2.appearance.V2Atmosphere
 
 @Composable
+internal fun DanexusPosterRecommendDialog(
+    item: MetaPreview,
+    addonBaseUrl: String?,
+    onDismiss: () -> Unit,
+    viewModel: DanexusProfilesViewModel = hiltViewModel()
+) {
+    val fallback = remember(item) { posterRecommendationMeta(item, null) }
+    val resolved by produceState<Meta?>(null, item.id, item.apiType, addonBaseUrl, viewModel) {
+        value = viewModel.resolvePosterRecommendation(item, addonBaseUrl)
+    }
+    DanexusRecommendDialog(resolved ?: fallback, onDismiss, viewModel, canSend = resolved != null)
+}
+
+@Composable
 fun DanexusRecommendDialog(
     meta: Meta,
     onDismiss: () -> Unit,
-    viewModel: DanexusProfilesViewModel = hiltViewModel()
+    viewModel: DanexusProfilesViewModel = hiltViewModel(),
+    canSend: Boolean = true
 ) {
     val profiles by viewModel.recommendationProfiles.collectAsStateWithLifecycle()
     val active by viewModel.viewer.collectAsStateWithLifecycle()
@@ -156,7 +172,7 @@ fun DanexusRecommendDialog(
                 Button(onClick = {
                     val viewerId = active?.id ?: return@Button
                     val submitted = targets
-                    if (submitted.isEmpty() || selected.isEmpty()) return@Button
+                    if (!canSend || submitted.isEmpty() || selected.isEmpty()) return@Button
                     val previousSelection = selected
                     selected = emptySet()
                     viewModel.send(viewerId, submitted, meta).onSuccess {
@@ -168,7 +184,7 @@ fun DanexusRecommendDialog(
                         sentCount = 0
                         selected = previousSelection
                     }
-                }, enabled = targets.isNotEmpty(), colors = indicationButtonColors(), border = indicationFocusBorder()) {
+                }, enabled = canSend && targets.isNotEmpty(), colors = indicationButtonColors(), border = indicationFocusBorder()) {
                     Text(stringResource(R.string.d12_send))
                 }
             }

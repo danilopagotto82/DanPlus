@@ -24,6 +24,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import com.nuvio.tv.domain.model.EpisodeRating
+import com.nuvio.tv.domain.model.EpisodeRatingSource
+import com.nuvio.tv.domain.model.EpisodeRatingsResult
+import java.util.Locale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -50,9 +55,9 @@ import com.nuvio.tv.domain.model.Video
 @Composable
 fun EpisodeRatingsSection(
     episodes: List<Video>,
-    ratings: Map<Pair<Int, Int>, Double>,
-    isLoading: Boolean,
-    error: String?,
+    ratings: Map<Pair<Int, Int>, EpisodeRating>,
+    ratingsBySeason: Map<Int, EpisodeRatingsResult>,
+    onLoadRatingSeason: suspend (Int) -> Unit,
     modifier: Modifier = Modifier,
     title: String = "Ratings",
     upFocusRequester: FocusRequester? = null,
@@ -95,16 +100,24 @@ fun EpisodeRatingsSection(
     }
     val defaultChipColor = NuvioTheme.colors.BackgroundCard
     val defaultChipTextColor = NuvioTheme.colors.TextSecondary
-    val seasonRatings = remember(episodesForSeason, ratings) {
+    val result = ratingsBySeason[selectedSeason]
+    val pending = selectedSeason in seasonNumbers && result == null
+    LaunchedEffect(selectedSeason, episodesForSeason.isNotEmpty()) {
+        if (selectedSeason > 0 && episodesForSeason.isNotEmpty()) onLoadRatingSeason(selectedSeason)
+    }
+    val locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
+    val noScore = stringResource(if (pending) R.string.ratings_episode_loading else R.string.ratings_episode_no_score)
+    val seasonRatings = remember(episodesForSeason, ratings, locale, noScore, defaultChipColor, defaultChipTextColor) {
         episodesForSeason.mapNotNull { episode ->
             val season = episode.season ?: return@mapNotNull null
             val episodeNumber = episode.episode ?: return@mapNotNull null
             val rating = ratings[season to episodeNumber]
-            val ratingText = rating?.let { String.format("%.1f", it) } ?: "—"
-            val chipColor = rating?.let(::ratingColor) ?: defaultChipColor
-            val chipTextColor = rating?.let(::ratingTextColor) ?: defaultChipTextColor
+            val ratingText = rating?.let { String.format(locale, "%.1f", it.value) } ?: noScore
+            val chipColor = rating?.takeUnless { it.source == EpisodeRatingSource.ADDON }
+                ?.let { episodeRatingColor(it.value) } ?: defaultChipColor
+            val chipTextColor = if (rating != null) Color.White else defaultChipTextColor
             EpisodeRatingChipUi(
-                id = episode.id,
+                source = rating?.source,
                 seasonNumber = season,
                 episodeNumber = episodeNumber,
                 ratingText = ratingText,
@@ -135,22 +148,6 @@ fun EpisodeRatingsSection(
         }
 
         when {
-            isLoading -> {
-                Text(
-                    text = stringResource(R.string.ratings_loading),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = NuvioTheme.colors.TextSecondary,
-                    modifier = Modifier.padding(start = detailStartInset, end = NuvioTheme.spacing.xxxl, top = NuvioTheme.spacing.md, bottom = NuvioTheme.spacing.md)
-                )
-            }
-            error != null -> {
-                Text(
-                    text = error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = NuvioTheme.colors.TextSecondary,
-                    modifier = Modifier.padding(start = detailStartInset, end = NuvioTheme.spacing.xxxl, top = NuvioTheme.spacing.md, bottom = NuvioTheme.spacing.md)
-                )
-            }
             seasonNumbers.isEmpty() -> {
                 Text(
                     text = stringResource(R.string.ratings_unavailable),
@@ -221,10 +218,18 @@ fun EpisodeRatingsSection(
                     }
                 }
 
+                val seasonStatus = when {
+                    pending -> stringResource(R.string.ratings_loading)
+                    seasonRatings.any { it.source != null } ->
+                        stringResource(R.string.ratings_season_summary, selectedSeason, episodesForSeason.size)
+                    result?.ratings?.isNotEmpty() == true -> stringResource(R.string.ratings_hidden)
+                    result?.failed == true -> stringResource(R.string.ratings_load_error)
+                    else -> stringResource(R.string.ratings_unavailable)
+                }
                 Text(
-                    text = stringResource(R.string.ratings_season_summary, selectedSeason, episodesForSeason.size),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = NuvioTheme.colors.TextTertiary,
+                    text = seasonStatus,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = NuvioTheme.colors.TextSecondary,
                     modifier = Modifier.padding(start = detailStartInset, end = NuvioTheme.spacing.xxxl, top = NuvioTheme.spacing.xxs, bottom = NuvioTheme.spacing.xxs)
                 )
 
@@ -244,8 +249,11 @@ fun EpisodeRatingsSection(
                         // load-bearing: the season tabs point "down" at this row and the row's
                         // focusRestorer resolves to the first chip, so dropping them from the D-pad
                         // order would strand the whole ratings row. Keep the stop and name it.
-                        val ratingDescription =
-                            "S${episodeRating.seasonNumber}E${episodeRating.episodeNumber}, ${episodeRating.ratingText}"
+                        val sourceLabel = episodeRating.source?.let { episodeRatingSourceLabel(it) }.orEmpty()
+                        val ratingDescription = listOfNotNull(
+                            "S${episodeRating.seasonNumber}E${episodeRating.episodeNumber}",
+                            episodeRating.ratingText, sourceLabel.takeIf(String::isNotEmpty)
+                        ).joinToString(", ")
 
                         Card(
                             onClick = { },
@@ -277,7 +285,7 @@ fun EpisodeRatingsSection(
                         ) {
                             Column(
                                 modifier = Modifier
-                                    .size(width = 72.dp, height = 46.dp)
+                                    .size(width = 88.dp, height = 66.dp)
                                     .padding(horizontal = NuvioTheme.spacing.sm, vertical = 6.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
@@ -290,8 +298,13 @@ fun EpisodeRatingsSection(
                                 Text(
                                     text = episodeRating.ratingText,
                                     style = MaterialTheme.typography.labelLarge,
+                                    maxLines = 1,
                                     color = episodeRating.chipTextColor
                                 )
+                                if (sourceLabel.isNotEmpty()) {
+                                    Text(sourceLabel, style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1, color = episodeRating.chipTextColor)
+                                }
                             }
                         }
                     }
@@ -301,27 +314,24 @@ fun EpisodeRatingsSection(
     }
 }
 
-private fun ratingColor(value: Double): androidx.compose.ui.graphics.Color {
-    return when {
-        value >= 9.7 -> androidx.compose.ui.graphics.Color(0xFF1DA1F3)
-        value >= 9.0 -> androidx.compose.ui.graphics.Color(0xFF186A3B)
-        value >= 8.0 -> androidx.compose.ui.graphics.Color(0xFF28B463)
-        value >= 7.5 -> androidx.compose.ui.graphics.Color(0xFFF4D03F)
-        value >= 7.0 -> androidx.compose.ui.graphics.Color(0xFFF39C12)
-        value >= 6.0 -> androidx.compose.ui.graphics.Color(0xFFE74C3C)
-        else -> androidx.compose.ui.graphics.Color(0xFF633974)
-    }
+internal fun episodeRatingColor(value: Double): Color = when {
+    value >= 9.0 -> Color(0xFF1B405A)
+    value >= 8.0 -> Color(0xFF204634)
+    value >= 7.0 -> Color(0xFF514223)
+    value >= 6.0 -> Color(0xFF543528)
+    else -> Color(0xFF532E42)
 }
 
-private fun ratingTextColor(value: Double): Color {
-    return when {
-        value >= 7.0 && value < 8.0 -> Color(0xFF1D1D1F)
-        else -> Color.White
-    }
+@Composable
+internal fun episodeRatingSourceLabel(source: EpisodeRatingSource): String = when (source) {
+    EpisodeRatingSource.IMDB -> "IMDb"
+    EpisodeRatingSource.SERIES_GRAPH -> "SeriesGraph"
+    EpisodeRatingSource.TMDB -> "TMDB"
+    EpisodeRatingSource.ADDON -> stringResource(R.string.ratings_source_addon)
 }
 
 private data class EpisodeRatingChipUi(
-    val id: String,
+    val source: EpisodeRatingSource?,
     val seasonNumber: Int,
     val episodeNumber: Int,
     val ratingText: String,

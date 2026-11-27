@@ -9,6 +9,7 @@ import com.nuvio.tv.core.danexus.ProfileRecommendationRules
 import com.nuvio.tv.core.danexus.RecommendationSync
 import com.nuvio.tv.core.danexus.RecommendationProfile
 import com.nuvio.tv.core.danexus.RemoteRecommendation
+import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.core.party.PartyAvatars
 import com.nuvio.tv.core.profile.LocalProfileAvatars
 import com.nuvio.tv.core.profile.ProfileManager
@@ -18,6 +19,7 @@ import com.nuvio.tv.data.remote.supabase.AvatarRepository
 import com.nuvio.tv.data.repository.MemberAccessRepository
 import com.nuvio.tv.domain.model.CosmeticEntitlement
 import com.nuvio.tv.domain.model.Meta
+import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.domain.model.UserProfile
 import com.nuvio.tv.domain.repository.MetaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,6 +32,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onStart
@@ -268,6 +271,24 @@ class DanexusProfilesViewModel @Inject constructor(
                     ProfileRecommendationRules.isWatched(watchedItems, row.contentId, row.type, row.episodeKeys)))
             }
         }.distinctUntilChanged()
+    }
+
+    internal suspend fun resolvePosterRecommendation(item: MetaPreview, addonBaseUrl: String?): Meta {
+        val cached = metaRepository.getCachedMeta(item.apiType, item.id)?.takeIf { matchesRecommendationPoster(item, it) }
+        val fullMeta = if (item.apiType.equals("movie", true) || cached?.videos?.isNotEmpty() == true) cached
+        else try {
+            withTimeoutOrNull(2_500L) {
+                val source = addonBaseUrl?.takeIf(String::isNotBlank) ?: item.sourceAddonBaseUrl
+                val result = metaRepository.getMetaFromAllAddons(item.apiType, item.id, source)
+                    .first { it !is NetworkResult.Loading }
+                (result as? NetworkResult.Success)?.data?.takeIf { matchesRecommendationPoster(item, it) }
+            } ?: cached
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            cached
+        }
+        return posterRecommendationMeta(item, fullMeta)
     }
 
     internal fun send(expectedSender: String, requested: Map<Int, String>, meta: Meta): Result<Int> = runCatching {
