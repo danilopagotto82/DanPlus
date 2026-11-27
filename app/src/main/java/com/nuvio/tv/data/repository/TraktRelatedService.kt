@@ -13,7 +13,13 @@ import com.nuvio.tv.domain.model.ContentType
 import com.nuvio.tv.domain.model.Meta
 import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.domain.model.PosterShape
+import android.util.LruCache
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -42,6 +48,33 @@ class TraktRelatedService @Inject constructor(
     )
 
     private val cache = ConcurrentHashMap<String, TimedCache>()
+
+    private val browseIds = LruCache<Pair<TraktRelatedType, Int>, TraktIdsDto>(96)
+    private val browseIdLock = Mutex()
+
+    internal suspend fun resolveBrowseIds(traktId: Int, type: ContentType): TraktIdsDto? {
+        val kind = when (type) {
+            ContentType.MOVIE -> TraktRelatedType.MOVIE
+            ContentType.SERIES, ContentType.TV -> TraktRelatedType.SHOW
+            else -> return null
+        }
+        val key = kind to traktId
+        return browseIdLock.withLock {
+            browseIds.get(key)?.let { return@withLock it }
+            val response = try {
+                traktAuthService.executeAuthorizedRequest { authHeader ->
+                    traktApi.searchById(authHeader, "trakt", traktId.toString(), kind.apiValue)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
+            }
+            currentCoroutineContext().ensureActive()
+            val results = response?.takeIf { it.isSuccessful }?.body().orEmpty()
+            exactTraktBrowseIds(results, traktId, kind)?.also { browseIds.put(key, it) }
+        }
+    }
 
     suspend fun getRelated(
         meta: Meta,
@@ -189,6 +222,17 @@ class TraktRelatedService @Inject constructor(
         return parseContentIds(fallbackItemId).tmdb
     }
 }
+
+internal fun exactTraktBrowseIds(
+    results: List<TraktSearchResultDto>,
+    traktId: Int,
+    kind: TraktRelatedType
+): TraktIdsDto? = results.asSequence()
+    .filter { it.type.equals(kind.apiValue, ignoreCase = true) }
+    .mapNotNull { if (kind == TraktRelatedType.MOVIE) it.movie?.ids else it.show?.ids }
+    .filter { it.trakt == traktId && ((it.tmdb ?: 0) > 0 || !it.imdb.isNullOrBlank()) }
+    .distinctBy { it.tmdb to it.imdb }
+    .singleOrNull()
 
 private fun TraktMovieDto.toMetaPreview(
     defaultType: ContentType,

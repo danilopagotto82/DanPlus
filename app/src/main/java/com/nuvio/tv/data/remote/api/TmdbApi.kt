@@ -460,7 +460,8 @@ data class TmdbDetailsResponse(
     @Json(name = "next_episode_to_air") val nextEpisodeToAir: TmdbEpisodeToAir? = null,
     @Json(name = "last_episode_to_air") val lastEpisodeToAir: TmdbEpisodeToAir? = null,
     @Json(name = "number_of_episodes") val episodeCount: Int? = null,
-    @Json(name = "seasons") val seasons: List<TmdbSeasonSummary>? = null
+    @Json(name = "seasons") val seasons: List<TmdbSeasonSummary>? = null,
+    @Json(name = "number_of_seasons") val seasonCount: Int? = null
 )
 
 @JsonClass(generateAdapter = true)

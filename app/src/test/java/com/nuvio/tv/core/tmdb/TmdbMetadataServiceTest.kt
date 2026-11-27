@@ -80,6 +80,23 @@ class TmdbMetadataServiceTest {
     }
 
     @Test
+    fun `focus dock shares in flight logo lookups without caching an empty response`() = runTest {
+        val api = mockk<TmdbApi>()
+        val release = CompletableDeferred<Unit>()
+        coEvery { api.getMovieImages(10, any(), "pt-BR,pt,en") } coAnswers {
+            release.await()
+            Response.success(TmdbImagesResponse())
+        }
+        val service = TmdbMetadataService(api, StandardTestDispatcher(testScheduler))
+        val first = async { service.fetchFocusDockLogo("10", ContentType.MOVIE, "en") }
+        val other = async { service.fetchFocusDockLogo("10", ContentType.MOVIE, "en") }
+        runCurrent()
+        coVerify(exactly = 1) { api.getMovieImages(10, any(), "pt-BR,pt,en") }
+        release.complete(Unit)
+        assertEquals(listOf(null, null), awaitAll(first, other))
+    }
+
+    @Test
     fun `cancelling an artwork owner lets an active waiter retry the same shared fetch`() = runTest {
         val api = mockk<TmdbApi>()
         var requests = 0

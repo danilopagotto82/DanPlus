@@ -68,12 +68,19 @@ class TmdbMetadataService(
     private val posterArtInFlight = ConcurrentHashMap<String, CompletableDeferred<TmdbPosterArt?>>()
     private data class FocusDockLogo(val url: String, val checkedAt: Long)
     private val focusDockLogos = ConcurrentHashMap<String, FocusDockLogo>()
+    private val focusDockLogoInFlight = ConcurrentHashMap<String, CompletableDeferred<String?>>()
     private val episodeInFlight = ConcurrentHashMap<String, CompletableDeferred<Map<Pair<Int, Int>, TmdbEpisodeEnrichment>>>()
     private val personCache = ConcurrentHashMap<String, PersonDetail>()
     private val moreLikeThisCache = ConcurrentHashMap<String, List<MetaPreview>>()
     private val entityHeaderCache = ConcurrentHashMap<String, TmdbEntityHeader>()
     private val entityRailCache = ConcurrentHashMap<String, List<MetaPreview>>()
     private val entityBrowseCache = ConcurrentHashMap<String, TmdbEntityBrowseData>()
+
+    internal fun cachedBrowseCredits(tmdbId: String, type: ContentType): TmdbEnrichment? {
+        val prefix = "$tmdbId:${type.name}:"
+        return enrichmentCache["${prefix}pt-BR"]
+            ?: enrichmentCache.entries.firstOrNull { it.key.startsWith(prefix) }?.value
+    }
 
     /** The original title from an enrichment that is already in memory; TMDB is not asked. */
     fun cachedOriginalTitle(tmdbId: String, contentType: ContentType): String? {
@@ -711,7 +718,15 @@ class TmdbMetadataService(
                     genres = details.genres?.mapNotNull { genre ->
                         genre.name.trim().takeIf { name -> name.isNotBlank() }
                     } ?: emptyList(),
-                    originalLanguage = details.originalLanguage
+                    originalLanguage = details.originalLanguage,
+                    releaseYear = (if (tmdbType == "tv") details.firstAirDate else details.releaseDate).yearPart(),
+                    lastAirYear = details.lastAirDate.yearPart(),
+                    runtimeMinutes = details.runtime ?: details.episodeRunTime?.firstOrNull()
+                        ?: details.lastEpisodeToAir?.runtime,
+                    rating = details.voteAverage?.toFloat(),
+                    status = details.status,
+                    episodeCount = details.episodeCount,
+                    seasonCount = details.seasonCount ?: details.seasons?.count { (it.seasonNumber ?: 0) > 0 }
                 )
                 currentCoroutineContext().ensureActive()
                 posterArtCache[cacheKey] = art
@@ -739,23 +754,42 @@ class TmdbMetadataService(
             val tv = type == ContentType.SERIES || type == ContentType.TV
             val originalTag = focusLogoTag(original)
             val key = "$tmdbId:$tv:pt-BR:$originalTag"
-            val now = System.nanoTime() / 1_000_000L
-            focusDockLogos[key]?.takeIf { now - it.checkedAt < FOCUS_DOCK_LOGO_TTL_MS }?.let { return@withContext it.url }
+            val pending = CompletableDeferred<String?>()
+            while (true) {
+                val now = System.nanoTime() / 1_000_000L
+                focusDockLogos[key]?.takeIf { now - it.checkedAt < FOCUS_DOCK_LOGO_TTL_MS }
+                    ?.let { return@withContext it.url }
+                val existing = focusDockLogoInFlight.putIfAbsent(key, pending) ?: break
+                try {
+                    return@withContext existing.await()
+                } catch (cancelled: CancellationException) {
+                    currentCoroutineContext().ensureActive()
+                    focusDockLogoInFlight.remove(key, existing)
+                }
+            }
             val variants = listOfNotNull("pt-BR", "pt", originalTag, originalTag?.substringBefore('-'))
                 .distinct().joinToString(",")
             try {
                 val response = if (tv) tmdbApi.getTvImages(id, TMDB_API_KEY, variants)
                 else tmdbApi.getMovieImages(id, TMDB_API_KEY, variants)
-                val logos = response.body()?.takeIf { response.isSuccessful }?.logos ?: return@withContext null
-                val url = buildImageUrl(focusDockLogoPath(logos, originalTag), "original") ?: return@withContext null
+                val logos = response.body()?.takeIf { response.isSuccessful }?.logos.orEmpty()
+                val url = buildImageUrl(focusDockLogoPath(logos, originalTag), "original")
                 currentCoroutineContext().ensureActive()
-                if (focusDockLogos.size >= 96) focusDockLogos.keys.firstOrNull()?.let(focusDockLogos::remove)
-                focusDockLogos[key] = FocusDockLogo(url, now)
+                if (url != null) {
+                    if (focusDockLogos.size >= 96) focusDockLogos.keys.firstOrNull()?.let(focusDockLogos::remove)
+                    focusDockLogos[key] = FocusDockLogo(url, System.nanoTime() / 1_000_000L)
+                }
+                pending.complete(url)
                 url
             } catch (error: CancellationException) {
+                pending.cancel(error)
                 throw error
             } catch (_: Exception) {
+                pending.complete(null)
                 null
+            } finally {
+                if (!pending.isCompleted) pending.complete(null)
+                focusDockLogoInFlight.remove(key, pending)
             }
         }
 
@@ -1897,7 +1931,14 @@ data class TmdbPosterArt(
     val backdrop: String?,
     val description: String?,
     val genres: List<String>,
-    val originalLanguage: String? = null
+    val originalLanguage: String? = null,
+    val releaseYear: String? = null,
+    val lastAirYear: String? = null,
+    val runtimeMinutes: Int? = null,
+    val rating: Float? = null,
+    val status: String? = null,
+    val episodeCount: Int? = null,
+    val seasonCount: Int? = null
 )
 
 internal fun focusLogoTag(value: String?): String? =

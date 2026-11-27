@@ -23,26 +23,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.nuvio.tv.R
 import com.nuvio.tv.core.image.sizedHomeArtworkUrl
 import com.nuvio.tv.domain.model.MetaPreview
+import com.nuvio.tv.ui.components.MediaGenres
+import com.nuvio.tv.ui.components.MediaMetadataChips
 import com.nuvio.tv.ui.screens.scout.ScoutChip
 import com.nuvio.tv.ui.theme.NuvioTheme
 import com.nuvio.tv.ui.util.localizedContentType
-import com.nuvio.tv.ui.util.localizedGenreLabel
-import java.text.NumberFormat
 
 @Composable
 internal fun FolderSidePreview(
@@ -65,7 +61,8 @@ internal fun FolderSidePreview(
         if (item != null) {
             FolderTitleArtwork(item, logoHeight = 64.dp, centered = true)
             FolderPreviewDivider()
-            FolderMetadata(item, forGrade = true, episodeCount = credits?.episodeCount)
+            MediaMetadataChips(item, episodeCount = credits?.episodeCount)
+            MediaGenres(item.genres.ifEmpty { listOf(localizedContentType(item.apiType)) })
             FolderPreviewDivider()
             item.description?.takeIf { it.isNotBlank() }?.let {
                 Text(it, color = colors.TextPrimary, style = MaterialTheme.typography.bodyLarge,
@@ -118,8 +115,8 @@ internal fun FolderShowcase(
             model = image?.let { sizedHomeArtworkUrl(it, 780) },
             contentDescription = null,
             modifier = Modifier.matchParentSize(),
-            contentScale = ContentScale.Crop,
-            alignment = Alignment.CenterEnd
+            contentScale = com.nuvio.tv.ui.components.CollectionBannerScale,
+            alignment = Alignment.TopEnd
         )
         Box(Modifier.matchParentSize().background(scrim))
         Column(
@@ -128,7 +125,8 @@ internal fun FolderShowcase(
         ) {
             Column(Modifier.fillMaxWidth(.68f), verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)) {
                 FolderTitleArtwork(item, logoHeight = 64.dp)
-                FolderMetadata(item)
+                MediaMetadataChips(item, onArtwork = true)
+                MediaGenres(item.genres, onArtwork = true)
                 item.description?.takeIf { it.isNotBlank() }?.let {
                     Text(it, color = colors.TextPrimary, style = MaterialTheme.typography.bodyMedium,
                         maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -163,69 +161,3 @@ private fun FolderTitleArtwork(item: MetaPreview, logoHeight: Dp = 58.dp, center
             maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
-
-@Composable
-private fun FolderMetadata(item: MetaPreview, forGrade: Boolean = false, episodeCount: Int? = null) {
-    val rating = item.imdbRating?.takeIf { it.isFinite() && it > 0f }?.let {
-        val locale = LocalConfiguration.current.locales[0] ?: java.util.Locale.getDefault()
-        val number = remember(it, locale) {
-            NumberFormat.getNumberInstance(locale).apply {
-                maximumFractionDigits = 1
-            }.format(it)
-        }
-        "★ $number"
-    }
-    val duration = item.runtime?.takeIf { it.isNotBlank() }?.let {
-        val minutes = if (forGrade) folderRuntimeMinutes.matchEntire(it.trim())?.groupValues?.get(1)?.toIntOrNull()
-            else it.toIntOrNull()
-        when {
-            minutes == null -> it
-            !forGrade || minutes < 60 -> stringResource(R.string.dan_folder_minutes, minutes)
-            minutes % 60 == 0 -> "${minutes / 60}h"
-            else -> "${minutes / 60}h ${(minutes % 60).toString().padStart(2, '0')}"
-        }
-    }
-    val series = item.apiType == "series" || item.apiType == "tv"
-    val year = item.releaseInfo?.takeIf { it.isNotBlank() }?.let {
-        if (forGrade && series) folderYear.find(it)?.value else it
-    }
-    val count = episodeCount?.takeIf { forGrade && series && it > 0 }
-        ?.let { pluralStringResource(R.plurals.e05_grade_episodes, it, it) }
-    val status = if (forGrade && series) when (item.status?.trim()?.lowercase()) {
-        "returning series", "in production", "running", "continuing" -> stringResource(R.string.e05_grade_running)
-        "ended" -> stringResource(R.string.e05_grade_ended)
-        "canceled", "cancelled" -> stringResource(R.string.e05_grade_cancelled)
-        else -> null
-    } else null
-    val age = item.ageRating?.takeIf { it.isNotBlank() }
-    val details = listOfNotNull(
-        year, status, count, duration, age.takeUnless { forGrade }, rating
-    ).joinToString(" · ")
-    if (details.isNotEmpty()) {
-        val style = MaterialTheme.typography.labelLarge
-        Text(details, color = NuvioTheme.colors.TextPrimary,
-            style = if (forGrade) style.copy(fontSize = (style.fontSize.value + 2).sp) else style,
-            maxLines = 2, overflow = TextOverflow.Ellipsis)
-    }
-    if (forGrade && age != null) {
-        val colors = NuvioTheme.colors
-        Text(
-            stringResource(R.string.e05_grade_age, age),
-            modifier = Modifier.background(colors.Secondary.copy(alpha = .14f), RoundedCornerShape(5.dp))
-                .padding(horizontal = 6.dp, vertical = 2.dp),
-            color = colors.TextPrimary, style = MaterialTheme.typography.labelMedium
-        )
-    }
-    val context = LocalContext.current
-    val genres = item.genres.take(3).map { localizedGenreLabel(context, it) }
-        .joinToString(" · ").ifBlank { localizedContentType(item.apiType) }
-    if (genres.isNotBlank()) {
-        val style = MaterialTheme.typography.labelMedium
-        Text(genres, color = NuvioTheme.colors.TextSecondary,
-            style = if (forGrade) style.copy(fontSize = (style.fontSize.value + 2).sp) else style,
-            maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
-
-private val folderRuntimeMinutes = Regex("""(\d+)(?:\s*m(?:in)?)?""", RegexOption.IGNORE_CASE)
-private val folderYear = Regex("""\b(?:18|19|20|21)\d{2}\b""")

@@ -678,7 +678,7 @@ fun LibraryScreen(
                     item = preview,
                     artwork = rememberBrowseArtwork(
                         preview.id, preview.apiType, preview.background ?: preview.landscapePoster,
-                        preview.imdbId, withLogo = true
+                        preview.imdbId, withLogo = true, tmdbId = item.tmdbId, traktId = item.traktId
                     ),
                     modifier = Modifier.padding(horizontal = NuvioTheme.spacing.xxxl)
                 )

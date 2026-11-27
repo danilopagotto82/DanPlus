@@ -225,7 +225,8 @@ private fun TmdbEntityBrowseContent(
                 model = backgroundRequest,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
+                contentScale = com.nuvio.tv.ui.components.CollectionBannerScale,
+                alignment = Alignment.TopCenter,
                 alpha = 0.14f
             )
         }

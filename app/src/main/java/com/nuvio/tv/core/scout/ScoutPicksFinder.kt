@@ -72,7 +72,11 @@ data class ScoutPickDetail(
     val seasons: Int? = null,
     val minutes: Int? = null,
     val ended: Boolean = false,
-    val rating: String? = null
+    val rating: String? = null,
+    val episodeCount: Int? = null,
+    val lastAirDate: String? = null,
+    val status: String? = null,
+    val genres: List<String> = emptyList()
 )
 
 /** One extra profile in the room: its picks, and what it must not be offered. */
@@ -445,12 +449,17 @@ class ScoutPicksFinder @Inject constructor(
             if (pick.tv) tmdbApi.getTvDetails(pick.tmdbId, key, language) else tmdbApi.getMovieDetails(pick.tmdbId, key, language)
         }.getOrNull()?.body() ?: return null
         val rating = if (withRating) certification(pick) else null
+        val genres = details.genres.orEmpty().map { it.name }.filter(String::isNotBlank)
         return if (pick.tv) ScoutPickDetail(
-            seasons = details.seasons?.count { (it.seasonNumber ?: 0) > 0 }?.takeIf { it > 0 },
+            seasons = (details.seasonCount ?: details.seasons?.count { (it.seasonNumber ?: 0) > 0 })?.takeIf { it > 0 },
             minutes = details.episodeRunTime?.firstOrNull() ?: details.lastEpisodeToAir?.runtime,
             ended = details.status == ENDED_STATUS,
-            rating = rating
-        ) else ScoutPickDetail(minutes = details.runtime, rating = rating)
+            rating = rating,
+            episodeCount = details.episodeCount,
+            lastAirDate = details.lastAirDate,
+            status = details.status,
+            genres = genres
+        ) else ScoutPickDetail(minutes = details.runtime, rating = rating, genres = genres)
     }
 
     /** The title's logo in the app's language, else English, else one with no language. */

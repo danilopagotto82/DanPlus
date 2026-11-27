@@ -32,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.nuvio.tv.ui.v2.navigation.behindTopNavigation
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -89,7 +90,7 @@ internal fun BoxScope.ScoutBackdrop(picture: String?, wide: Boolean = false) {
         contentDescription = null,
         contentScale = ContentScale.Crop,
         alignment = BiasAlignment(0f, -.4f),
-        modifier = Modifier.matchParentSize()
+        modifier = Modifier.matchParentSize().behindTopNavigation().background(page)
     )
     val across = if (wide) {
         listOf(0f to page.copy(alpha = .98f), .56f to page.copy(alpha = .93f), .74f to page.copy(alpha = .55f), .92f to page.copy(alpha = .08f), 1f to page.copy(alpha = .08f))
@@ -100,6 +101,7 @@ internal fun BoxScope.ScoutBackdrop(picture: String?, wide: Boolean = false) {
     Box(
         Modifier
             .matchParentSize()
+            .behindTopNavigation()
             .background(Brush.horizontalGradient(*stops.toTypedArray()))
             .background(Brush.verticalGradient(0f to page.copy(alpha = .86f), .09f to page.copy(alpha = .5f), .19f to Color.Transparent))
             .background(Brush.verticalGradient(.42f to Color.Transparent, .74f to page.copy(alpha = .9f), 1f to page))

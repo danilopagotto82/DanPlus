@@ -2072,6 +2072,18 @@ private fun ModernCarouselCard(
                     )
                 }
 
+                if (isFocused && useLandscapeOverlayTreatment && !isBackdropExpanded && !shouldPlayTrailerInCard) {
+                    item.metaPreview?.let { preview ->
+                        com.nuvio.tv.ui.components.MediaMetadataChips(
+                            preview,
+                            modifier = Modifier.align(Alignment.TopStart)
+                                .fillMaxWidth(.78f).padding(start = 8.dp, top = 6.dp),
+                            maxLines = 1,
+                            onArtwork = true
+                        )
+                    }
+                }
+
                 item.cornerLabel?.takeIf { it.isNotBlank() }?.let { label ->
                     Text(
                         text = label,

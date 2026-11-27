@@ -50,6 +50,7 @@ data class LibraryEntry(
             releaseInfo = releaseInfo,
             imdbRating = imdbRating,
             genres = genres,
+            imdbId = imdbId,
             rawPosterUrl = rawPosterUrl,
             landscapePoster = landscapePoster
         )

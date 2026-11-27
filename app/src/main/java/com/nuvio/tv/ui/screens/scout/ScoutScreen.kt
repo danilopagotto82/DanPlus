@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Info
@@ -93,7 +94,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -127,7 +127,8 @@ import com.nuvio.tv.core.scout.scoutMoodArt
 import com.nuvio.tv.core.scout.SCOUT_PICKS_SHOWN
 import com.nuvio.tv.core.scout.ScoutAnswers
 import com.nuvio.tv.core.scout.ScoutMood
-import com.nuvio.tv.core.scout.ScoutPickDetail
+import com.nuvio.tv.ui.components.MediaGenres
+import com.nuvio.tv.ui.components.MediaMetadataChips
 import com.nuvio.tv.core.scout.ScoutTime
 import com.nuvio.tv.core.scout.ScoutTune
 import com.nuvio.tv.core.scout.ScoutWatch
@@ -155,11 +156,9 @@ import com.nuvio.tv.ui.v2.components.nuvioV2Focus
 import com.nuvio.tv.ui.v2.components.sidebarPageContent
 import java.util.Locale
 
-private const val BULLET = " • "
 private const val TAB_TASTE = "tab_taste"
 private const val TAB_MOOD = "mood_"
 private const val TAB_TUNE = "tune_"
-private const val TAB_SURPRISE = "tab_surprise"
 private const val TAB_FILTERS = "tab_filters"
 private const val ASK_INPUT = "ask_input"
 private const val CHOOSING_LENGTH = "length"
@@ -421,6 +420,7 @@ fun ScoutScreen(
                     state = state,
                     watchDisplay = watchDisplay.takeIf { appliesWatchFilter },
                     onToggleWatched = { viewModel.toggleShowWatched(watchDisplay) },
+                    onSurprise = viewModel::surprise,
                     onAdvanced = { discovery = viewModel.discoveryAudience() },
                     onAsk = onAsk?.let { { viewModel.openAsk() } },
                     focus = ::focus
@@ -442,7 +442,6 @@ fun ScoutScreen(
                     onClick = { item ->
                         when {
                             state.asking -> viewModel.backToMoods()
-                            item.key == TAB_SURPRISE -> viewModel.surprise()
                             item.key == TAB_FILTERS -> onOpenPicker()
                             item.key == SCOUT_FOCUS_THREE_MORE -> viewModel.threeMore()
                             item.key.startsWith(TAB_TUNE) -> ScoutTune.entries.firstOrNull { it.code == item.key.removePrefix(TAB_TUNE) }?.let(viewModel::pressTune)
@@ -594,7 +593,6 @@ private fun scoutTabItems(state: ScoutScreenState, listEmojis: Boolean): List<Sc
                 stringResource(mood.labelRes), com.nuvio.tv.core.scout.scoutMoodEmoji(mood), listEmojis
             ), tab == ScoutTab.Feeling(mood)))
         }
-        add(ScoutTabItem(TAB_SURPRISE, stringResource(R.string.scout_tile_surprise), false))
         add(ScoutTabItem(TAB_FILTERS, stringResource(R.string.scout_more_filters), false))
     }
 }
@@ -754,16 +752,23 @@ private fun ScoutHeroBlock(
             modifier = Modifier.fillMaxWidth(.62f)
         )
         pick.overview?.takeIf { it.isNotBlank() }?.let { overview ->
-            Text(
-                text = overview,
-                style = MaterialTheme.typography.bodyMedium.copy(textDirection = overview.contentTextDirection()),
-                color = NuvioTheme.colors.TextPrimary,
-                maxLines = if (compact) 1 else 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(.5f)
-            )
+            ScoutSynopsis(overview, modifier = Modifier.fillMaxWidth(.5f), maxLines = if (compact) 1 else 2)
         }
-        Text(scoutMetaLine(shown), style = MaterialTheme.typography.bodySmall, color = NuvioTheme.colors.TextSecondary, maxLines = 1)
+        val detail = shown.detail
+        MediaMetadataChips(
+            item = pick.toPreview().copy(
+                runtime = detail?.minutes?.toString(),
+                ageRating = detail?.rating,
+                seasonCount = detail?.seasons,
+                status = detail?.status ?: "Ended".takeIf { detail?.ended == true }
+            ),
+            modifier = Modifier.fillMaxWidth(.68f),
+            episodeCount = detail?.episodeCount,
+            lastAirYear = detail?.lastAirDate,
+            maxLines = 1,
+            onArtwork = true
+        )
+        if (!compact) MediaGenres(detail?.genres.orEmpty(), modifier = Modifier.fillMaxWidth(.5f), onArtwork = true)
     }
 }
 
@@ -792,6 +797,7 @@ private fun ScoutMoodLine(
     state: ScoutScreenState,
     watchDisplay: ScoutWatchDisplay?,
     onToggleWatched: () -> Unit,
+    onSurprise: () -> Unit,
     onAdvanced: () -> Unit,
     onAsk: (() -> Unit)?,
     focus: (String) -> Modifier
@@ -852,6 +858,13 @@ private fun ScoutMoodLine(
                 icon = { Icon(Icons.Default.Mic, null, Modifier.size(18.dp)) }
             )
         }
+        ScoutChip(
+            stringResource(R.string.scout_tile_surprise),
+            onClick = onSurprise,
+            modifier = focus("tab_surprise"),
+            primary = true,
+            icon = { Icon(Icons.Default.Shuffle, null, Modifier.size(16.dp)) }
+        )
         if (watchDisplay != null) {
             ScoutChip(stringResource(R.string.e05_scout_filters), onAdvanced, focus("advanced_filters"))
             ScoutWatchedButton(
@@ -988,33 +1001,6 @@ private fun ScoutPick.toPreview() = MetaPreview(
     voteCount = votes,
     genres = emptyList()
 )
-
-@Composable
-private fun scoutMetaLine(shown: ScoutShownPick): String {
-    val pick = shown.pick
-    val detail: ScoutPickDetail? = shown.detail
-    val parts = buildList {
-        pick.released?.take(4)?.let(::add)
-        detail?.seasons?.let { seasons ->
-            add(
-                pluralStringResource(
-                    if (detail.ended) R.plurals.scout_meta_seasons_finished else R.plurals.scout_meta_seasons,
-                    seasons,
-                    seasons
-                )
-            )
-        }
-        detail?.minutes?.takeIf { it > 0 }?.let { minutes ->
-            add(
-                if (minutes < 60) stringResource(R.string.scout_meta_minutes, minutes)
-                else stringResource(R.string.scout_meta_hours, minutes / 60, minutes % 60)
-            )
-        }
-        detail?.rating?.let(::add)
-        pick.rating?.takeIf { it > 0f }?.let { add(String.format(Locale.getDefault(), "%.1f", it)) }
-    }
-    return parts.joinToString(BULLET)
-}
 
 @Composable
 private fun scoutReasonLine(shown: ScoutShownPick): String = shown.reason?.takeIf { it.isNotBlank() } ?: when (val why = scoutWhy(shown.pick, shown.detail, shown.suitsEveryone)) {

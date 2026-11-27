@@ -48,6 +48,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -68,6 +69,25 @@ import com.nuvio.tv.ui.v2.components.AvatarModel
 import com.nuvio.tv.ui.v2.components.NuvioAvatar
 
 val LocalV2TopChrome = staticCompositionLocalOf { false }
+private val TopChromeInset = 54.dp
+
+/** Paint a destination's backdrop through the navigation inset without moving its controls. */
+@Composable
+internal fun Modifier.behindTopNavigation(): Modifier {
+    if (!LocalV2TopChrome.current) return this
+    return layout { measurable, constraints ->
+        if (!constraints.hasBoundedHeight) {
+            val placeable = measurable.measure(constraints)
+            return@layout layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
+        }
+        val inset = TopChromeInset.roundToPx()
+        val artwork = measurable.measure(constraints.copy(
+            minHeight = constraints.minHeight + inset,
+            maxHeight = constraints.maxHeight + inset
+        ))
+        layout(artwork.width, artwork.height - inset) { artwork.placeRelative(0, -inset) }
+    }
+}
 
 /** Alternative chrome around the same navigation controller and destination graph. */
 @Composable
@@ -132,7 +152,7 @@ fun V2TopNavigation(
         }
     }
     Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().padding(top = if (visible) 54.dp else 0.dp)
+        Box(Modifier.fillMaxSize().padding(top = if (visible) TopChromeInset else 0.dp)
             .focusRequester(contentFocus).focusRestorer()
             .focusProperties {
                 this.onExit = {
@@ -201,7 +221,7 @@ fun V2TopNavigation(
                         )
                     }
                 }
-                DeviceSystemClock()
+                DeviceSystemClock(onArtwork = true)
                 if (settings != null || profile != null) {
                     val controlAlpha = centerAlpha * .10f
                     Row(

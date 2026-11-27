@@ -78,6 +78,8 @@ internal fun PlayerRuntimeController.applyMetaDetails(meta: Meta) {
     }?.title?.takeIf(String::isNotBlank)
     if (episodeTitle != null) currentEpisodeTitle = episodeTitle
 
+    val actors = pauseAddonCast(meta.castMembers, meta.cast, meta.writer)
+    val directions = pauseAddonDirectors(meta.castMembers, meta.director)
     recomputeNextEpisode(resetVisibility = false)
     _uiState.update { state ->
         state.copy(
@@ -89,7 +91,8 @@ internal fun PlayerRuntimeController.applyMetaDetails(meta: Meta) {
             releaseYear = playerMovieYear(meta.releaseInfo) ?: state.releaseYear,
             pauseGenres = meta.genres.ifEmpty { state.pauseGenres },
             pauseImdbRating = meta.imdbRating ?: state.pauseImdbRating,
-            castMembers = if (meta.castMembers.isNotEmpty()) meta.castMembers else state.castMembers,
+            castMembers = mergePauseCast(actors, state.castMembers),
+            pauseDirectorMembers = mergePauseCast(directions, state.pauseDirectorMembers),
             directors = meta.director,
             isNextEpisodeMetadataResolved = true
         )
@@ -204,7 +207,7 @@ private suspend fun PlayerRuntimeController.enrichDescriptionFromTmdb(id: String
         state.copy(
             poster = state.poster ?: enrichment.poster.takeIf { settings.useArtwork },
             pauseGenres = state.pauseGenres.ifEmpty { enrichment.genres },
-            pauseDirectorMembers = enrichment.directorMembers,
+            pauseDirectorMembers = mergePauseCast(state.pauseDirectorMembers, enrichment.directorMembers),
             castMembers = mergePauseCast(state.castMembers, enrichment.castMembers)
         )
     }

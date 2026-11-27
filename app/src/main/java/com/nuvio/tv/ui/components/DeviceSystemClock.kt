@@ -13,6 +13,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
@@ -27,7 +30,7 @@ import java.util.Date
 
 /** System clock for navigation chrome; never takes remote-control focus. */
 @Composable
-fun DeviceSystemClock(modifier: Modifier = Modifier, fontSize: TextUnit = 14.sp) {
+fun DeviceSystemClock(modifier: Modifier = Modifier, fontSize: TextUnit = 14.sp, onArtwork: Boolean = false) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var timeLabel by remember(context) { mutableStateOf(deviceTimeLabel(context)) }
@@ -64,8 +67,11 @@ fun DeviceSystemClock(modifier: Modifier = Modifier, fontSize: TextUnit = 14.sp)
     Text(
         text = timeLabel,
         modifier = modifier.focusProperties { canFocus = false },
-        style = MaterialTheme.typography.labelLarge.copy(fontSize = fontSize),
-        color = NuvioTheme.colors.TextSecondary,
+        style = MaterialTheme.typography.labelLarge.copy(
+            fontSize = fontSize,
+            shadow = if (onArtwork) Shadow(Color.Black, Offset(0f, 1f), 5f) else null
+        ),
+        color = if (onArtwork) Color.White else NuvioTheme.colors.TextSecondary,
         maxLines = 1
     )
 }

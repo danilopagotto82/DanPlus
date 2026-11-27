@@ -20,6 +20,7 @@ internal fun LazyListScope.detailSection(
     key: String,
     contentType: String,
     immediate: Boolean,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) = item(key = key, contentType = contentType) {
     var appeared by rememberSaveable { mutableStateOf(false) }
@@ -29,7 +30,7 @@ internal fun LazyListScope.detailSection(
         label = "detailSectionReveal"
     )
     LaunchedEffect(Unit) { appeared = true }
-    Box(Modifier.fillMaxWidth().graphicsLayer {
+    Box(modifier.fillMaxWidth().graphicsLayer {
         compositingStrategy = CompositingStrategy.ModulateAlpha
         alpha = if (immediate) 1f else opacity.value
     }) { content() }

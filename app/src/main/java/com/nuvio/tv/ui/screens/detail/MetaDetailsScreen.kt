@@ -83,6 +83,7 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.ContentScale
@@ -2110,16 +2111,24 @@ private fun MetaDetailsContent(
         activePeopleTab == PeopleSectionTab.RATINGS -> ratingsContentFocusRequester
         else -> null
     }
+    val splitCollectionVisible = shouldSplitCollection && collection.isNotEmpty()
+    val peopleDownFocusRequester = when {
+        // The section's key handler composes the adjacent collection row on demand.
+        splitCollectionVisible -> null
+        shouldShowCommentsSection -> commentsRowEntryFocusRequester
+        else -> null
+    }
+    val activePeopleSectionRequester = when (activePeopleTab) {
+        PeopleSectionTab.CAST -> castSectionFocusRequester
+        PeopleSectionTab.MORE_LIKE_THIS -> moreLikeSectionFocusRequester
+        PeopleSectionTab.WHERE_TO_WATCH -> watchSectionFocusRequester
+        PeopleSectionTab.TRAILER -> trailerSectionFocusRequester
+        PeopleSectionTab.COLLECTION -> collectionSectionFocusRequester
+        PeopleSectionTab.RATINGS -> ratingsGridFocusRequester
+    }
     val commentsUpFocusRequester = when {
-        shouldSplitCollection && collection.isNotEmpty() -> collectionSectionFocusRequester
-        hasVisiblePeopleSection -> when (activePeopleTab) {
-            PeopleSectionTab.CAST -> castSectionFocusRequester
-            PeopleSectionTab.MORE_LIKE_THIS -> moreLikeSectionFocusRequester
-            PeopleSectionTab.WHERE_TO_WATCH -> watchSectionFocusRequester
-            PeopleSectionTab.TRAILER -> trailerSectionFocusRequester
-            PeopleSectionTab.COLLECTION -> collectionSectionFocusRequester
-            PeopleSectionTab.RATINGS -> ratingsGridFocusRequester
-        }
+        splitCollectionVisible -> collectionSectionFocusRequester
+        hasVisiblePeopleSection -> activePeopleSectionRequester
         isSeries -> seasonDownFocusRequester ?: heroPlayFocusRequester
         else -> heroPlayFocusRequester
     }
@@ -2849,7 +2858,14 @@ private fun MetaDetailsContent(
                         }
                     }
 
-                    detailSection(key = "cast_or_more_like", contentType = "horizontal_row", immediate = revealSecondaryImmediately) {
+                    detailSection(
+                        key = "cast_or_more_like",
+                        contentType = "horizontal_row",
+                        immediate = revealSecondaryImmediately,
+                        modifier = if (splitCollectionVisible) Modifier.focusAdjacentDetailSection(
+                            listState, coroutineScope, "cast_or_more_like", Key.DirectionDown, collectionSectionFocusRequester
+                        ) else Modifier
+                    ) {
                         val visiblePeopleTabsList = visiblePeopleTabItems.map { it.tab }
                         val visiblePeopleSection = if (hasVisiblePeopleTabs) {
                             activePeopleTab
@@ -2869,7 +2885,7 @@ private fun MetaDetailsContent(
                                         title = if (hasVisiblePeopleTabs) "" else strTabCast,
                                         leadingCast = directorWriterMembers,
                                         upFocusRequester = if (hasVisiblePeopleTabs) castTabFocusRequester else seasonDownFocusRequester ?: heroPlayFocusRequester,
-                                        downFocusRequester = if (shouldShowCommentsSection) commentsRowEntryFocusRequester else null,
+                                        downFocusRequester = peopleDownFocusRequester,
                                         sectionFocusRequester = castSectionFocusRequester,
                                         restorePersonId = if (!childOverlayVisible && pendingRestoreType == RestoreTarget.CAST_MEMBER) pendingRestoreCastPersonId else null,
                                         restoreFocusToken = if (pendingRestoreType == RestoreTarget.CAST_MEMBER) restoreFocusToken else 0,
@@ -2903,7 +2919,7 @@ private fun MetaDetailsContent(
                                         sourceLabel = moreLikeThisSourceLabel,
                                         posterCardCornerRadius = posterCardCornerRadiusDp.dp,
                                         upFocusRequester = if (hasVisiblePeopleTabs) moreLikeTabFocusRequester else seasonDownFocusRequester ?: heroPlayFocusRequester,
-                                        downFocusRequester = if (shouldShowCommentsSection) commentsRowEntryFocusRequester else null,
+                                        downFocusRequester = peopleDownFocusRequester,
                                         sectionFocusRequester = moreLikeSectionFocusRequester,
                                         restoreItemId = if (!childOverlayVisible && pendingRestoreType == RestoreTarget.MORE_LIKE_THIS) pendingRestoreMoreLikeItemId else null,
                                         restoreFocusToken = if (pendingRestoreType == RestoreTarget.MORE_LIKE_THIS) restoreFocusToken else 0,
@@ -2934,11 +2950,7 @@ private fun MetaDetailsContent(
                                         listState = trailerListState,
                                         posterCardCornerRadius = posterCardCornerRadiusDp.dp,
                                         upFocusRequester = if (hasVisiblePeopleTabs) trailerTabFocusRequester else seasonDownFocusRequester ?: heroPlayFocusRequester,
-                                        downFocusRequester = when {
-                                            shouldSplitCollection && collection.isNotEmpty() -> collectionSectionFocusRequester
-                                            shouldShowCommentsSection -> commentsRowEntryFocusRequester
-                                            else -> null
-                                        },
+                                        downFocusRequester = peopleDownFocusRequester,
                                         sectionFocusRequester = trailerSectionFocusRequester,
                                         restoreTrailerId = if (restoreSharedTrailerFocusToken > 0) selectedSharedTrailer?.ytId else null,
                                         restoreFocusToken = restoreSharedTrailerFocusToken,
@@ -2958,7 +2970,7 @@ private fun MetaDetailsContent(
                                         listState = collectionListState,
                                         posterCardCornerRadius = posterCardCornerRadiusDp.dp,
                                         upFocusRequester = if (hasVisiblePeopleTabs) collectionTabFocusRequester else seasonDownFocusRequester ?: heroPlayFocusRequester,
-                                        downFocusRequester = if (shouldShowCommentsSection) commentsRowEntryFocusRequester else null,
+                                        downFocusRequester = peopleDownFocusRequester,
                                         sectionFocusRequester = collectionSectionFocusRequester,
                                         restoreItemId = if (!childOverlayVisible && pendingRestoreType == RestoreTarget.COLLECTION) pendingRestoreCollectionItemId else null,
                                         restoreFocusToken = if (pendingRestoreType == RestoreTarget.COLLECTION) restoreFocusToken else 0,
@@ -2994,11 +3006,7 @@ private fun MetaDetailsContent(
                                         } else {
                                             seasonDownFocusRequester ?: heroPlayFocusRequester
                                         },
-                                        downFocusRequester = when {
-                                            shouldSplitCollection -> collectionSectionFocusRequester
-                                            shouldShowCommentsSection -> commentsRowEntryFocusRequester
-                                            else -> null
-                                        },
+                                        downFocusRequester = peopleDownFocusRequester,
                                         modifier = Modifier.padding(start = detailStartInset, end = NuvioTheme.spacing.xxxl)
                                     )
                                 }
@@ -3015,7 +3023,7 @@ private fun MetaDetailsContent(
                                         } else {
                                             seasonDownFocusRequester ?: heroPlayFocusRequester
                                         },
-                                        downFocusRequester = if (shouldShowCommentsSection) commentsRowEntryFocusRequester else null,
+                                        downFocusRequester = peopleDownFocusRequester,
                                         firstItemFocusRequester = ratingsContentFocusRequester,
                                         ratingsGridFocusRequester = ratingsGridFocusRequester,
                                         modifier = Modifier.heightIn(min = if (!hasItemsBelow) castSectionHeight else NuvioTheme.spacing.none)
@@ -3027,25 +3035,22 @@ private fun MetaDetailsContent(
                 }
 
                 // Collection as separate section when there are too many tabs
-                if (shouldSplitCollection && collection.isNotEmpty()) {
-                    detailSection(key = "collection_section", contentType = "horizontal_row", immediate = revealSecondaryImmediately) {
+                if (splitCollectionVisible) {
+                    detailSection(
+                        key = "collection_section",
+                        contentType = "horizontal_row",
+                        immediate = revealSecondaryImmediately,
+                        modifier = Modifier.focusAdjacentDetailSection(
+                            listState, coroutineScope, "collection_section", Key.DirectionUp, activePeopleSectionRequester
+                        ).then(if (shouldShowCommentsSection) Modifier.focusAdjacentDetailSection(
+                            listState, coroutineScope, "collection_section", Key.DirectionDown, commentsRowEntryFocusRequester
+                        ) else Modifier)
+                    ) {
                         CollectionSection(
                             items = collection,
                             listState = collectionListState,
                             title = collectionName ?: strTabCollection,
                             posterCardCornerRadius = posterCardCornerRadiusDp.dp,
-                            upFocusRequester = if (hasVisiblePeopleSection) {
-                                when (activePeopleTab) {
-                                    PeopleSectionTab.CAST -> castSectionFocusRequester
-                                    PeopleSectionTab.MORE_LIKE_THIS -> moreLikeSectionFocusRequester
-                                    PeopleSectionTab.WHERE_TO_WATCH -> watchSectionFocusRequester
-                                    PeopleSectionTab.TRAILER -> trailerSectionFocusRequester
-                                    PeopleSectionTab.RATINGS -> ratingsContentFocusRequester
-                                    PeopleSectionTab.COLLECTION -> seasonDownFocusRequester ?: heroPlayFocusRequester
-                                }
-                            } else {
-                                seasonDownFocusRequester ?: heroPlayFocusRequester
-                            },
                             sectionFocusRequester = collectionSectionFocusRequester,
                             restoreItemId = if (!childOverlayVisible && pendingRestoreType == RestoreTarget.COLLECTION) pendingRestoreCollectionItemId else null,
                             restoreFocusToken = if (pendingRestoreType == RestoreTarget.COLLECTION) restoreFocusToken else 0,
@@ -3072,7 +3077,14 @@ private fun MetaDetailsContent(
                 }
 
                 if (shouldShowCommentsSection) {
-                    detailSection(key = "tmdb_comments", contentType = "horizontal_row", immediate = revealSecondaryImmediately) {
+                    detailSection(
+                        key = "tmdb_comments",
+                        contentType = "horizontal_row",
+                        immediate = revealSecondaryImmediately,
+                        modifier = if (splitCollectionVisible) Modifier.focusAdjacentDetailSection(
+                            listState, coroutineScope, "tmdb_comments", Key.DirectionUp, collectionSectionFocusRequester
+                        ) else Modifier
+                    ) {
                         val comments = commentState.value
                         CommentsSection(
                             comments = comments.comments,

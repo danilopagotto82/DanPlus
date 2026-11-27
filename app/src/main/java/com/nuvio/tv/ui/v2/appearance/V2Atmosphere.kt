@@ -28,6 +28,7 @@ import com.nuvio.tv.ui.screens.home.PageHeroArtwork
 import com.nuvio.tv.ui.screens.home.HeroBackdropState
 import com.nuvio.tv.ui.theme.NuvioTheme
 import com.nuvio.tv.ui.v2.components.v2GlassSource
+import com.nuvio.tv.ui.v2.navigation.behindTopNavigation
 
 /** Shared cached artwork source for bounded frosted panels; no video capture. */
 @Composable
@@ -68,7 +69,7 @@ fun V2Atmosphere(
                 .build()
         }
     }
-    Box(modifier.fillMaxSize().background(base).v2GlassSource().v2StaticBackdrop()) {
+    Box(modifier.fillMaxSize().behindTopNavigation().background(base).v2GlassSource().v2StaticBackdrop()) {
         if (background == SettingsBackground.POSTERS) {
             com.nuvio.tv.ui.v2.profile.ProfilePosterWallBackground(pageBackground = true)
         }

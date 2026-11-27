@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.nuvio.tv.ui.v2.navigation.behindTopNavigation
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
@@ -216,7 +217,7 @@ internal fun ModernHeroMediaLayer(
       BoxWithConstraints(Modifier.fillMaxSize()) {
         HeroBackdropImages(
             image = preparedImage,
-            modifier = Modifier.fillMaxSize().graphicsLayer {
+            modifier = Modifier.fillMaxSize().behindTopNavigation().graphicsLayer {
                 alpha = if (featheredTrailer) 1f else 1f - transitionProgressState.value
             }.then(if (liveTrailerGlass) Modifier else Modifier.v2GlassSource())
         )
