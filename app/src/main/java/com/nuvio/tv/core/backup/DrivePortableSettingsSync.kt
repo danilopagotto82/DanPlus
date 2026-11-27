@@ -9,7 +9,8 @@ import org.json.JSONObject
 internal data class DrivePortableSettings(
     val favoriteGenre: Int?,
     val scoutInMenu: Boolean,
-    val scoutListEmojis: Boolean
+    val scoutListEmojis: Boolean,
+    val scoutShowWatched: Boolean = true
 ) {
     init {
         require(favoriteGenre == null || favoriteGenre in setOf(18, 28, 35))
@@ -24,7 +25,7 @@ internal sealed interface DrivePortableResult {
 }
 
 /**
- * Version 2 uses a separately provisioned file. The caller captures a profile session and
+ * Version 3 uses a separately provisioned file. The caller captures a profile session and
  * applies the result only if that session and the local snapshot still match.
  */
 internal class DrivePortableSettingsSync(private val transport: DriveCinemaTransport) {
@@ -87,29 +88,32 @@ internal class DrivePortableSettingsSync(private val transport: DriveCinemaTrans
         return DrivePortableSettings(
             favoriteGenre = if (localGenreChanged) local.favoriteGenre else remote.favoriteGenre,
             scoutInMenu = if (local.scoutInMenu != baseline.scoutInMenu) local.scoutInMenu else remote.scoutInMenu,
-            scoutListEmojis = if (local.scoutListEmojis != baseline.scoutListEmojis) local.scoutListEmojis else remote.scoutListEmojis
+            scoutListEmojis = if (local.scoutListEmojis != baseline.scoutListEmojis) local.scoutListEmojis else remote.scoutListEmojis,
+            scoutShowWatched = if (local.scoutShowWatched != baseline.scoutShowWatched) local.scoutShowWatched else remote.scoutShowWatched
         )
     }
 
     private fun encode(scope: DriveCinemaScope, settings: DrivePortableSettings) = JSONObject()
-        .put("version", 2)
+        .put("version", 3)
         .put("drive", scope.driveAccount)
         .put("account", scope.appAccount)
         .put("profile", scope.profile)
         .put("cinema_favorite_genre_v1", settings.favoriteGenre ?: JSONObject.NULL)
         .put("show_in_menu", settings.scoutInMenu)
         .put("list_emojis", settings.scoutListEmojis)
+        .put("show_watched", settings.scoutShowWatched)
 
     private fun decode(box: SealedBox, scope: DriveCinemaScope, pin: String): DrivePortableSettings {
         require(box.iterations in 1..BackupCrypto.MAX_ITERATIONS && box.data.length <= 8192)
         val payload = JSONObject(BackupCrypto.open(box, pin))
-        require(payload.get("version") == 2 && payload.get("drive") == scope.driveAccount &&
+        require(payload.get("version") == 3 && payload.get("drive") == scope.driveAccount &&
             payload.get("account") == scope.appAccount && payload.get("profile") == scope.profile)
         val genre = payload.get("cinema_favorite_genre_v1")
         require(genre == JSONObject.NULL || genre is Int)
         val showInMenu = payload.get("show_in_menu")
         val listEmojis = payload.get("list_emojis")
-        require(showInMenu is Boolean && listEmojis is Boolean)
-        return DrivePortableSettings(genre as? Int, showInMenu, listEmojis)
+        val showWatched = payload.get("show_watched")
+        require(showInMenu is Boolean && listEmojis is Boolean && showWatched is Boolean)
+        return DrivePortableSettings(genre as? Int, showInMenu, listEmojis, showWatched)
     }
 }

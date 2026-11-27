@@ -13,10 +13,10 @@ class DrivePortableSettingsSyncTest {
     @Test
     fun mergesIndependentChanges() = runBlocking {
         val remote = defaults.copy(scoutInMenu = true)
-        val local = defaults.copy(scoutListEmojis = true)
+        val local = defaults.copy(scoutListEmojis = true, scoutShowWatched = false)
         sync.reconcile(scope, "test", "123456", remote, null) { true }
         assertEquals(
-            DrivePortableResult.InSync(remote.copy(scoutListEmojis = true)),
+            DrivePortableResult.InSync(remote.copy(scoutListEmojis = true, scoutShowWatched = false)),
             sync.reconcile(scope, "test", "123456", local, defaults) { true }
         )
         assertEquals(2, transport.writes)
