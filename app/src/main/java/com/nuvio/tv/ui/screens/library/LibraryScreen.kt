@@ -260,15 +260,15 @@ fun LibraryScreen(
                 if (gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset == 0) {
                     runCatching { gridState.scrollToItem(restoreIndex) }
                 }
-                focused = runCatching { restoreRequester.requestFocus() }.isSuccess
+                focused = runCatching { restoreRequester.requestFocus(FocusDirection.Enter) }.getOrDefault(false)
                 if (!focused) {
                     delay(16)
-                    focused = runCatching { restoreRequester.requestFocus() }.isSuccess
+                    focused = runCatching { restoreRequester.requestFocus(FocusDirection.Enter) }.getOrDefault(false)
                 }
             }
 
             if (!focused) {
-                focused = runCatching { primaryFocusRequester.requestFocus() }.isSuccess
+                focused = runCatching { primaryFocusRequester.requestFocus(FocusDirection.Enter) }.getOrDefault(false)
             }
             if (!focused) {
                 delay(16)
@@ -348,7 +348,7 @@ fun LibraryScreen(
                     posterFocusRequesters[lastKey]
                 } else {
                     posterFocusRequesters[firstVisibleCardKey]
-                }) ?: FocusRequester()
+                }) ?: FocusRequester.Default
             }
             .onPreviewKeyEvent { event ->
                 val native = event.nativeKeyEvent
