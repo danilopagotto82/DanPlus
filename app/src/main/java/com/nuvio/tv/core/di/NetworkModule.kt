@@ -683,12 +683,8 @@ object NetworkModule {
     @Singleton
     @Named("seriesGraph")
     fun provideSeriesGraphRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit {
-        val rawBaseUrl = BuildConfig.IMDB_RATINGS_API_BASE_URL
-        val normalizedBaseUrl = if (rawBaseUrl.isNotBlank()) {
-            if (rawBaseUrl.endsWith('/')) rawBaseUrl else "$rawBaseUrl/"
-        } else {
-            "http://localhost/"
-        }
+        val rawBaseUrl = BuildConfig.IMDB_RATINGS_API_BASE_URL.trim().ifBlank { "https://seriesgraph.com/" }
+        val normalizedBaseUrl = if (rawBaseUrl.endsWith('/')) rawBaseUrl else "$rawBaseUrl/"
         return Retrofit.Builder()
             .baseUrl(normalizedBaseUrl)
             .client(okHttpClient)

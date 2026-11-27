@@ -1987,12 +1987,11 @@ private suspend fun HomeViewModel.enrichInProgressItem(
     ) {
         val addonRating = resolveVideoForProgress(item.progress, meta)?.rating?.toFloat()
         val externalRating = run {
-            val imdbId = extractImdbIdFromContentId(item.progress.contentId)
             val tmdbIdStr = runCatching { tmdbService.ensureTmdbId(item.progress.contentId, item.progress.contentType) }.getOrNull()
             val tmdbIdInt = tmdbIdStr?.toIntOrNull()
-            if (imdbId != null || tmdbIdInt != null) {
+            if (tmdbIdInt != null) {
                 runCatching {
-                    imdbEpisodeRatingsRepository.getEpisodeRatings(imdbId, tmdbIdInt)
+                    imdbEpisodeRatingsRepository.getEpisodeRatings(tmdbIdInt)
                 }.getOrNull()?.get(item.progress.season!! to item.progress.episode!!)?.toFloat()
             } else null
         }
@@ -2091,12 +2090,11 @@ private suspend fun HomeViewModel.enrichNextUpItem(
         val e = video?.episode ?: item.info.episode
         val addonRating = video?.rating?.toFloat()
         val externalRating = run {
-            val imdbId = extractImdbIdFromContentId(item.info.contentId)
             val tmdbIdStr = runCatching { tmdbService.ensureTmdbId(item.info.contentId, item.info.contentType) }.getOrNull()
             val tmdbIdInt = tmdbIdStr?.toIntOrNull()
-            if (imdbId != null || tmdbIdInt != null) {
+            if (tmdbIdInt != null) {
                 runCatching {
-                    imdbEpisodeRatingsRepository.getEpisodeRatings(imdbId, tmdbIdInt)
+                    imdbEpisodeRatingsRepository.getEpisodeRatings(tmdbIdInt)
                 }.getOrNull()?.get(s to e)?.toFloat()
             } else null
         }

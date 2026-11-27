@@ -1,9 +1,7 @@
 package com.nuvio.tv.data.repository
 
 import android.util.Log
-import com.nuvio.tv.BuildConfig
 import com.nuvio.tv.core.tmdb.TmdbApiKey
-import com.nuvio.tv.data.remote.api.ImdbTapframeApi
 import com.nuvio.tv.data.remote.api.SeriesGraphApi
 import com.nuvio.tv.data.remote.api.SeriesGraphSeasonRatingsDto
 import com.nuvio.tv.data.remote.api.TmdbApi
@@ -32,15 +30,13 @@ internal fun canonicalRatingsImdbId(raw: String?): String? = raw?.trim()?.let { 
 
 @Singleton
 class ImdbEpisodeRatingsRepository @Inject constructor(
-    private val imdbTapframeApi: ImdbTapframeApi,
     private val seriesGraphApi: SeriesGraphApi,
     private val tmdbApi: TmdbApi
 ) {
     private data class Key(val source: EpisodeRatingSource, val id: String, val season: Int = 0)
     private data class ProviderResult(
         val ratings: Map<Pair<Int, Int>, EpisodeRating> = emptyMap(),
-        val failed: Boolean = false,
-        val unreachable: Boolean = false
+        val failed: Boolean = false
     )
     private data class CacheEntry(val result: ProviderResult, val expiresAt: Long)
     private class Request(val result: Deferred<ProviderResult>, var consumers: Int = 0)
@@ -48,52 +44,25 @@ class ImdbEpisodeRatingsRepository @Inject constructor(
     private val inFlight = mutableMapOf<Key, Request>()
     private val lock = Any()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    internal var primaryConfigured = BuildConfig.IMDB_TAPFRAME_API_BASE_URL.isNotBlank()
-    internal var seriesGraphConfigured = BuildConfig.IMDB_RATINGS_API_BASE_URL.isNotBlank()
     internal var tmdbKey: () -> String = { TmdbApiKey.value }
-    internal val primaryOutage = HostOutage()
 
-    // The Home caller has its existing IMDb-oriented display. TMDB is used only by the
-    // source-aware details screens.
-    suspend fun getEpisodeRatings(imdbId: String?, tmdbId: Int?): Map<Pair<Int, Int>, Double> {
-        val primary = primaryRatings(imdbId)
-        if (primary.ratings.isNotEmpty()) return primary.ratings.mapValues { it.value.value }
-        val fallback = seriesGraphRatings(tmdbId)
-        markPrimaryOutage(primary, fallback.ratings.isNotEmpty())
-        return fallback.ratings.mapValues { it.value.value }
-    }
+    // Keep the Home card's existing score lookup limited to SeriesGraph.
+    suspend fun getEpisodeRatings(tmdbId: Int?): Map<Pair<Int, Int>, Double> =
+        seriesGraphRatings(tmdbId).ratings.mapValues { it.value.value }
 
-    suspend fun getSeasonRatings(imdbId: String?, tmdbId: Int?, season: Int, episodes: Set<Int>): EpisodeRatingsResult {
+    suspend fun getSeasonRatings(tmdbId: Int?, season: Int, episodes: Set<Int>): EpisodeRatingsResult {
         val wanted = episodes.filter { season > 0 && it > 0 }.mapTo(hashSetOf()) { season to it }
         if (wanted.isEmpty()) return EpisodeRatingsResult()
-        val primary = primaryRatings(imdbId)
-        val primarySeason = primary.ratings.filterKeys { it in wanted }
-        if (primarySeason.size == wanted.size) return EpisodeRatingsResult(primarySeason)
         val graph = seriesGraphRatings(tmdbId)
-        val providerRatings = graph.ratings.filterKeys { it in wanted } + primarySeason
-        val tmdb = if (providerRatings.size == wanted.size) ProviderResult() else tmdbRatings(tmdbId, season)
-        markPrimaryOutage(primary, graph.ratings.isNotEmpty() || tmdb.ratings.isNotEmpty())
-        val scores = tmdb.ratings.filterKeys { it in wanted } + providerRatings
-        return EpisodeRatingsResult(scores, scores.size < wanted.size && (primary.failed || graph.failed || tmdb.failed))
-    }
-
-    private fun markPrimaryOutage(primary: ProviderResult, networkUp: Boolean) {
-        if (primary.unreachable) primaryOutage.markDown(networkUp, TAG)
-    }
-
-    private suspend fun primaryRatings(imdbId: String?): ProviderResult {
-        val id = canonicalRatingsImdbId(imdbId) ?: return ProviderResult()
-        if (!primaryConfigured) return ProviderResult()
-        if (primaryOutage.isDown()) return ProviderResult(failed = true)
-        val source = EpisodeRatingSource.IMDB
-        return fetch(Key(source, id)) {
-            val response = imdbTapframeApi.getSeasonRatings(id)
-            response.toResult(source) { ratingsFromGraph(it, source) }
-        }
+        val graphRatings = graph.ratings.filterKeys { it in wanted }
+        if (graphRatings.size == wanted.size) return EpisodeRatingsResult(graphRatings)
+        val tmdb = tmdbRatings(tmdbId, season)
+        val scores = tmdb.ratings.filterKeys { it in wanted } + graphRatings
+        return EpisodeRatingsResult(scores, scores.size < wanted.size && (graph.failed || tmdb.failed))
     }
 
     private suspend fun seriesGraphRatings(tmdbId: Int?): ProviderResult {
-        val id = tmdbId?.takeIf { it > 0 && seriesGraphConfigured } ?: return ProviderResult()
+        val id = tmdbId?.takeIf { it > 0 } ?: return ProviderResult()
         val source = EpisodeRatingSource.SERIES_GRAPH
         return fetch(Key(source, id.toString())) {
             seriesGraphApi.getSeasonRatings(id).toResult(source) { ratingsFromGraph(it, source) }
@@ -145,7 +114,7 @@ class ImdbEpisodeRatingsRepository @Inject constructor(
                     } catch (error: Exception) {
                         // Retrofit exceptions can include a credential in a request URL.
                         Log.w(TAG, "${key.source} episode ratings failed: ${error.javaClass.simpleName}")
-                        ProviderResult(failed = true, unreachable = HostOutage.isUnreachable(error))
+                        ProviderResult(failed = true)
                     }
                 })
             }.also { it.consumers++ }

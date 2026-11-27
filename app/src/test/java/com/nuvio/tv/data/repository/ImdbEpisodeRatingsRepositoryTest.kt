@@ -1,6 +1,5 @@
 package com.nuvio.tv.data.repository
 
-import com.nuvio.tv.data.remote.api.ImdbTapframeApi
 import com.nuvio.tv.data.remote.api.SeriesGraphApi
 import com.nuvio.tv.data.remote.api.SeriesGraphEpisodeRatingDto
 import com.nuvio.tv.data.remote.api.SeriesGraphSeasonRatingsDto
@@ -36,59 +35,24 @@ class ImdbEpisodeRatingsRepositoryTest {
     )
 
     @Test
-    fun `a primary host that does not resolve is skipped on the next series`() = runBlocking {
-        val primary = mockk<ImdbTapframeApi>()
-        coEvery { primary.getSeasonRatings(any()) } throws UnknownHostException("imdb.tapframe.space")
-        val fallback = mockk<SeriesGraphApi>()
-        coEvery { fallback.getSeasonRatings(any()) } returns Response.success(backup)
-        val repository = repository(primary, fallback).apply { primaryConfigured = true }
-
-        assertEquals(mapOf((1 to 1) to 8.1), repository.getEpisodeRatings("tt0000001", 11))
-        assertEquals(mapOf((1 to 1) to 8.1), repository.getEpisodeRatings("tt0000002", 12))
-
-        coVerify(exactly = 1) { primary.getSeasonRatings(any()) }
-        coVerify(exactly = 2) { fallback.getSeasonRatings(any()) }
-    }
-
-    @Test
-    fun `a primary that answers is still asked first`() = runBlocking {
-        val primary = mockk<ImdbTapframeApi>()
-        coEvery { primary.getSeasonRatings(any()) } returns Response.success(backup)
-        val fallback = mockk<SeriesGraphApi>()
-        val repository = repository(primary, fallback).apply { primaryConfigured = true }
-
-        repository.getEpisodeRatings("tt0000001", 11)
-        repository.getEpisodeRatings("tt0000002", 12)
-
-        coVerify(exactly = 2) { primary.getSeasonRatings(any()) }
-        coVerify(exactly = 0) { fallback.getSeasonRatings(any()) }
-    }
-
-    @Test
-    fun `no primary address goes straight to the backup`() = runBlocking {
-        val primary = mockk<ImdbTapframeApi>()
-        val fallback = mockk<SeriesGraphApi>()
-        coEvery { fallback.getSeasonRatings(any()) } returns Response.success(backup)
-        val repository = repository(primary, fallback)
-
-        assertEquals(mapOf((1 to 1) to 8.1), repository.getEpisodeRatings("tt0000001", 11))
-        coVerify(exactly = 0) { primary.getSeasonRatings(any()) }
+    fun `Home scores keep the SeriesGraph episode number`() = runBlocking {
+        val graph = mockk<SeriesGraphApi>()
+        coEvery { graph.getSeasonRatings(84773) } returns Response.success(backup)
+        assertEquals(mapOf((1 to 1) to 8.1), repository(graph).getEpisodeRatings(84773))
+        coVerify(exactly = 1) { graph.getSeasonRatings(84773) }
     }
 
     private fun repository(
-        primary: ImdbTapframeApi = mockk(),
-        graph: SeriesGraphApi = mockk(),
+        graph: SeriesGraphApi = mockk {
+            coEvery { getSeasonRatings(any()) } returns Response.success(emptyList())
+        },
         tmdb: TmdbApi = mockk()
-    ) = ImdbEpisodeRatingsRepository(primary, graph, tmdb).apply {
-        primaryConfigured = false
-        seriesGraphConfigured = true
+    ) = ImdbEpisodeRatingsRepository(graph, tmdb).apply {
         tmdbKey = { "test-app-key" }
     }
 
     @Test
-    fun `Rings of Power uses public TMDB per season when both partner URLs are absent`() = runBlocking {
-        val primary = mockk<ImdbTapframeApi>()
-        val graph = mockk<SeriesGraphApi>()
+    fun `Rings of Power uses public TMDB per season when SeriesGraph has no scores`() = runBlocking {
         val tmdb = mockk<TmdbApi>()
         coEvery { tmdb.getTvSeasonDetails(84773, any(), "test-app-key", null) } coAnswers {
             val season = secondArg<Int>()
@@ -100,24 +64,20 @@ class ImdbEpisodeRatingsRepositoryTest {
                 TmdbEpisode(seasonNumber = 4, episodeNumber = 4, voteCount = 20, voteAverage = 9.9)
             )))
         }
-        val repository = repository(primary, graph, tmdb).apply { seriesGraphConfigured = false }
-        val season1 = repository.getSeasonRatings("tt7631058", 84773, 1, setOf(1, 2, 3, 4))
+        val repository = repository(tmdb = tmdb)
+        val season1 = repository.getSeasonRatings(84773, 1, setOf(1, 2, 3, 4))
         assertEquals(mapOf((1 to 1) to EpisodeRating(7.0, EpisodeRatingSource.TMDB)), season1.ratings)
         assertFalse(season1.failed)
-        assertEquals(season1, repository.getSeasonRatings("tt7631058", 84773, 1, setOf(1, 2, 3, 4)))
+        assertEquals(season1, repository.getSeasonRatings(84773, 1, setOf(1, 2, 3, 4)))
         assertEquals(EpisodeRating(8.0, EpisodeRatingSource.TMDB),
-            repository.getSeasonRatings("tt7631058", 84773, 2, setOf(1)).ratings[2 to 1])
+            repository.getSeasonRatings(84773, 2, setOf(1)).ratings[2 to 1])
         coVerify(exactly = 1) { tmdb.getTvSeasonDetails(84773, 1, any(), null) }
-        coVerify(exactly = 0) { primary.getSeasonRatings(any()) }
-        coVerify(exactly = 0) { graph.getSeasonRatings(any()) }
     }
 
     @Test
     fun `partial responses keep the origin of each score in priority order`() = runBlocking {
-        val primary = mockk<ImdbTapframeApi>()
         val graph = mockk<SeriesGraphApi>()
         val tmdb = mockk<TmdbApi>()
-        coEvery { primary.getSeasonRatings("tt7631058") } returns Response.success(backup)
         coEvery { graph.getSeasonRatings(84773) } returns Response.success(listOf(
             SeriesGraphSeasonRatingsDto(seasonNumber = 1, episodes = listOf(
                 SeriesGraphEpisodeRatingDto(episodeNumber = 1, voteAverage = 9.0),
@@ -129,10 +89,10 @@ class ImdbEpisodeRatingsRepositoryTest {
         coEvery { tmdb.getTvSeasonDetails(84773, 1, any(), null) } returns Response.success(
             TmdbSeasonResponse(1, listOf(TmdbEpisode(episodeNumber = 3, voteCount = 10, voteAverage = 7.3)))
         )
-        val result = repository(primary, graph, tmdb).apply { primaryConfigured = true }
-            .getSeasonRatings("imdb:TT7631058:1:1", 84773, 1, setOf(1, 2, 3))
+        val result = repository(graph, tmdb)
+            .getSeasonRatings(84773, 1, setOf(1, 2, 3))
         assertEquals(mapOf(
-            (1 to 1) to EpisodeRating(8.1, EpisodeRatingSource.IMDB),
+            (1 to 1) to EpisodeRating(9.0, EpisodeRatingSource.SERIES_GRAPH),
             (1 to 2) to EpisodeRating(8.2, EpisodeRatingSource.SERIES_GRAPH),
             (1 to 3) to EpisodeRating(7.3, EpisodeRatingSource.TMDB)
         ), result.ratings)
@@ -144,9 +104,9 @@ class ImdbEpisodeRatingsRepositoryTest {
         coEvery { tmdb.getTvSeasonDetails(84773, 1, any(), null) } returnsMany listOf(
             Response.error(503, "".toResponseBody()), Response.error(404, "".toResponseBody())
         )
-        val ratings = repository(tmdb = tmdb).apply { seriesGraphConfigured = false }
-        assertTrue(ratings.getSeasonRatings(null, 84773, 1, setOf(1)).failed)
-        assertFalse(ratings.getSeasonRatings(null, 84773, 1, setOf(1)).failed)
+        val ratings = repository(tmdb = tmdb)
+        assertTrue(ratings.getSeasonRatings(84773, 1, setOf(1)).failed)
+        assertFalse(ratings.getSeasonRatings(84773, 1, setOf(1)).failed)
         coVerify(exactly = 2) { tmdb.getTvSeasonDetails(84773, 1, any(), null) }
     }
 
@@ -160,10 +120,10 @@ class ImdbEpisodeRatingsRepositoryTest {
                 started.complete(Unit)
                 try { awaitCancellation() } finally { stopped.complete(Unit) }
             }
-            val ratings = repository(tmdb = tmdb).apply { seriesGraphConfigured = false }
-            val first = async { ratings.getSeasonRatings(null, 84773, 1, setOf(1)) }
+            val ratings = repository(tmdb = tmdb)
+            val first = async { ratings.getSeasonRatings(84773, 1, setOf(1)) }
             started.await()
-            val other = async(start = CoroutineStart.UNDISPATCHED) { ratings.getSeasonRatings(null, 84773, 1, setOf(1)) }
+            val other = async(start = CoroutineStart.UNDISPATCHED) { ratings.getSeasonRatings(84773, 1, setOf(1)) }
             first.cancelAndJoin()
             assertFalse(stopped.isCompleted)
             other.cancelAndJoin()

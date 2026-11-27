@@ -1830,13 +1830,13 @@ class MetaDetailsViewModel @Inject constructor(
             val hasTmdbKey = tmdbService.apiKey().isNotBlank()
             val tmdb = supplied.tmdb ?: supplied.imdb?.takeIf { hasTmdbKey }?.let { tmdbService.imdbToTmdb(it, "tv") }
             val imdb = if (supplied.tmdb != null && hasTmdbKey &&
-                (imdbEpisodeRatingsRepository.primaryConfigured || supplied.imdb != null)) {
+                supplied.imdb != null) {
                 canonicalRatingsImdbId(tmdbService.tmdbToImdb(supplied.tmdb, "tv")) ?: supplied.imdb
             } else supplied.imdb
             if (imdb != null && supplied.imdb != null && imdb != supplied.imdb) EpisodeRatingsResult()
             else {
                 val candidates = episodeRatingsCandidates(meta.videos, season, EpisodeRatingsIdentity(imdb, tmdb))
-                imdbEpisodeRatingsRepository.getSeasonRatings(imdb, tmdb, season, candidates.keys)
+                imdbEpisodeRatingsRepository.getSeasonRatings(tmdb, season, candidates.keys)
             }
         } catch (_: CancellationException) {
             currentCoroutineContext().ensureActive()
