@@ -11,6 +11,10 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.MimeTypes
 import java.net.URI
+import com.nuvio.tv.R
+import com.nuvio.tv.core.logging.ReportHosts
+import com.nuvio.tv.core.player.thumbnail.ThumbnailDiagnostic
+import com.nuvio.tv.data.repository.ReportText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.media3.exoplayer.ExoPlayer
@@ -325,23 +329,41 @@ class PlayerViewModel @Inject constructor(
         displayRateOptions: Int?,
         displayModeWidth: Int?,
         displayModeHeight: Int?,
-        lastPingMs: PlaybackConnectSample?
+        lastPingMs: PlaybackConnectSample?,
+        thumbnailDiagnostic: ThumbnailDiagnostic
     ): PlaybackStatsSample {
         val timeline = controller.playbackTimeline.value
         val positionRow = positionStatsRow(timeline.playbackPosition, timeline.duration, timeline.isLive)
+        val statsUi = controller.uiState.value
+        val stateRes = when {
+            statsUi.error != null -> R.string.playback_stats_state_failed
+            statsUi.isBuffering -> R.string.playback_stats_state_buffering
+            statsUi.isPlaying -> R.string.playback_stats_state_playing
+            else -> R.string.playback_stats_state_paused
+        }
+        val commonRows = listOf(positionRow, StatsRow("Playback state", context.getString(stateRes))) +
+            thumbnailStatsRows(context, thumbnailDiagnostic)
         val engine = controller.currentInternalPlayerEngine
         val mpvActive = controller.isUsingMpvEngine() ||
             (engine == InternalPlayerEngine.AUTO && controller.mpvView != null)
         if (mpvActive) {
+            val media = controller.playerMediaInfo()
+            val rows = commonRows.toMutableList()
+            val size = media.videoWidth?.let { width -> media.videoHeight?.let { "$width×$it" } }
+            listOfNotNull(media.videoCodec, size).joinToString(" · ").takeIf { it.isNotBlank() }
+                ?.let { rows += StatsRow("Video", it) }
+            media.hdr.takeIf { it.isNotEmpty() }?.let { rows += StatsRow("HDR", it.joinToString(" · ")) }
+            listOfNotNull(media.audioCodec, media.audioChannels?.let { "${it}ch" }).joinToString(" · ")
+                .takeIf { it.isNotBlank() }?.let { rows += StatsRow("Audio", it) }
             return PlaybackStatsSample(
                 isExoPlayer = false,
                 engineLabel = "libmpv",
-                sections = buildStatsSections(listOf(positionRow))
+                sections = buildStatsSections(rows)
             )
         }
         val t = PlaybackStatsThresholds
         val nowMs = android.os.SystemClock.elapsedRealtime()
-        val rows = mutableListOf(positionRow)
+        val rows = commonRows.toMutableList()
         val player = controller.exoPlayer
         val hud = controller.playbackAnalyticsDiagnostics.hudSample()
         val streamUrl = runCatching { controller.getCurrentStreamUrl() }.getOrNull()
@@ -413,28 +435,23 @@ class PlayerViewModel @Inject constructor(
 
         }
 
-        // Server + file (informational). The file name comes from the stream
-        // URL's last path segment (the addon's stream label is a marketing
-        // string, not the file); fall back to the label when the URL doesn't
-        // end in something filename-shaped.
+        // Source descriptions can contain private addresses or credentials.
         val host = streamUrl?.let { runCatching { URI(it).host }.getOrNull() }
         // Add-on + provider. Add-on is retained UI state; provider is parsed
         // from the stream's marketing label (debrid store / library / host).
-        val statsUi = controller.uiState.value
-        statsUi.currentStreamAddonName?.takeIf { it.isNotBlank() }
+        ReportText.clean(statsUi.currentStreamAddonName, 80)
             ?.let { rows += StatsRow("Add-on", it) }
         (controller.serverProviderLabel() ?: resolveStreamProvider(
             streamName = statsUi.currentStreamName,
             streamDescription = controller.currentStreamDescription,
             addonName = statsUi.currentStreamAddonName,
-            host = host,
+            host = ReportHosts.knownService(host),
             servingHost = hud.transfer.endpoint?.host
-        ))?.let { rows += StatsRow("Provider", it) }
+        ))?.let { ReportText.clean(it, 80) }?.let { rows += StatsRow("Provider", it) }
         // Resolved only by this media source's network data sources; background calls cannot set it.
-        hud.transfer.endpoint?.let { rows += StatsRow("Server", it.display) }
-            ?: host?.let { rows += StatsRow("Source host", "$it · serving endpoint unavailable") }
-        controller.playingFileName()
-            ?.let { rows += StatsRow("File", it.replace("\n", " \u00b7 "), marquee = true) }
+        ReportHosts.label(hud.transfer.endpoint?.host)?.let { rows += StatsRow("Server", it) }
+            ?: ReportHosts.label(host)?.let { rows += StatsRow("Source host", it) }
+        ReportText.clean(controller.currentFilename, 160)?.let { rows += StatsRow("File", it, marquee = true) }
 
         // File size, whenever the source declared a content length at open(). It also
         // yields the exact average mux rate (size / duration), which needs no

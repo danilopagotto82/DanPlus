@@ -717,6 +717,7 @@ class PlayerRuntimeController(
     internal var chaptersEnabled: Boolean = true
     internal var serverChapters: List<PlayerChapter> = emptyList()
     internal var serverChaptersFetchedKey: String? = null
+    internal var serverChaptersJob: Job? = null
     internal var chaptersLogKey: String? = null
     internal var mpvChapters: List<PlayerChapter> = emptyList()
     internal var mpvChaptersStreamUrl: String? = null

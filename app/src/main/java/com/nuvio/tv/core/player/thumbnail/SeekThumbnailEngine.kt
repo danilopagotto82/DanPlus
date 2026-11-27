@@ -40,6 +40,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
@@ -132,31 +133,34 @@ object SeekThumbnails {
     @Volatile private var server: ServerThumbSet? = null
 
     private val sessionLock = Any()
+    private val ending = linkedSetOf<Session>()
+    @Volatile private var chapterPositionMs: Long? = null
+    @Volatile private var localFailed = false
 
     /** [handBackPlayer] is false when the player screen is closing: never resume a player that is going away. */
     fun stopSession(handBackPlayer: Boolean = true) {
+        chapterPositionMs = null
+        localFailed = false
         stopServer(keep = true)
-        val s = synchronized(sessionLock) { session.also { session = null } }
-        if (s != null) ending = s
+        val s = synchronized(sessionLock) {
+            session.also {
+                session = null
+                if (it?.workerJob?.isCompleted == false) ending.add(it)
+            }
+        }
         s?.stop(handBackPlayer)
     }
 
-    @Volatile private var ending: Session? = null
-
     /** Waits (bounded) for an ended session's worker. Reads are cancelled repeatedly: an index read is several in a row. */
     private suspend fun awaitStoppedSession() {
-        val s = ending ?: return
-        val j = s.workerJob
-        val c = s.copyJob
-        if (j != null || c != null) {
-            withTimeoutOrNull(10_000L) {
-                while (j?.isCompleted == false || c?.isCompleted == false) {
-                    s.cancelReads()
-                    delay(200L)
-                }
+        withTimeoutOrNull(10_000L) {
+            while (true) {
+                val pending = synchronized(sessionLock) { ending.toList() }
+                if (pending.isEmpty()) break
+                pending.forEach { it.cancelReads() }
+                delay(200L)
             }
         }
-        if (ending === s && (j == null || j.isCompleted)) ending = null
     }
 
     /** "Clear saved thumbnails": no session may write while the files are deleted. */
@@ -181,12 +185,15 @@ object SeekThumbnails {
 
     /** Player screen closed: an unfinished 4K coverage pass carries on for a few minutes, anything else stops. */
     fun playerClosed() {
+        chapterPositionMs = null
+        localFailed = false
         openDeferred = false
         prepareUi.value = PrepareUi.Hidden
         dropEarlyRow()
         stopServer(keep = false)
         ServerThumbSet.dropRetained()
         val s = session ?: return
+        s.cancelDisplayReads()
         if (s.finishAfterPlayback()) ConnectionLedger.app.setUnhurried(true) else stopSession(handBackPlayer = false)
     }
 
@@ -229,8 +236,13 @@ object SeekThumbnails {
     }
 
     private fun sessionEnded(s: Session) {
-        ending = s
-        synchronized(sessionLock) { if (session === s) session = null }
+        synchronized(sessionLock) {
+            ending.add(s)
+            if (session === s) {
+                localFailed = s.failed()
+                session = null
+            }
+        }
     }
 
     /**
@@ -672,6 +684,21 @@ object SeekThumbnails {
         server?.let { return it.tileFor(positionMs) }
         return session?.tileFor(positionMs)
     }
+
+    internal fun chapterTileFor(positionMs: Long): Shown? {
+        server?.let { set ->
+            return set.tileFor(positionMs)?.takeIf { abs(it.ptsMs - positionMs) <= set.stripSpacingMs() }
+        }
+        return session?.tileFor(positionMs, maxDistanceMs = SPACING_MS)
+    }
+
+    /** Only prioritizes a keyframe already downloaded by playback. It never changes scrub priority. */
+    internal fun noteChapterPosition(positionMs: Long?) {
+        chapterPositionMs = positionMs
+    }
+
+    internal fun diagnostic(): ThumbnailDiagnostic? = server?.diagnostic() ?: session?.diagnostic()
+        ?: if (localFailed) ThumbnailDiagnostic(ThumbnailState.FAILED, ThumbnailOrigin.LOCAL) else null
 
     /** Loader thread, called per video sample: should the next samples be copied? Must be cheap. */
     internal fun tapWants(timeUs: Long): Boolean = session?.tapWants(timeUs) ?: false
@@ -1160,6 +1187,21 @@ object SeekThumbnails {
         @Volatile private var job: Job? = null
         val workerJob: Job? get() = job
         val copyJob: Job? get() = copy?.workerJob
+        private val diskScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+        fun cancelDisplayReads() = diskScope.cancel()
+
+        fun failed(): Boolean = !stoppedExternally && giveUp.endedBy != null
+
+        fun diagnostic(): ThumbnailDiagnostic {
+            val present = store?.isEmpty() == false
+            return ThumbnailDiagnostic(
+                if (present) ThumbnailState.AVAILABLE else ThumbnailState.GENERATING,
+                ThumbnailOrigin.LOCAL,
+                fromCache = present && synchronized(recentMade) { madeSeq == 0 },
+                intervalMs = (stripStride.toLong() * SPACING_MS).takeIf { present && it > 0 }
+            )
+        }
 
         fun cancelReads() {
             reader?.close()
@@ -1181,7 +1223,14 @@ object SeekThumbnails {
                 } finally {
                     withContext(NonCancellable) { finish() }
                 }
-            }.also { j -> j.invokeOnCompletion { if (ending === this) ending = null } }
+            }.also { workerJob ->
+                workerJob.invokeOnCompletion {
+                    val copyWorker = copyJob
+                    if (copyWorker == null || copyWorker.isCompleted) {
+                        synchronized(sessionLock) { ending.remove(this) }
+                    } else copyWorker.invokeOnCompletion { synchronized(sessionLock) { ending.remove(this) } }
+                }
+            }
             watchJob = worker.launch { watchWhileFetching() }.also { w -> job?.invokeOnCompletion { w.cancel() } }
         }
 
@@ -1207,6 +1256,7 @@ object SeekThumbnails {
             headStart?.release()
             reader?.close()
             copy?.stop("the player stopped this title")
+            cancelDisplayReads()
             job?.cancel()
             watchJob?.cancel()
             monitorJob?.cancel()
@@ -3198,6 +3248,13 @@ object SeekThumbnails {
 
         private fun spooledSlot(st: ThumbStore): Int {
             if (!memoryStop.allowsSideWork) return -1
+            if (!sampledPlaying && !sampledBuffering && !afterPlayback) {
+                chapterPositionMs?.let { position ->
+                    val slot = slotOf(position)
+                    val kf = slotKeyframe.getOrElse(slot) { -1 }
+                    if (spool[kf] == true && wanted(st, slot)) return slot
+                }
+            }
             for ((kf, ready) in spool) {
                 if (!ready) continue
                 val slot = keyframeSlots[kf]?.firstOrNull { wanted(st, it) }
@@ -3227,17 +3284,19 @@ object SeekThumbnails {
         }
 
         /** Does not touch [lastServed]. A picture only on disk is loaded and shows on the next tick. */
-        fun tileFor(positionMs: Long): Shown? {
+        fun tileFor(positionMs: Long, maxDistanceMs: Long? = null): Shown? {
             val st = store ?: return null
             if (slotKeyframe.isEmpty()) return null
             val target = slotOf(positionMs)
             val slot = nearestStoredSlot(st, target) ?: return null
+            val ptsMs = slotPtsMs(slot)
+            if (maxDistanceMs != null && (ptsMs < 0 || abs(ptsMs - positionMs) > maxDistanceMs)) return null
             val bmp = st.memGet(slot.toLong() * SPACING_MS * 1000L)
             if (bmp == null) {
                 requestDiskLoad(st, slot)
                 return null
             }
-            return Shown(bmp, slotPtsMs(slot), exact = slot == target, crop = crop.current)
+            return Shown(bmp, ptsMs, exact = slot == target, crop = crop.current)
         }
 
         fun shownFor(positionMs: Long): Shown? {
@@ -4109,30 +4168,30 @@ object SeekThumbnails {
 
         /** The centre picture in full colour when memory frames are RGB565: one disk decode at a time. */
         private fun requestFullColour(st: ThumbStore, slot: Int) {
-            if (fullColourLoadSlot >= 0) return
+            if (!diskScope.isActive || fullColourLoadSlot >= 0) return
             fullColourLoadSlot = slot
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    if (st.loadFullColour(slot.toLong() * SPACING_MS * 1000L) != null) bumpTick()
-                } finally {
-                    fullColourLoadSlot = -1
-                }
-            }
+            diskScope.launch {
+                val bitmap = st.loadFullColour(slot.toLong() * SPACING_MS * 1000L)
+                ensureActive()
+                if (bitmap != null) bumpTick()
+            }.invokeOnCompletion { fullColourLoadSlot = -1 }
         }
 
         private fun requestDiskLoad(st: ThumbStore, slot: Int) {
-            if (synchronized(diskLoadsInFlight) { diskLoadsInFlight.size >= MAX_DISK_LOADS_IN_FLIGHT }) return
+            if (!diskScope.isActive) return
             val key = slot.toLong() * SPACING_MS * 1000L
             val token = st.key to slot
-            if (!st.has(key) || !synchronized(diskLoadsInFlight) { diskLoadsInFlight.add(token) }) return
-            CoroutineScope(Dispatchers.IO).launch {
+            if (!st.has(key) || !synchronized(diskLoadsInFlight) {
+                    diskLoadsInFlight.size < MAX_DISK_LOADS_IN_FLIGHT && diskLoadsInFlight.add(token)
+                }) return
+            diskScope.launch {
                 val bmp = st.load(key)
-                synchronized(diskLoadsInFlight) { diskLoadsInFlight.remove(token) }
+                ensureActive()
                 if (bmp != null) {
                     if (st === store) measureBars(bmp)
                     bumpTick()
                 }
-            }
+            }.invokeOnCompletion { synchronized(diskLoadsInFlight) { diskLoadsInFlight.remove(token) } }
         }
 
         private fun onTrim() {
@@ -4751,6 +4810,7 @@ object SeekThumbnails {
                 logGiveUp("session ended with none made")
             }
             ended = true
+            cancelDisplayReads()
             endYield()
             runCatching { reader?.close() }
             fetchScope.cancel()

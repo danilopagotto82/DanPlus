@@ -507,7 +507,7 @@ internal fun PlaybackMemoryUsageCard(settings: PlayerSettings) {
     }
     val seekThumbsMode by SeekThumbnailPreferences.modeFlow(context)
         .collectAsStateWithLifecycle(initialValue = SeekThumbMode.OFF)
-    val seekThumbsMb = if (seekThumbsMode != SeekThumbMode.OFF) {
+    val seekThumbsMb = if (seekThumbsMode.generatesLocally) {
         remember(seekThumbsMode) { SeekThumbnails.displayMemoryChargeMb(context, seekThumbsMode) }
     } else {
         0

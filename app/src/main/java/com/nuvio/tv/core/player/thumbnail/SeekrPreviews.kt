@@ -10,7 +10,6 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import org.json.JSONObject
 import tv.seekr.previews.android.Seekr
-import tv.seekr.previews.android.SeekrTrack
 import tv.seekr.previews.core.SeekrContent
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -84,7 +83,7 @@ internal object SeekrPreviews {
 
     enum class LookupStatus { Off, Checking, Ready, NotFound, InvalidKey, RateLimited, Unavailable }
 
-    data class Lookup(val status: LookupStatus, val track: SeekrTrack? = null)
+    data class Lookup(val status: LookupStatus, val track: SeekrPreviewTrack? = null)
 
     suspend fun lookup(content: SeekrContent, durationMs: Long, positionMs: Long): Lookup = withContext(Dispatchers.IO) {
         val credentials = key ?: return@withContext Lookup(LookupStatus.Off)
@@ -113,11 +112,10 @@ internal object SeekrPreviews {
             val position = positionMs.coerceIn(0, durationMs - 1)
             val firstThumb = track.thumbnailFor(position)
                 ?: if (problem.get() == null && position != durationMs / 2) track.thumbnailFor(durationMs / 2) else null
-            val bitmap = firstThumb?.bitmap
-            if (bitmap != null && !bitmap.isRecycled && bitmap.width > 0 && bitmap.height > 0) {
-                Lookup(LookupStatus.Ready, track)
+            if (firstThumb != null && firstThumb.usable()) {
+                Lookup(LookupStatus.Ready, SeekrPreviewTrack(track, firstThumb))
             } else {
-                Lookup(problem.get() ?: LookupStatus.Unavailable, track)
+                Lookup(problem.get() ?: LookupStatus.Unavailable)
             }
         } catch (cancelled: CancellationException) {
             throw cancelled

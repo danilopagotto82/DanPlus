@@ -76,6 +76,7 @@ internal fun PlayerRuntimeController.clearServerSkipIntervals() {
 internal fun PlayerRuntimeController.stopServerPlayback() {
     serverPlayback.stop(reportedServerUrl ?: currentStreamUrl)
     reportedServerUrl = null
+    clearServerChapters()
 }
 
 internal val PlayerRuntimeController.isServerStream: Boolean

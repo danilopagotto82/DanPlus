@@ -3953,6 +3953,8 @@
     <string name="seek_thumbnails_mode_hd_desc">Títulos SD e HD (480p a 1080p). Títulos 4K mostram apenas o tempo.</string>
     <string name="seek_thumbnails_mode_all">Todas as resoluções, incluindo 4K</string>
     <string name="seek_thumbnails_mode_all_desc">Títulos SD, HD e 4K. Em dispositivos menores, algumas miniaturas 4K só são criadas em pausa ou depois que você para de assistir.</string>
+    <string name="seek_thumbnails_mode_seekr_only">Somente Seekr</string>
+    <string name="seek_thumbnails_mode_seekr_only_desc">Usa o Seekr quando há uma prévia compatível com o vídeo. Requer chave Seekr.</string>
     <string name="seek_thumbnails_prepare_title">Gerar miniaturas antes de reproduzir</string>
     <string name="seek_thumbnails_prepare_subtitle">Cria as miniaturas da barra de progresso de um título antes de ele começar.</string>
     <string name="seek_thumbnails_prepare_off">Desativado</string>

@@ -128,6 +128,7 @@ internal class ServerThumbSet private constructor(
     @Volatile private var lastServed: Bitmap? = null
     @Volatile private var lastServedIndex = -1
     @Volatile private var stopped = false
+    @Volatile private var failed = false
     private var job: Job? = null
 
     fun start() {
@@ -137,6 +138,7 @@ internal class ServerThumbSet private constructor(
             } catch (ce: CancellationException) {
                 throw ce
             } catch (t: Throwable) {
+                failed = true
                 Log.w(TAG, "fetching ended: ${t.javaClass.simpleName}")
             }
         }
@@ -150,16 +152,39 @@ internal class ServerThumbSet private constructor(
         job?.cancel()
         scope.cancel()
         decodeScope.cancel()
-        retained = if (keep) Retained(source.key, layout, chunks, wholePending) else null
+        synchronized(chunks) {
+            retained = if (keep) Retained(source.key, layout, chunks, wholePending) else null
+            if (!keep) {
+                chunks.map.clear()
+                chunks.bytes = 0L
+            }
+        }
         synchronized(regionDecoders) {
             regionDecoders.values.forEach { runCatching { it.recycle() } }
             regionDecoders.clear()
         }
-        decoded.evictAll()
-        lastServed = null
+        synchronized(decoded) {
+            decoded.evictAll()
+            lastServed = null
+        }
+        wanted.clear()
     }
 
     fun stripSpacingMs(): Long = layout.intervalMs
+
+    fun diagnostic(): ThumbnailDiagnostic {
+        val available = decoded.size() > 0
+        return ThumbnailDiagnostic(
+            when {
+                available -> ThumbnailState.AVAILABLE
+                failed -> ThumbnailState.FAILED
+                else -> ThumbnailState.GENERATING
+            },
+            ThumbnailOrigin.MEDIA_SERVER,
+            fromCache = available,
+            intervalMs = layout.intervalMs.takeIf { available && it > 0 }
+        )
+    }
 
     fun frameAspect(): Float? {
         val w = pictureWidth
@@ -258,6 +283,7 @@ internal class ServerThumbSet private constructor(
                     if (n >= MAX_TRIES) exhausted += next
                 }
                 if (++failuresInRow >= MAX_FAILURES) {
+                    failed = true
                     val wait = minOf(BACK_OFF_FIRST_MS shl backOffRound.coerceAtMost(4), BACK_OFF_MAX_MS)
                     Log.w(TAG, "$MAX_FAILURES failures in a row: next try in ${wait / 1000} s, the pictures in memory keep showing")
                     backOffRound++
@@ -274,9 +300,11 @@ internal class ServerThumbSet private constructor(
             }
             failuresInRow = 0
             backOffRound = 0
+            failed = false
             if (whole) wholePending = false
             val ms = SystemClock.elapsedRealtime() - t0
             synchronized(chunks) {
+                if (stopped) return
                 chunks.put(next, data)
                 while (chunks.bytes > capBytes) {
                     val drop = ServerThumbOrder.evict(chunks.map.keys, layout.chunkOf(focusIndex()), keep = next) ?: break
@@ -337,7 +365,13 @@ internal class ServerThumbSet private constructor(
                 pictureHeight = bmp.height
             }
             measureBars(bmp)
-            decoded.put(i, bmp)
+            synchronized(decoded) {
+                if (stopped) {
+                    bmp.recycle()
+                    return
+                }
+                decoded.put(i, bmp)
+            }
             onPicture()
         }
     }

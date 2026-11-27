@@ -67,13 +67,13 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.nuvio.tv.R
 import com.nuvio.tv.core.player.thumbnail.SeekThumbnails
+import com.nuvio.tv.core.player.thumbnail.SeekrPreviewTrack
 import com.nuvio.tv.ui.theme.NuvioTheme
 import com.nuvio.tv.ui.v2.appearance.LocalV2Appearance
 import com.nuvio.tv.ui.v2.components.GlassRole
 import com.nuvio.tv.ui.v2.components.nuvioGlass
 import com.nuvio.tv.ui.v2.components.nuvioV2Focus
 import kotlin.math.abs
-import tv.seekr.previews.android.SeekrTrack
 import tv.seekr.previews.android.SeekrThumbnail
 
 /** Root bounds of the seek bar on screen, reported by the bar; thumbnails sit just above it. */
@@ -193,10 +193,10 @@ private fun croppedPainter(shown: SeekThumbnails.Shown?): BitmapPainter? {
  * times a second); the strip slides with the cursor every frame.
  */
 @Composable
-fun SeekThumbnailOverlayHost(
+internal fun SeekThumbnailOverlayHost(
     uiState: PlayerUiState,
     viewModel: PlayerViewModel,
-    track: SeekrTrack?,
+    track: SeekrPreviewTrack?,
     modifier: Modifier = Modifier,
     onRemotePreviewReady: () -> Unit = {},
     onRemotePreviewMissing: () -> Unit = {}

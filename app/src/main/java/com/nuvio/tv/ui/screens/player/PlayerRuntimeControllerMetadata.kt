@@ -598,7 +598,7 @@ internal fun PlayerRuntimeController.maybeStartNextEpisodeThumbnails(
     val selection = com.nuvio.tv.core.stream.StreamPrefetchCache.selectionFor(type, videoId, season, episode) ?: return
     scope.launch {
         val mode = runCatching { SeekThumbnailPreferences.mode(context) }.getOrNull() ?: return@launch
-        if (mode == SeekThumbMode.OFF) return@launch
+        if (!mode.generatesLocally) return@launch
         val winner = selection.winner
         val resolved = if (directDebridResolver.shouldResolveToPlayableStream(winner)) {
             // A resolved link is cached by the resolver; a failed lookup is not repeated for this episode.
@@ -612,6 +612,7 @@ internal fun PlayerRuntimeController.maybeStartNextEpisodeThumbnails(
         }
         if (resolved.isTorrent()) return@launch
         val url = resolved.getStreamUrl()?.takeIf { isThumbnailSource(it) } ?: return@launch
+        if (!SeekThumbnailPreferences.mode(context).generatesLocally) return@launch
         val headers = if (resolved === winner) winner.behaviorHints?.proxyHeaders?.request.orEmpty() else emptyMap()
         android.util.Log.i("ThumbNext", "lookahead winner for $videoId resolved")
         NextEpisodeThumbs.start(

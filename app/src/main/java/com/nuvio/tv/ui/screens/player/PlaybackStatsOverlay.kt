@@ -6,6 +6,7 @@ import com.nuvio.tv.ui.v2.components.GlassRole
 import com.nuvio.tv.ui.v2.components.nuvioGlass
 
 import android.os.SystemClock
+import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -34,6 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.nuvio.tv.R
+import com.nuvio.tv.core.player.thumbnail.ThumbnailDiagnostic
+import com.nuvio.tv.core.player.thumbnail.ThumbnailOrigin
+import com.nuvio.tv.core.player.thumbnail.ThumbnailState
 import java.io.File
 
 /** Quality judgement for a stats row. NONE = informational, no opinion. */
@@ -65,6 +69,7 @@ enum class StatsGroup(val header: String, @StringRes val titleRes: Int) {
     VIDEO("Video", R.string.playback_stats_group_video),
     AUDIO("Audio", R.string.playback_stats_group_audio),
     NETWORK("Network", R.string.playback_stats_group_network),
+    THUMBNAILS("Thumbnails", R.string.playback_stats_group_thumbnails),
     SYSTEM("System", R.string.playback_stats_group_system)
 }
 
@@ -81,7 +86,8 @@ private val STATS_PRESENTATION: Map<String, StatsPresentation> = buildMap {
         labels.forEach { (key, labelRes) -> put(key, StatsPresentation(group, labelRes)) }
     }
     group(StatsGroup.PLAYBACK,
-        "Position" to R.string.playback_stats_position
+        "Position" to R.string.playback_stats_position,
+        "Playback state" to R.string.playback_stats_state
     )
     group(StatsGroup.SOURCE,
         "Add-on" to R.string.playback_stats_addon,
@@ -135,6 +141,11 @@ private val STATS_PRESENTATION: Map<String, StatsPresentation> = buildMap {
         "Server latency" to R.string.playback_stats_server_latency,
         "Mux estimate" to R.string.playback_stats_mux_estimate
     )
+    group(StatsGroup.THUMBNAILS,
+        "Thumbnail state" to R.string.playback_stats_thumbnail_state,
+        "Thumbnail source" to R.string.playback_stats_thumbnail_source,
+        "Thumbnail interval" to R.string.playback_stats_thumbnail_interval
+    )
     group(StatsGroup.SYSTEM,
         "App CPU" to R.string.playback_stats_app_cpu,
         "Memory" to R.string.playback_stats_memory,
@@ -142,6 +153,32 @@ private val STATS_PRESENTATION: Map<String, StatsPresentation> = buildMap {
         DEVICE_TEMP_LABEL to R.string.playback_stats_device_temp,
         "CPU clock" to R.string.playback_stats_cpu_clock
     )
+}
+
+internal fun thumbnailStatsRows(context: Context, diagnostic: ThumbnailDiagnostic): List<StatsRow> = buildList {
+    val (status, dot) = when (diagnostic.state) {
+        ThumbnailState.AVAILABLE -> R.string.playback_stats_thumbnail_available to StatsDot.GOOD
+        ThumbnailState.GENERATING -> R.string.playback_stats_thumbnail_generating to StatsDot.NONE
+        ThumbnailState.UNAVAILABLE -> R.string.playback_stats_thumbnail_unavailable to StatsDot.NONE
+        ThumbnailState.FAILED -> R.string.playback_stats_thumbnail_failed to StatsDot.WARN
+    }
+    add(StatsRow("Thumbnail state", context.getString(status), dot))
+    if (diagnostic.state == ThumbnailState.AVAILABLE) {
+        val origin = when (diagnostic.origin) {
+            ThumbnailOrigin.SEEKR -> R.string.seekr_preview_source
+            ThumbnailOrigin.LOCAL -> R.string.playback_stats_thumbnail_local
+            ThumbnailOrigin.MEDIA_SERVER -> R.string.playback_stats_thumbnail_server
+            null -> null
+        }
+        origin?.let {
+            val name = context.getString(it)
+            val value = if (diagnostic.fromCache) context.getString(R.string.playback_stats_thumbnail_cache, name) else name
+            add(StatsRow("Thumbnail source", value))
+        }
+        diagnostic.intervalMs?.takeIf { it > 0 }?.let {
+            add(StatsRow("Thumbnail interval", context.getString(R.string.playback_stats_thumbnail_ms, it)))
+        }
+    }
 }
 
 /**

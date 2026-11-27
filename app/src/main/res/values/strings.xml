@@ -4206,6 +4206,8 @@
     <string name="seek_thumbnails_mode_hd_desc">SD and HD titles (480p to 1080p). 4K titles show the time only.</string>
     <string name="seek_thumbnails_mode_all">All resolutions, including 4K</string>
     <string name="seek_thumbnails_mode_all_desc">SD, HD and 4K titles. On smaller devices, some 4K thumbnails are made only while paused or after you stop watching.</string>
+    <string name="seek_thumbnails_mode_seekr_only">Seekr only</string>
+    <string name="seek_thumbnails_mode_seekr_only_desc">Uses Seekr when a preview matches this video. Requires a Seekr key.</string>
     <string name="seek_thumbnails_prepare_title">Generate thumbnails before play</string>
     <string name="seek_thumbnails_prepare_subtitle">Make a title\'s seek thumbnails before it starts playing.</string>
     <string name="seek_thumbnails_prepare_off">Off</string>

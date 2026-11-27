@@ -3,6 +3,7 @@ package com.nuvio.tv.ui.screens.player
 import android.util.Log
 import androidx.media3.common.Tracks
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -10,6 +11,7 @@ import kotlinx.coroutines.launch
 internal fun PlayerRuntimeController.applyChaptersEnabled(enabled: Boolean) {
     if (enabled == chaptersEnabled) return
     chaptersEnabled = enabled
+    if (!enabled) clearServerChapters() else fetchServerChapters()
     refreshChapters()
 }
 
@@ -60,9 +62,11 @@ internal fun PlayerRuntimeController.fetchServerChapters() {
     val session = serverPlayback.session(url) ?: return
     val key = "${session.target.item.encode()}:${session.mediaSourceId}"
     if (serverChaptersFetchedKey == key) return
+    serverChaptersJob?.cancel()
     serverChaptersFetchedKey = key
-    scope.launch {
+    serverChaptersJob = scope.launch {
         val chapters = PlayerChapters.fromServer(serverPlayback.chapters(url))
+        ensureActive()
         if (serverChaptersFetchedKey != key) return@launch
         serverChapters = chapters
         if (chapters.isNotEmpty()) refreshChapters()
@@ -70,6 +74,8 @@ internal fun PlayerRuntimeController.fetchServerChapters() {
 }
 
 internal fun PlayerRuntimeController.clearServerChapters() {
+    serverChaptersJob?.cancel()
+    serverChaptersJob = null
     serverChaptersFetchedKey = null
     if (serverChapters.isEmpty()) return
     serverChapters = emptyList()

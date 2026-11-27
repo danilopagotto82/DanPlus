@@ -97,7 +97,14 @@ class SeekThumbnailPreferencesTest {
         assertEquals(SeekThumbMode.ALL, SeekThumbnailPreferences.modeOf(prefs { this[modeKey] = SeekThumbMode.HD.name }, SeekThumbMode.OFF))
     }
 
-    private fun onOrOff(mode: SeekThumbMode) = if (mode == SeekThumbMode.OFF) SeekThumbMode.OFF else SeekThumbMode.ALL
+    private fun onOrOff(mode: SeekThumbMode) = if (mode == SeekThumbMode.HD) SeekThumbMode.ALL else mode
+
+    @Test fun `Seekr only keeps the stored choice without enabling a local session`() {
+        val mode = SeekThumbnailPreferences.modeOf(prefs { this[modeKey] = "SEEKR_ONLY" }, SeekThumbMode.ALL)
+        assertEquals(SeekThumbMode.SEEKR_ONLY, mode)
+        assertFalse(mode.generatesLocally)
+        assertTrue(SeekThumbMode.ALL.generatesLocally)
+    }
 
     @Test
     fun `unknown stored mode reads as off`() {

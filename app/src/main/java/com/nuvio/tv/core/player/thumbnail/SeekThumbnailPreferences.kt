@@ -34,6 +34,9 @@ enum class SeekThumbMode(@StringRes val label: Int, @StringRes val description: 
     /** No longer offered; a stored value reads as [ALL]. */
     HD(R.string.seek_thumbnails_mode_hd, R.string.seek_thumbnails_mode_hd_desc),
     ALL(R.string.seek_thumbnails_mode_all, R.string.seek_thumbnails_mode_all_desc),
+    SEEKR_ONLY(R.string.seek_thumbnails_mode_seekr_only, R.string.seek_thumbnails_mode_seekr_only_desc);
+
+    val generatesLocally: Boolean get() = this == ALL || this == HD
 }
 
 enum class ThumbPrepareMode(@StringRes val label: Int, @StringRes val description: Int) {
@@ -86,7 +89,8 @@ object SeekThumbnailPreferences {
         prefs[modeKey]?.let { v ->
             return when (SeekThumbMode.entries.firstOrNull { it.name == v }) {
                 null, SeekThumbMode.OFF -> SeekThumbMode.OFF
-                else -> SeekThumbMode.ALL
+                SeekThumbMode.HD, SeekThumbMode.ALL -> SeekThumbMode.ALL
+                SeekThumbMode.SEEKR_ONLY -> SeekThumbMode.SEEKR_ONLY
             }
         }
         return when (prefs[legacyEnabledKey]) {
@@ -106,8 +110,8 @@ object SeekThumbnailPreferences {
     fun modeFlow(context: Context): Flow<SeekThumbMode> =
         modeFlow(context.applicationContext.seekThumbnailDataStore.data, defaultMode(context))
 
-    /** True unless the mode is Off (the player starts a session only then). */
-    fun enabledFlow(context: Context): Flow<Boolean> = modeFlow(context).map { it != SeekThumbMode.OFF }
+    /** Whether the player may open a local preview session. */
+    fun enabledFlow(context: Context): Flow<Boolean> = modeFlow(context).map { it.generatesLocally }
 
     /** The low-RAM default only disables on-device decoding. Honour an explicit Off for every preview. */
     internal fun seekrAllowedFlow(context: Context): Flow<Boolean> =

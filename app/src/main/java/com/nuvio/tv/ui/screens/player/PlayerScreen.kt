@@ -199,8 +199,13 @@ import com.nuvio.tv.core.player.thumbnail.SeekThumbnailPreferences
 import com.nuvio.tv.core.player.thumbnail.NextEpisodeThumbs
 import com.nuvio.tv.core.player.thumbnail.SeekThumbnails
 import com.nuvio.tv.core.player.thumbnail.SeekrPreviews
+import androidx.compose.runtime.key
+import com.nuvio.tv.core.player.thumbnail.SeekrPreviewTrack
+import com.nuvio.tv.core.player.thumbnail.ThumbnailDiagnostic
+import com.nuvio.tv.core.player.thumbnail.ThumbnailOrigin
+import com.nuvio.tv.core.player.thumbnail.ThumbnailState
+import com.nuvio.tv.core.player.thumbnail.chooseThumbnailDiagnostic
 import com.nuvio.tv.core.player.thumbnail.CopyPrePick
-import tv.seekr.previews.android.SeekrTrack
 import com.nuvio.tv.core.player.thumbnail.ThumbSource
 import com.nuvio.tv.data.local.LibassRenderMode
 import com.nuvio.tv.data.local.SubtitleStyleSettings
@@ -667,32 +672,35 @@ fun PlayerScreen(
         uiState.error?.let { com.nuvio.tv.core.formatcheck.FormatCheckSession.onError(it) }
     }
     val seekThumbsEnabled = remember(context) { SeekThumbnailPreferences.enabledFlow(context) }.collectAsState(initial = false)
+    val previewHostState by lifecycleOwner.lifecycle.currentStateFlow.collectAsState()
     val thumbsOnMpv = uiState.internalPlayerEngine == InternalPlayerEngine.MVP_PLAYER
     val lastThumbRun = remember { mutableStateOf<Pair<String?, Boolean>?>(null) }
     val seekrConfigured by SeekrPreviews.configured.collectAsState()
     val seekrAllowed by remember(context) { SeekThumbnailPreferences.seekrAllowedFlow(context) }.collectAsState(initial = false)
     val contentIdForSeekr = viewModel.scoutContentId
+    val previewEpisode = Triple(contentIdForSeekr, uiState.currentSeason, uiState.currentEpisode)
     val resolvedSeekrId = uiState.seekrMetadataId.takeIf { uiState.seekrMetadataForContentId == contentIdForSeekr }
     val seekrContent = sequenceOf(contentIdForSeekr, resolvedSeekrId)
         .mapNotNull { SeekrPreviews.content(it, uiState.contentType, uiState.currentSeason, uiState.currentEpisode) }
         .firstOrNull().takeIf { seekrConfigured && seekrAllowed && !uiState.isLive }
-    val seekrNeedsLocalFallback = remember(uiState.currentStreamUrl, seekrContent, thumbsOnMpv, seekThumbsEnabled.value) {
+    val seekrNeedsLocalFallback = remember(uiState.currentStreamUrl, previewEpisode, seekrContent, thumbsOnMpv, seekThumbsEnabled.value) {
         kotlinx.coroutines.flow.MutableStateFlow(false)
     }
-    var seekrTrack by remember(uiState.currentStreamUrl, seekrContent, seekThumbsEnabled.value, thumbsOnMpv) {
-        mutableStateOf<SeekrTrack?>(null)
+    var seekrTrack by remember(uiState.currentStreamUrl, previewEpisode, seekrContent, seekThumbsEnabled.value, thumbsOnMpv) {
+        mutableStateOf<SeekrPreviewTrack?>(null)
     }
-    var seekrStatus by remember(uiState.currentStreamUrl, seekrContent, seekrAllowed, seekrConfigured) {
+    var seekrStatus by remember(uiState.currentStreamUrl, previewEpisode, seekrContent, seekrAllowed, seekrConfigured) {
         mutableStateOf(when {
             !seekrAllowed || !seekrConfigured || uiState.isLive -> SeekrPreviews.LookupStatus.Off
             seekrContent == null -> SeekrPreviews.LookupStatus.NotFound
             else -> SeekrPreviews.LookupStatus.Checking
         })
     }
-    LaunchedEffect(seekThumbsEnabled.value, uiState.currentStreamUrl, uiState.isTorrentStream, thumbsOnMpv, seekrContent) {
+    LaunchedEffect(seekThumbsEnabled.value, uiState.currentStreamUrl, uiState.isTorrentStream, thumbsOnMpv, seekrContent, previewEpisode) {
         val thumbSourceUrl = uiState.currentStreamUrl
         val previousRun = lastThumbRun.value
         SeekThumbnails.stopSession(handBackPlayer = handsPlayerBackOnRestart(previousRun, thumbSourceUrl, thumbsOnMpv))
+        if (!seekThumbsEnabled.value) NextEpisodeThumbs.cancel()
         val engineChanged = previousRun != null && previousRun.first == thumbSourceUrl && previousRun.second != thumbsOnMpv
         lastThumbRun.value = thumbSourceUrl to thumbsOnMpv
         if ((!seekThumbsEnabled.value && seekrContent == null) || thumbSourceUrl.isNullOrBlank() ||
@@ -2202,7 +2210,16 @@ fun PlayerScreen(
             // probe runs separately so DNS/connect delays cannot stall these samples.
             var playbackStatsSample by remember { mutableStateOf<PlaybackStatsSample?>(null) }
             val statsHostView = LocalView.current
-            LaunchedEffect(uiState.showPlaybackStatsOverlay) {
+            val thumbnailStats by rememberUpdatedState {
+                val remote = seekrTrack?.diagnostic ?: when (seekrStatus) {
+                    SeekrPreviews.LookupStatus.Checking -> ThumbnailDiagnostic(ThumbnailState.GENERATING)
+                    SeekrPreviews.LookupStatus.InvalidKey, SeekrPreviews.LookupStatus.RateLimited,
+                    SeekrPreviews.LookupStatus.Unavailable -> ThumbnailDiagnostic(ThumbnailState.FAILED, ThumbnailOrigin.SEEKR)
+                    else -> null
+                }
+                chooseThumbnailDiagnostic(remote, SeekThumbnails.diagnostic())
+            }
+            LaunchedEffect(uiState.showPlaybackStatsOverlay, uiState.currentStreamUrl, previewEpisode, seekrContent, thumbsOnMpv) {
                 if (!uiState.showPlaybackStatsOverlay) {
                     playbackStatsSample = null
                     return@LaunchedEffect
@@ -2232,14 +2249,15 @@ fun PlayerScreen(
                         displayRateOptions,
                         statsActiveMode?.physicalWidth,
                         statsActiveMode?.physicalHeight,
-                        lastPingMs
+                        lastPingMs,
+                        thumbnailStats()
                     )
                 })
             }
             SeekThumbnailOverlayHost(
                 uiState = uiState,
                 viewModel = viewModel,
-                track = seekrTrack,
+                track = seekrTrack.takeIf { !uiState.isBuffering && previewHostState.isAtLeast(Lifecycle.State.RESUMED) },
                 modifier = Modifier.zIndex(2.65f),
                 onRemotePreviewReady = { seekrStatus = SeekrPreviews.LookupStatus.Ready },
                 onRemotePreviewMissing = { seekrNeedsLocalFallback.value = true }
@@ -2766,13 +2784,22 @@ fun PlayerScreen(
                 exit = slideOutHorizontally(animationSpec = tween(220), targetOffsetX = { it })
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    ChaptersSidePanel(
-                        chapters = uiState.chapters,
-                        currentPositionMs = viewModel.playbackTimeline.value.playbackPosition,
-                        onChapterSelected = { viewModel.onEvent(PlayerEvent.OnSelectChapter(it.startMs)) },
-                        onClose = { viewModel.onEvent(PlayerEvent.OnDismissChaptersPanel) },
-                        modifier = Modifier.align(Alignment.CenterEnd)
-                    )
+                    val timeline = viewModel.playbackTimeline.value
+                    val active = uiState.showChaptersPanel && uiState.error == null && !uiState.isBuffering &&
+                        previewHostState.isAtLeast(Lifecycle.State.RESUMED)
+                    key(uiState.currentStreamUrl, previewEpisode, seekrContent, thumbsOnMpv) {
+                        ChaptersSidePanel(
+                            chapters = uiState.chapters,
+                            currentPositionMs = timeline.playbackPosition,
+                            onChapterSelected = { viewModel.onEvent(PlayerEvent.OnSelectChapter(it.startMs)) },
+                            onClose = { viewModel.onEvent(PlayerEvent.OnDismissChaptersPanel) },
+                            remoteTrack = seekrTrack?.takeIf { it.fitsChapters(timeline.duration) },
+                            previewsActive = active,
+                            localEnabled = seekThumbsEnabled.value && !thumbsOnMpv,
+                            canPrioritizeLocal = !uiState.isPlaying && timeline.duration > 0 && !uiState.isLive,
+                            modifier = Modifier.align(Alignment.CenterEnd)
+                        )
+                    }
                 }
             }
 
