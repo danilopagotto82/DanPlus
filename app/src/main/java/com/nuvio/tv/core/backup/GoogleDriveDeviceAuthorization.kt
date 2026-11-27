@@ -14,7 +14,7 @@ import retrofit2.http.FormUrlEncoded
 import retrofit2.http.POST
 import java.util.concurrent.TimeUnit
 
-private const val DRIVE_APP_DATA = "https://www.googleapis.com/auth/drive.appdata"
+private const val DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file"
 private const val DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
 
 internal class DriveDeviceCode(
@@ -41,7 +41,7 @@ internal class GoogleDriveDeviceAuthorization(
     suspend fun start(clientId: String): DriveDeviceCode {
         require(clientId.isNotBlank())
         val startedAt = monotonicMs()
-        val response = api.start(clientId, DRIVE_APP_DATA)
+        val response = api.start(clientId, DRIVE_FILE_SCOPE)
         val body = response.json()
         if (!response.isSuccessful) throw DriveAuthorizationException(response.code())
         val url = body.optString("verification_url").toHttpUrlOrNull()
@@ -111,7 +111,7 @@ internal class GoogleDriveDeviceAuthorization(
 
     private fun JSONObject.tokens(status: Int, existingRefresh: String? = null): DriveDeviceTokens {
         val scopes = optString("scope").split(' ').filter { it.isNotBlank() }.toSet()
-        if (scopes != setOf(DRIVE_APP_DATA) || !optString("token_type").equals("Bearer", ignoreCase = true)) {
+        if (scopes != setOf(DRIVE_FILE_SCOPE) || !optString("token_type").equals("Bearer", ignoreCase = true)) {
             throw DriveAuthorizationException(status)
         }
         val expires = getLong("expires_in")

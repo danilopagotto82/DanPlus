@@ -14,7 +14,7 @@ import retrofit2.Response
 @OptIn(ExperimentalCoroutinesApi::class)
 class GoogleDriveDeviceAuthorizationTest {
     @Test
-    fun pollsWithBackoffAndAcceptsOnlyDriveAppData() = runTest {
+    fun pollsWithBackoffAndAcceptsOnlyDriveFile() = runTest {
         val api = FakeApi(mutableListOf(error(428, "authorization_pending"), error(403, "slow_down"), token()))
         val authorization = GoogleDriveDeviceAuthorization(api) { testScheduler.currentTime }
         val code = authorization.start("fake-client")
@@ -94,7 +94,7 @@ class GoogleDriveDeviceAuthorizationTest {
     }
 
     private companion object {
-        const val SCOPE = "https://www.googleapis.com/auth/drive.appdata"
+        const val SCOPE = "https://www.googleapis.com/auth/drive.file"
 
         fun success(json: String): Response<ResponseBody> = Response.success(json.toResponseBody())
 
