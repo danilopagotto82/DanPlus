@@ -91,3 +91,38 @@ Aguardar revisão do coordenador e a janela autorizada para comparação do cand
 - [Matriz ML05-S](MATRIZ_COMPLEMENTAR_ML05_S.csv) e [arquitetura, evidências e pendências](ML05_S_SURPREENDA_ME.md). Os 34 IDs da matriz principal foram preservados.
 - Kotlin/Compose focal, 229 XMLs AAPT2 e 48 JUnit sem falhas na execução final. Gradle completo e AndroidTest não executados. Homologação visual e física em Shield e Fire TV **NÃO TESTADO**.
 - Concluir as pendências de ML05/ML05-S. ML06 — OTA, organização e manutenção — permanece por iniciar.
+
+## ML05-FINAL — continuação de f940474
+
+- Implementação `fb38abbacfb45d703bfcee20afc06f101ec2f822`, árvore `2ad479b2aedd7728efcb7a8a3fc5d52e28cf60db`. Validação final Kotlin/Compose e JUnit 4.13.2 com 124 testes, 0 falhas, 16 classes. AAPT2 compilou os dois XMLs atualizados. Gradle completo e AndroidTest continuam NÃO TESTADOS. Nenhum APK foi gerado, instalado ou publicado.
+
+- [Matriz principal](MATRIZ_EXECUCAO_2_1_2.csv) e [matriz complementar](MATRIZ_COMPLEMENTAR_ML05_S.csv) preservam 34 IDs canônicos e 10 IDs DP-S. As situações focais não representam aceite do fluxo em aparelho.
+- Seu gosto reutiliza as palavras-chave dos metadados já coletados. Mostra apenas temas recorrentes em pelo menos dois títulos distintos com peso positivo. Sessões permitem convidado temporário, limite familiar e inclusão explícita de assistidos. Exclusões de progresso, biblioteca, rejeição e classificação ainda valem.
+- A revisão BR usa a região do dispositivo, metadados TMDB e cache regional separado. Ausência de classificação brasileira resulta em título indisponível na sessão restrita. Filmes podem usar pré-filtro BR. Séries exigem checagem individual pela classificação da série no TMDB. [Guia do Ministério da Justiça](https://www.gov.br/mj/pt-br/assuntos/seus-direitos/classificacao-1/paginas-classificacao-indicativa/guia-de-classificacao)
+- IA com ajuste de escopo. O ranking local passa por filtros e duração antes de consultar resultados já armazenados da ordenação opcional. Somente sessão individual pode promover um dos três finalistas. Sem nova requisição generativa, dados de convidados ou nova credencial. Trailer externo usa o resolvedor PT-BR e o aplicativo responsável pela URL. A volta conserva o filme escolhido.
+- A auditoria encontrou o pai ausente `03095024919c431dd274e6e2bea8016066156a0c` referenciado pelo commit histórico `a00c26c045091e7ddfee91591ad14fdabe2315eb`. A transferência recuperável usa `5cb4f2d` como base. Preservar a fonte oficial e o bundle anterior, sem reparo automático.
+- Pendências de implementação e diagnóstico. DP-S04 ainda precisa de cadastro de vínculo/faixa etária e onboarding dos demais perfis. A confirmação após reprodução precisaria de autorização por participante e de um contrato de atribuição no player. RS-26 ainda exige cobertura sintética integrada de histórico retroativo, progresso parcial, reconexão Trakt e rewatch. A validação física permanece no ML08.
+
+### Preparação de ML06
+
+- [Adendo UI-13 importado](ADENDO_ML06_UI13_20261127.md). ML06 deve planejar o backdrop atrás do cabeçalho, reaproveitar `behindTopNavigation()` e manter o inset dos controles. Tratar como complemento independente se ML06 já estiver fechado.
+- A chave persistida nova é `cinema_favorite_genre_v1`, string de ID TMDB no DataStore Scout por perfil. A ausência representa qualquer gênero. A preferência pode ser removida pelo usuário e consta no catálogo atual de backup por perfil. Inventariar sua responsabilidade no ML06 para evitar gravação duplicada. Clima, duração, companhia, convidado e recusas da escolha ficam em memória. Classificação BR usa cache derivado, descartável e separado por região.
+- Google Drive deve complementar Nuvio/ARC com responsabilidade exclusiva por configuração e reaproveitar o ReSeq após auditar compatibilidade. Configurações técnicas de avaliação ficam locais. Seekr deve entrar somente no backup criptografado.
+- O Client ID WeTrakr foi transferido para o `local.dev.properties` ignorado pelo Git na cópia gravável. O valor foi comparado sem ser exibido. A configuração efetiva de compilação ainda depende do gate Gradle.
+
+### Checklist físico para ML08
+
+Usar perfis sintéticos ou autorizados. Registrar versão, resolução, variante, fonte de metadados, idioma, estados de foco e PASS/FAIL por cenário no Shield e no Fire TV. Situação desta missão em todos os casos **NÃO TESTADO**.
+
+| Filme ou série | Caminho | Problema anterior ou cenário | Resultado esperado |
+| --- | --- | --- | --- |
+| Minority Report | Coleções → pôster em foco → Detalhes → Trailer → Back | Trailer podia reiniciar na transição. | Mesma obra e posição, prioridade PT-BR, foco devolvido, trocar foco cancela e Assistir cessa tráfego de prévia. |
+| A.I. Inteligência Artificial | Surpreenda-me → Filtros avançados → termo exato → Escolha por mim → Trailer | Trailer externo ausente na escolha ou foco perdido ao voltar. | Variante externa abre o app responsável. Ao voltar, mesmo diálogo, filme e foco em Trailer. Outra escolha não repete título recusado. |
+| Interestelar | Perfil adulto → Surpreenda-me → Minha sessão de cinema → 90 min | Escolha poderia ignorar limite ou renovar com o mesmo título. | Filme acima do limite fica fora. Ausência é informada sem relaxar filtros. No ML06/ML08, usar também o caso de backdrop escuro do UI-13. |
+| Toy Story | Perfil infantil em região BR → Minha sessão de cinema → Companhia → incluir assistidos | Uso de rótulo estrangeiro ou exclusão sem opção de rever. | Classificação BR real aplicada conforme o limite. Reexibição só com opção explícita e regras de rejeição preservadas. |
+| Deadpool & Wolverine | Perfil infantil BR → busca avançada → Surpreenda-me | Perfil infantil poderia receber obra sem classificação local conhecida. | Título acima do teto ou sem classificação BR fica fora. No ML06/ML08, conferir arte colorida contínua atrás do menu. |
+| Ted Lasso | Mixes → Somente não assistidos → Play → Back → Detalhes → Episódios | Episódio concluído podia voltar à seleção ou afetar sequência. | Mix só usa episódios inéditos elegíveis. Back preserva foco. Sequência normal e histórico do perfil permanecem corretos. |
+| Os Anéis de Poder | Continuar Assistindo → opções do episódio → marcar com data anterior → reconectar tracker | Progresso parcial e episódios concluídos podiam ser reconciliados incorretamente. | Data preservada, remoção limitada a progresso parcial e sem reativação de série concluída. Aplicar ao perfil autorizado e conferir Trakt/WeTrakr separadamente. |
+| Duna: Parte Dois | Home clássica/moderna → Descobrir → Surpreenda-me, transparência 0/60/100 | Faixa entre cabeçalho e backdrop com arte clara. | Critério UI-13 no ML06/ML08. Arte contínua e relógio legível, sem duplicação de fundo ou recursos. |
+
+O próximo megalote oficial é ML06, após tratar o que continua aberto no ML05-FINAL. Homologação física no ML08.
