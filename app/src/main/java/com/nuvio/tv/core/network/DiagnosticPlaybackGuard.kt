@@ -15,6 +15,16 @@ internal class DiagnosticPlaybackGuard {
         }
     }
 
+    val isPlaybackActive: Boolean
+        get() = synchronized(lock) { players > 0 }
+
+    /** Serialize a short final handoff with the acquisition of a new playback session. */
+    fun runWhileIdle(action: () -> Unit): Boolean = synchronized(lock) {
+        if (players > 0) return@synchronized false
+        action()
+        true
+    }
+
     fun register(onPlayback: () -> Unit): AutoCloseable? = synchronized(lock) {
         if (players > 0) null else {
             listeners.add(onPlayback)

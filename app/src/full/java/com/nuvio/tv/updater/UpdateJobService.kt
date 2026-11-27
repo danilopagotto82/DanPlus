@@ -8,6 +8,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import com.nuvio.tv.core.network.DiagnosticPlaybackGuard
 import com.nuvio.tv.BuildConfig
 import com.nuvio.tv.core.util.hasPendingJob
 import com.nuvio.tv.core.util.scheduleSafely
@@ -32,7 +33,7 @@ private const val CHECK_INTERVAL_MS = 12 * 60 * 60_000L
 /**
  * Background update work. The periodic job checks for a new release and downloads it, so the banner can offer an
  * install without waiting for the download. On Android 12+, with automatic installs enabled, a second job installs the
- * downloaded update while the device is idle, without a confirmation screen.
+ * downloaded update while the device is idle. The system decides whether confirmation is required.
  *
  * Dependencies are obtained via Hilt EntryPoint since JobService is not a supported Hilt injection target.
  */
@@ -46,12 +47,12 @@ class UpdateJobService : JobService() {
         fun updateDownloadStore(): UpdateDownloadStore
     }
 
-    private var jobScope: CoroutineScope? = null
+    private val jobScopes = mutableMapOf<Int, CoroutineScope>()
 
     override fun onStartJob(params: JobParameters): Boolean {
         val entryPoint = EntryPointAccessors.fromApplication(applicationContext, UpdateJobEntryPoint::class.java)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        jobScope = scope
+        synchronized(jobScopes) { jobScopes.put(params.jobId, scope) }?.cancel()
         scope.launch {
             // A failed check, download or install asks for a retry with backoff instead of waiting for the next run.
             var retry = false
@@ -62,20 +63,26 @@ class UpdateJobService : JobService() {
                 }
             } catch (e: CancellationException) {
                 throw e
+            } catch (_: UpdatePlaybackActiveException) {
+                Log.d(TAG, "Update deferred while playback is active")
+                retry = true
             } catch (e: NoEligibleUpdateException) {
                 Log.d(TAG, e.message.orEmpty())
             } catch (e: Exception) {
                 Log.w(TAG, "Update job ${params.jobId} failed", e)
                 retry = true
             } finally {
-                jobFinished(params, retry)
+                val stillRunning = synchronized(jobScopes) {
+                    jobScopes.remove(params.jobId, scope)
+                }
+                if (stillRunning) jobFinished(params, retry)
             }
         }
         return true
     }
 
     override fun onStopJob(params: JobParameters): Boolean {
-        jobScope?.cancel()
+        synchronized(jobScopes) { jobScopes.remove(params.jobId) }?.cancel()
         return true // reschedule on stop
     }
 
@@ -94,6 +101,7 @@ class UpdateJobService : JobService() {
         ) return
         if (update.dismissalKey == preferences.ignoredTag.first()) return
 
+        if (DiagnosticPlaybackGuard.shared.isPlaybackActive) throw UpdatePlaybackActiveException()
         downloadStore.download(update).getOrThrow()
         Log.d(TAG, "Downloaded ${update.tag} in the background")
         if (autoInstallEnabled) scheduleIdleInstall(applicationContext)
@@ -105,13 +113,15 @@ class UpdateJobService : JobService() {
         val downloadStore = entryPoint.updateDownloadStore()
         val (tag, apkFile, code) = downloadStore.pendingInstall() ?: return
         if (tag == preferences.ignoredTag.first()?.substringBefore('#')) return
-        val valid = runCatching { ApkInstaller.validateUpdate(applicationContext, apkFile, null, null) }
+        if (DiagnosticPlaybackGuard.shared.isPlaybackActive) throw UpdatePlaybackActiveException()
+        val valid = runCatching { ApkInstaller.validateUpdate(applicationContext, apkFile, code, null) }
         if (valid.isFailure) {
-            Log.w(TAG, "Dropping downloaded update $tag", valid.exceptionOrNull())
+            Log.w(TAG, "Downloaded update $tag failed validation", valid.exceptionOrNull())
             downloadStore.clear()
             return
         }
-        Log.d(TAG, "Installing $tag while the device is idle")
+        if (!preferences.autoInstallEnabled.first()) return
+        Log.d(TAG, "Submitting $tag while the device is idle")
         preferences.setAutoInstalledTag(tag, code)
         val reserved = downloadStore.stageForInstaller(apkFile.absolutePath)
         ApkInstaller.install(applicationContext, reserved, background = true)

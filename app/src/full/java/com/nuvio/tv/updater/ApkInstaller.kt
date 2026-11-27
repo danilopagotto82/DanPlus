@@ -10,6 +10,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.nuvio.tv.BuildConfig
+import com.nuvio.tv.core.network.DiagnosticPlaybackGuard
 import java.io.File
 
 object ApkInstaller {
@@ -102,15 +103,20 @@ object ApkInstaller {
             packageInstaller.openSession(sessionId).use { session ->
                 session.writeFile("base.apk", apkFile)
                 dexMetadata?.let { session.writeFile("base.dm", it) }
-                session.commit(
-                    UpdateInstallResultReceiver.statusReceiver(
-                        context = context,
-                        sessionId = sessionId,
-                        apkFile = apkFile,
-                        background = background,
-                        withDexMetadata = dexMetadata != null
-                    ).intentSender
-                )
+                val receiver = UpdateInstallResultReceiver.statusReceiver(
+                    context = context,
+                    sessionId = sessionId,
+                    apkFile = apkFile,
+                    background = background,
+                    withDexMetadata = dexMetadata != null
+                ).intentSender
+                if (background) {
+                    if (!DiagnosticPlaybackGuard.shared.runWhileIdle { session.commit(receiver) }) {
+                        throw UpdatePlaybackActiveException()
+                    }
+                } else {
+                    session.commit(receiver)
+                }
             }
         } catch (e: Exception) {
             packageInstaller.abandonSession(sessionId)
@@ -142,3 +148,5 @@ object ApkInstaller {
         }
     }
 }
+
+internal class UpdatePlaybackActiveException : IllegalStateException("Playback session is active")
