@@ -285,7 +285,7 @@ fun LibraryScreen(
         var focused = false
         repeat(6) {
             focused = posterFocusRequesters[targetKey]
-                ?.let { requester -> runCatching { requester.requestFocus() }.isSuccess }
+                ?.let { requester -> runCatching { requester.requestFocus(FocusDirection.Enter) }.getOrDefault(false) }
                 ?: false
             if (focused) return@LaunchedEffect
             delay(24)
