@@ -67,8 +67,8 @@
     <string name="scout_taste_new_sub">Kijk een paar titels uit of beoordeel er hieronder wat, dan vult deze pagina zich. Tot die tijd leunen je suggesties op wat populair is.</string>
     <string name="scout_fresh_title">Opnieuw beginnen?</string>
     <plurals name="scout_fresh_body">
-        <item quantity="one">Scout vergeet je %1$d duim op dit profiel en berekent je suggesties opnieuw. Je kijkgeschiedenis en uitgesloten genres blijven. Dit kan niet ongedaan worden gemaakt.</item>
-        <item quantity="other">Scout vergeet je %1$d duimen op dit profiel en berekent je suggesties opnieuw. Je kijkgeschiedenis en uitgesloten genres blijven. Dit kan niet ongedaan worden gemaakt.</item>
+        <item quantity="one">DanPlus vergeet je %1$d duim op dit profiel en berekent je suggesties opnieuw. Je kijkgeschiedenis en uitgesloten genres blijven. Dit kan niet ongedaan worden gemaakt.</item>
+        <item quantity="other">DanPlus vergeet je %1$d duimen op dit profiel en berekent je suggesties opnieuw. Je kijkgeschiedenis en uitgesloten genres blijven. Dit kan niet ongedaan worden gemaakt.</item>
     </plurals>
     <string name="scout_cancel">Annuleren</string>
     <string name="scout_group_region">Regio</string>

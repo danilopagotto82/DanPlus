@@ -67,8 +67,8 @@
     <string name="scout_taste_new_sub">Se klart några titlar eller betygsätt några nedan så fylls sidan på. Tills dess bygger dina förslag på det som är populärt.</string>
     <string name="scout_fresh_title">Börja om?</string>
     <plurals name="scout_fresh_body">
-        <item quantity="one">Scout glömmer din %1$d tumme på den här profilen och räknar om dina förslag. Din historik och bortvalda genrer finns kvar. Det går inte att ångra.</item>
-        <item quantity="other">Scout glömmer dina %1$d tummar på den här profilen och räknar om dina förslag. Din historik och bortvalda genrer finns kvar. Det går inte att ångra.</item>
+        <item quantity="one">DanPlus glömmer din %1$d tumme på den här profilen och räknar om dina förslag. Din historik och bortvalda genrer finns kvar. Det går inte att ångra.</item>
+        <item quantity="other">DanPlus glömmer dina %1$d tummar på den här profilen och räknar om dina förslag. Din historik och bortvalda genrer finns kvar. Det går inte att ångra.</item>
     </plurals>
     <string name="scout_cancel">Avbryt</string>
     <string name="scout_group_region">Region</string>

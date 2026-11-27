@@ -2,7 +2,7 @@
 <resources>
     <string name="scout_mood_question">どんな気分ですか?</string>
     <string name="scout_your_taste">あなたの好み</string>
-    <string name="scout_your_taste_sub">Scoutが学んだ内容を確認して調整</string>
+    <string name="scout_your_taste_sub">DanPlusが学んだ内容を確認して調整</string>
     <string name="scout_q_watching">見るもの</string>
     <string name="scout_q_mood">気分</string>
     <string name="scout_q_who">誰が見る</string>
@@ -153,7 +153,7 @@
     <string name="scout_taste_directors">監督とクリエイター</string>
     <string name="scout_taste_actors">俳優</string>
     <string name="scout_taste_shaping">おすすめに影響する作品</string>
-    <string name="scout_taste_learn">Scoutに教える</string>
+    <string name="scout_taste_learn">DanPlusに教える</string>
     <string name="scout_taste_seen">%1$sを見ましたか?</string>
     <string name="scout_taste_learn_sub">ときどき評価すると、おすすめが早く良くなります。</string>
     <string name="scout_taste_not_seen">未視聴</string>
@@ -178,7 +178,7 @@
     <string name="scout_genre_thriller">スリラー</string>
     <string name="scout_genre_war">戦争</string>
     <string name="scout_genre_western">西部劇</string>
-    <string name="scout_licence_icon_title">Scoutアイコン</string>
+    <string name="scout_licence_icon_title">Surpreenda-meアイコン</string>
     <string name="scout_licence_icon_body">From Material Design Icons, Apache License 2.0.</string>
     <string name="scout_award_oscar_winners">アカデミー賞 受賞作</string>
     <string name="scout_award_oscar_nominees">アカデミー賞 ノミネート作</string>

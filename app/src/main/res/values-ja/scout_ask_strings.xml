@@ -9,7 +9,7 @@
     <string name="scout_question_settings_sub">任意。お持ちのAIキーを使用します: Claude、OpenAI、Gemini、Groq</string>
     <string name="scout_question_settings_none">未設定</string>
     <string name="scout_question_settings_on">オン</string>
-    <string name="scout_question_search_line">Scoutに質問</string>
+    <string name="scout_question_search_line">DanPlusに質問</string>
     <string name="scout_question_mic_listening">聞いています…</string>
     <string name="scout_question_type_prompt">質問を入力</string>
     <string name="scout_question_example_1">\"Inceptionのような映画、ただし夢の話は抜きで\"</string>
@@ -108,7 +108,7 @@
     <string name="scout_ai_groq_line">とても高速、無料枠あり</string>
     <string name="scout_ai_chatgpt_line">GPT。従量課金、とても安い</string>
     <string name="scout_ai_claude_line">Anthropic。従量課金、おすすめが最も的確</string>
-    <string name="scout_ai_stored_lead">Scoutはお持ちのキーを使います。キーはこのボックスに暗号化して保存され、アカウントとは同期されません。</string>
+    <string name="scout_ai_stored_lead">DanPlusはお持ちのキーを使います。キーはこのボックスに暗号化して保存され、アカウントとは同期されません。</string>
     <string name="scout_ai_add_title">%1$sのキーを追加または変更</string>
     <string name="scout_ai_step_1">スマホでこのコードをスキャン</string>
     <string name="scout_ai_step_2">リンクを開いてキーを取得</string>

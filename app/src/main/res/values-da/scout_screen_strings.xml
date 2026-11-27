@@ -67,8 +67,8 @@
     <string name="scout_taste_new_sub">Se et par titler færdige, eller bedøm nogle herunder, så fyldes siden ud. Indtil da bygger dine forslag på det populære.</string>
     <string name="scout_fresh_title">Start forfra?</string>
     <plurals name="scout_fresh_body">
-        <item quantity="one">Scout glemmer din %1$d tommelfinger på denne profil og beregner dine forslag igen. Din historik og fravalgte genrer bliver. Det kan ikke fortrydes.</item>
-        <item quantity="other">Scout glemmer dine %1$d tommelfingre på denne profil og beregner dine forslag igen. Din historik og fravalgte genrer bliver. Det kan ikke fortrydes.</item>
+        <item quantity="one">DanPlus glemmer din %1$d tommelfinger på denne profil og beregner dine forslag igen. Din historik og fravalgte genrer bliver. Det kan ikke fortrydes.</item>
+        <item quantity="other">DanPlus glemmer dine %1$d tommelfingre på denne profil og beregner dine forslag igen. Din historik og fravalgte genrer bliver. Det kan ikke fortrydes.</item>
     </plurals>
     <string name="scout_cancel">Annuller</string>
     <string name="scout_group_region">Region</string>

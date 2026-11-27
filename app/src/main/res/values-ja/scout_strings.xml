@@ -18,7 +18,7 @@
     <string name="scout_row_because_sub">最近見終えた作品に連動</string>
     <string name="scout_row_gems">隠れた名作</string>
     <string name="scout_row_gems_sub">高評価だがあまり知られていない作品</string>
-    <string name="scout_row_tiles">Scoutタイル</string>
+    <string name="scout_row_tiles">DanPlusタイル</string>
     <string name="scout_row_tiles_sub">おまかせ、気分、年代</string>
     <string name="scout_ratings_enabled">作品を評価</string>
     <string name="scout_ratings_enabled_sub">評価ボタン、長押しメニューの親指、映画後の質問を表示</string>

@@ -11,8 +11,8 @@
     <string name="scout_picks_row_new">あなたへの新着</string>
     <string name="scout_picks_row_trending">あなたへのトレンド</string>
     <string name="scout_picks_quick_title">大好きな作品を5つ選択</string>
-    <string name="scout_picks_quick_sub">Scoutが早く好みをつかめます。「あなたの好み」でいつでも変更できます。</string>
-    <string name="scout_picks_quick_row_sub">好きなものをScoutにすばやく教える方法</string>
+    <string name="scout_picks_quick_sub">DanPlusが早く好みをつかめます。「あなたの好み」でいつでも変更できます。</string>
+    <string name="scout_picks_quick_row_sub">好きなものをDanPlusにすばやく教える方法</string>
     <string name="scout_picks_quick_count">%1$d/%2$d</string>
     <string name="scout_picks_quick_done">完了</string>
     <string name="scout_picks_quick_skip">スキップ</string>
@@ -25,10 +25,10 @@
     <string name="scout_picks_words_writing">作成中…</string>
     <string name="scout_picks_words_remove">削除</string>
     <string name="scout_picks_sort_title">AIにおすすめを並べ替えてもらう</string>
-    <string name="scout_picks_sort_sub">週1回程度、あなたのキーで。Scout自身のおすすめにAIは不要です。</string>
+    <string name="scout_picks_sort_sub">週1回程度、あなたのキーで。DanPlus自身のおすすめにAIは不要です。</string>
     <string name="scout_picks_on">オン</string>
     <string name="scout_picks_off">オフ</string>
-    <string name="scout_picks_sent">あなたのキーで、選んだAIサービスに送られます: Scoutが見つけた約100作品、言葉で表した好み、好きな作品と好きでない作品、除外したジャンル。視聴履歴の全体は送られません。</string>
+    <string name="scout_picks_sent">あなたのキーで、選んだAIサービスに送られます: DanPlusが見つけた約100作品、言葉で表した好み、好きな作品と好きでない作品、除外したジャンル。視聴履歴の全体は送られません。</string>
     <string name="scout_picks_refine_violent">暴力控えめ</string>
     <string name="scout_picks_refine_older">古め</string>
     <string name="scout_picks_refine_newer">新しめ</string>
