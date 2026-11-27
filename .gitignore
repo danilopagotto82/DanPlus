@@ -64,6 +64,9 @@ scripts/*
 !/supabase/functions/danplus-report-account/
 /supabase/functions/danplus-report-account/*
 !/supabase/functions/danplus-report-account/index.ts
+!/supabase/functions/danplus-drive-auth/
+/supabase/functions/danplus-drive-auth/*
+!/supabase/functions/danplus-drive-auth/index.ts
 !/supabase/functions/tv-logins-exchange/
 /supabase/functions/tv-logins-exchange/*
 !/supabase/functions/tv-logins-exchange/index.ts

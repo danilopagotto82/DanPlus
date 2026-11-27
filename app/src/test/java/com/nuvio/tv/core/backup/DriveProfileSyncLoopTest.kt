@@ -18,6 +18,32 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class DriveProfileSyncLoopTest {
     @Test
+    fun checksRemoteWithoutLocalEditsAndStopsPollingWhenSessionEnds() = runTest {
+        val original = DrivePortableSettings(null, scoutInMenu = true, scoutListEmojis = false)
+        val scout = mockk<ScoutStore>()
+        every { scout.observeDriveSettings(3) } returns MutableStateFlow(original)
+        val coordinator = mockk<DriveJournalCoordinator>()
+        coEvery { coordinator.synchronize(any(), any(), any(), any(), any()) } returns DriveJournalOutcome.IN_SYNC
+        val profile = DriveProfileSession(DriveCinemaScope("drive", "app", "profile"), 3, "714895126038", coordinator) { true }
+        val sessions = MutableStateFlow<DriveProfileSession?>(profile)
+        val loop = DriveProfileSyncLoop(scout, remotePollMs = 60_000L)
+        backgroundScope.launch { loop.run(sessions) }
+        runCurrent()
+        coVerify(exactly = 1) { coordinator.synchronize(any(), any(), original, any(), any()) }
+        advanceTimeBy(59_999)
+        runCurrent()
+        coVerify(exactly = 1) { coordinator.synchronize(any(), any(), original, any(), any()) }
+        advanceTimeBy(1)
+        runCurrent()
+        coVerify(exactly = 2) { coordinator.synchronize(any(), any(), original, any(), any()) }
+        sessions.value = null
+        runCurrent()
+        advanceTimeBy(120_000)
+        runCurrent()
+        coVerify(exactly = 2) { coordinator.synchronize(any(), any(), original, any(), any()) }
+    }
+
+    @Test
     fun opensDebouncesManualRunsAndStopsAfterSignOut() = runTest {
         val original = DrivePortableSettings(null, scoutInMenu = true, scoutListEmojis = false)
         val settings = MutableStateFlow(original)

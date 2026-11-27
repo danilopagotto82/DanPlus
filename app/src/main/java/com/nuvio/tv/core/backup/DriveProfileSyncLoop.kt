@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 
@@ -23,7 +24,11 @@ internal class DriveProfileSession(
     val isCurrent: () -> Boolean
 )
 
-internal class DriveProfileSyncLoop(private val scout: ScoutStore) {
+internal class DriveProfileSyncLoop(
+    private val scout: ScoutStore,
+    private val remotePollMs: Long = 5 * 60_000L
+) {
+    init { require(remotePollMs > 0) }
     private val manual = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     private val _outcome = MutableStateFlow<DriveJournalOutcome?>(null)
     val outcome = _outcome.asStateFlow()
@@ -44,7 +49,15 @@ internal class DriveProfileSyncLoop(private val scout: ScoutStore) {
                     0L
                 } else 750L
             }.map { Unit }
-            merge(changes, manual).collect {
+            // A second TV can change the journal without changing this local DataStore.
+            // Poll only during the authorized lifecycle; cancellation stops the timer.
+            val remoteRefresh = flow {
+                while (true) {
+                    delay(remotePollMs)
+                    emit(Unit)
+                }
+            }
+            merge(changes, manual, remoteRefresh).collect {
                 if (!session.isCurrent()) return@collect
                 try {
                     for (attempt in 0..2) {
