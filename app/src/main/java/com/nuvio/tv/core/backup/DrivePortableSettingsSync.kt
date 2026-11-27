@@ -61,7 +61,13 @@ internal class DrivePortableSettingsSync(private val transport: DriveCinemaTrans
             remote == null || baseline == null -> return@withContext DrivePortableResult.Conflict
             else -> merge(local, remote, baseline) ?: return@withContext DrivePortableResult.Conflict
         }
-        if (merged == remote) return@withContext DrivePortableResult.InSync(merged)
+        if (merged == remote) {
+            return@withContext if (isCurrent() && transport.isAuthorized(scope, device) && isCurrent()) {
+                DrivePortableResult.InSync(merged)
+            } else {
+                DrivePortableResult.Unavailable
+            }
+        }
 
         val sealed = BackupCrypto.seal(encode(scope, merged).toString(), pin)
         if (!isCurrent() || !transport.isAuthorized(scope, device) || !isCurrent()) {

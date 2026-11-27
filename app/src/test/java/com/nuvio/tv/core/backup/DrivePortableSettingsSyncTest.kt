@@ -61,13 +61,40 @@ class DrivePortableSettingsSyncTest {
         assertEquals(0, transport.writes)
     }
 
+    @Test
+    fun twoClientsReconcileAfterOfflineEditAndRejectARevokedGrant() = runBlocking {
+        val secondClient = DrivePortableSettingsSync(transport)
+        val remoteEdit = defaults.copy(scoutShowWatched = false)
+        val offlineEdit = defaults.copy(scoutInMenu = true)
+        assertEquals(
+            DrivePortableResult.InSync(defaults),
+            sync.reconcile(scope, "first-device", "123456", defaults, null) { true }
+        )
+        assertEquals(
+            DrivePortableResult.InSync(remoteEdit),
+            sync.reconcile(scope, "first-device", "123456", remoteEdit, defaults) { true }
+        )
+        val expected = remoteEdit.copy(scoutInMenu = true)
+        assertEquals(
+            DrivePortableResult.InSync(expected),
+            secondClient.reconcile(scope, "second-device", "123456", offlineEdit, defaults) { true }
+        )
+        transport.onRead = { transport.revokedDevice = "first-device" }
+        assertEquals(
+            DrivePortableResult.Unavailable,
+            sync.reconcile(scope, "first-device", "123456", remoteEdit, remoteEdit) { true }
+        )
+        assertEquals(3, transport.writes)
+    }
+
     private class FakeTransport : DriveCinemaTransport {
         var writes = 0
         var rejectWrite = false
+        var revokedDevice: String? = null
         var onRead: () -> Unit = {}
         private var revision: DrivePreferenceRevision? = null
 
-        override suspend fun isAuthorized(scope: DriveCinemaScope, device: String) = true
+        override suspend fun isAuthorized(scope: DriveCinemaScope, device: String) = device != revokedDevice
 
         override suspend fun read(scope: DriveCinemaScope): DrivePreferenceRevision? {
             onRead()
