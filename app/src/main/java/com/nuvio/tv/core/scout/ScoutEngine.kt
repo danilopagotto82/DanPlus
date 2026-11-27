@@ -280,19 +280,22 @@ class ScoutEngine @Inject constructor(
         val exclusions = exclusionsOf(profile, watched, started, ScoutListed(), allowRewatch)
         val saved = readPool(profileId, policy.limit)
         if (!isCurrent()) return@withContext ScoutGroupMember(null, ScoutExclusions())
-        if (saved != null && now - saved.builtAt < MEMBER_POOL_MAX_AGE_MS) {
-            return@withContext ScoutGroupMember(saved, exclusions)
-        }
-        val finished = scoutSeeds(watched, profile.ratings.values)
+        val finished = scoutSignals(watched, started, profile.ratings.values, now)
         val watching = scoutWatchingSeeds(started, finished)
         val seeds = scoutSignalSeeds(finished, watching)
         if (seeds.isEmpty()) return@withContext ScoutGroupMember(saved, exclusions)
+        val signature = scoutLimitSignature(
+            scoutHistorySignature(seeds, profile.settings.leaveOutGenres, profile.settings.leaveOutLanguages),
+            policy.limit?.code.orEmpty()
+        )
+        if (saved != null && saved.historySignature == signature && now - saved.builtAt in 0 until MEMBER_POOL_MAX_AGE_MS) {
+            return@withContext ScoutGroupMember(saved, exclusions)
+        }
         val built = try {
             build(
-                seeds, profile, scoutLimitSignature(
-                    scoutHistorySignature(seeds, profile.settings.leaveOutGenres, profile.settings.leaveOutLanguages),
-                    policy.limit?.code.orEmpty()
-                ), now, exclusions, ageTitles = finished + watching, limit = policy.limit, isCurrent = ::isCurrent
+                seeds, profile, signature, now, exclusions,
+                signals = finished + watching.filter { it in seeds },
+                ageTitles = finished + watching, limit = policy.limit, isCurrent = ::isCurrent
             )
         } catch (error: CancellationException) {
             throw error

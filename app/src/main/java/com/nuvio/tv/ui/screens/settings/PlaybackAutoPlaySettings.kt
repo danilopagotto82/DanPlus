@@ -89,6 +89,7 @@ internal fun PlaybackStreamSelectionSection(
         settings.streamAutoPlaySource
     }
 
+    Text(stringResource(R.string.ml06_sources_immediate), style = MaterialTheme.typography.titleMedium)
     Row(verticalAlignment = Alignment.CenterVertically) {
         SettingsActionRow(
             title = stringResource(R.string.autoplay_stream_selection),
@@ -173,6 +174,7 @@ internal fun PlaybackStreamSelectionSection(
         }
     }
 
+    Text(stringResource(R.string.ml06_sources_timed), style = MaterialTheme.typography.titleMedium)
     val timeoutSeconds = settings.streamAutoPlayTimeoutSeconds
     SliderSettingsItem(
         title = stringResource(R.string.autoplay_timeout_title),
@@ -187,6 +189,7 @@ internal fun PlaybackStreamSelectionSection(
         onValueChange = { seconds -> onUpdate { setStreamAutoPlayTimeoutSeconds(seconds) } }
     )
 
+    Text(stringResource(R.string.ml06_sources_fallback), style = MaterialTheme.typography.titleMedium)
     SliderSettingsItem(
         title = stringResource(R.string.addon_stream_timeout_title),
         subtitle = stringResource(R.string.addon_stream_timeout_sub),

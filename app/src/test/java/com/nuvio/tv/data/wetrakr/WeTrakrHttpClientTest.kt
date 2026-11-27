@@ -97,4 +97,8 @@ class WeTrakrHttpClientTest {
         assertEquals("INVALID_MEDIA_ID", WeTrakrHttpResponse(400, """{"success":false,"error":{"code":"INVALID_MEDIA_ID"}}""").errorCode())
         assertNull(WeTrakrHttpResponse(500, "<html>").errorCode())
     }
+    @org.junit.Test fun configuredBuildClientIdTakesPrecedenceOverManualFallback() {
+        org.junit.Assert.assertEquals("configured", WeTrakrConfiguration("configured", "test", savedClientId = { "manual" }).clientId)
+        org.junit.Assert.assertEquals("manual", WeTrakrConfiguration("", "test", savedClientId = { "manual" }).clientId)
+    }
 }

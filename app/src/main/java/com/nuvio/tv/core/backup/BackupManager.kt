@@ -71,7 +71,7 @@ class BackupManager @Inject constructor(
         val sealed = if (pin != null && secrets.isNotEmpty()) {
             BackupCrypto.seal(BackupFormat.encodeEntries(secrets).toString(), pin)
         } else null
-        val kept = entries.filterKeys { it != BackupPart.SECRETS }
+        val kept = entries.filterKeys { it != BackupPart.SECRETS && it != BackupPart.DEVICE }
         val parts = kept.filterValues { it.isNotEmpty() }.keys + listOfNotNull(sealed?.let { BackupPart.SECRETS })
         val now = System.currentTimeMillis()
         val summary = BackupSections.summary(sectionData, sealed != null)

@@ -150,6 +150,9 @@ internal fun BackupFlow(state: BackupUiState, viewModel: BackupViewModel) {
             title = stringResource(R.string.backup_saved_title),
             subtitle = stringResource(R.string.backup_saved_where, dialog.saved.file.displayName.removeSuffix(".json"))
         ) {
+            val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+                if (uri != null) viewModel.exportPortable(uri, dialog.saved.document)
+            }
             val parts = dialog.saved.document.header.parts
             val focus = remember { FocusRequester() }
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -183,6 +186,13 @@ internal fun BackupFlow(state: BackupUiState, viewModel: BackupViewModel) {
                 )
             }
             SettingsDialogActionRow {
+                SettingsDialogActionButton(stringResource(R.string.ml06_export_document), {
+                    try {
+                        export.launch(dialog.saved.file.displayName)
+                    } catch (_: android.content.ActivityNotFoundException) {
+                        android.widget.Toast.makeText(context, R.string.ml06_export_unavailable, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                })
                 SettingsDialogActionButton(stringResource(R.string.backup_done), viewModel::dismissDialog)
                 SettingsDialogActionButton(
                     stringResource(R.string.backup_also_phone),
@@ -235,6 +245,9 @@ internal fun BackupFlow(state: BackupUiState, viewModel: BackupViewModel) {
             title = stringResource(R.string.backup_signin_button),
             subtitle = stringResource(R.string.backup_where_sub)
         ) {
+            val import = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                if (uri != null) viewModel.openPortable(uri)
+            }
             val first = remember { FocusRequester() }
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 state.backups.firstOrNull()?.let { newest ->
@@ -245,6 +258,17 @@ internal fun BackupFlow(state: BackupUiState, viewModel: BackupViewModel) {
                         modifier = Modifier.focusRequester(first)
                     )
                 }
+                SettingsActionRow(
+                    title = stringResource(R.string.ml06_import_document),
+                    subtitle = null,
+                    onClick = {
+                        try {
+                            import.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+                        } catch (_: android.content.ActivityNotFoundException) {
+                            android.widget.Toast.makeText(context, R.string.ml06_export_unavailable, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
                 SettingsActionRow(
                     title = stringResource(R.string.backup_where_phone),
                     subtitle = stringResource(R.string.backup_where_phone_sub),

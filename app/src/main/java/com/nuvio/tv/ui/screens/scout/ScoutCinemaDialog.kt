@@ -10,6 +10,11 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.nuvio.tv.core.scout.ScoutSlices
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
@@ -43,7 +48,7 @@ internal data class ScoutCinemaChoice(val shown: ScoutShownPick, val logo: Strin
 
 internal data class ScoutCinemaTrailer(val source: TrailerPlaybackSource, val external: Boolean)
 
-private enum class CinemaStep { MENU, SESSION, PREFERENCES, LOADING, RESULT, EMPTY, TRAILER }
+private enum class CinemaStep { MENU, SESSION, PREFERENCES, TASTES, LOADING, RESULT, EMPTY, TRAILER }
 
 private val cinemaGold = Color(0xFFD8B675)
 private val cinemaMoods = listOf(
@@ -52,12 +57,14 @@ private val cinemaMoods = listOf(
 )
 private val cinemaDurations = listOf(30, 60, 90, 120, 150, null)
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ScoutCinemaDialog(
     initialMood: ScoutMood?,
     visible: Boolean,
     onPickCompany: () -> Unit,
-    choose: suspend (ScoutMood?, Int?, Set<String>, Boolean, Boolean, ScoutCinemaGuest?) -> ScoutCinemaChoice?,
+    missingTastes: suspend (Boolean) -> List<Pair<Int, String>>?,
+    choose: suspend (ScoutMood?, Int?, Set<String>, Boolean, Boolean, ScoutCinemaGuest?, Map<Int, Set<Int>>) -> ScoutCinemaChoice?,
     loadGenre: suspend () -> Int?,
     saveGenre: suspend (Int?) -> Unit,
     loadTrailer: suspend (ScoutPick) -> ScoutCinemaTrailer?,
@@ -71,6 +78,10 @@ internal fun ScoutCinemaDialog(
     var loadingGenre by remember { mutableStateOf(false) }
     var askAttendance by remember { mutableStateOf(false) }
     var guest by remember { mutableStateOf<ScoutCinemaGuest?>(null) }
+    var preferences by remember { mutableStateOf(emptyMap<Int, Set<Int>>()) }
+    var missing by remember { mutableStateOf(emptyList<Pair<Int, String>>()) }
+    var selectedGenres by remember { mutableStateOf(emptySet<Int>()) }
+    val guestLabel = stringResource(R.string.cinema_guest)
     var allowRewatch by remember { mutableStateOf(false) }
     var configured by remember { mutableStateOf(false) }
     var mood by remember { mutableStateOf(initialMood?.takeIf { it in cinemaMoods }) }
@@ -89,8 +100,21 @@ internal fun ScoutCinemaDialog(
 
     LaunchedEffect(step) {
         if (step == CinemaStep.LOADING) {
+            val sessionGuest = guest.takeIf { configured }
+            val pending = withTimeoutOrNull(25_000) { scoutReadPolicy { missingTastes(sessionGuest != null) } }
+            if (pending == null) {
+                step = CinemaStep.EMPTY
+                return@LaunchedEffect
+            }
+            missing = (pending + listOfNotNull(sessionGuest?.let { 0 to guestLabel }))
+                .filterNot { it.first in preferences }
+            if (missing.isNotEmpty()) {
+                selectedGenres = emptySet()
+                step = CinemaStep.TASTES
+                return@LaunchedEffect
+            }
             choice = withTimeoutOrNull(25_000) {
-                scoutReadPolicy { choose(mood, duration, rejected, configured, configured && allowRewatch, guest.takeIf { configured }) }
+                scoutReadPolicy { choose(mood, duration, rejected, configured, configured && allowRewatch, sessionGuest?.copy(genres = preferences[0].orEmpty()), preferences) }
             }
             step = if (choice == null) CinemaStep.EMPTY else CinemaStep.RESULT
         } else if (step == CinemaStep.PREFERENCES) {
@@ -128,7 +152,7 @@ internal fun ScoutCinemaDialog(
     val title = when (step) {
         CinemaStep.MENU -> R.string.scout_title
         CinemaStep.SESSION -> R.string.cinema_session
-        CinemaStep.PREFERENCES -> R.string.cinema_profile_preferences
+        CinemaStep.PREFERENCES, CinemaStep.TASTES -> R.string.cinema_profile_preferences
         CinemaStep.TRAILER -> R.string.cinema_trailer
         CinemaStep.LOADING, CinemaStep.RESULT, CinemaStep.EMPTY -> R.string.cinema_choice
     }
@@ -137,7 +161,7 @@ internal fun ScoutCinemaDialog(
             when (step) {
                 CinemaStep.MENU -> onDismiss()
                 CinemaStep.SESSION -> step = CinemaStep.MENU
-                CinemaStep.PREFERENCES -> step = CinemaStep.SESSION
+                CinemaStep.PREFERENCES, CinemaStep.TASTES -> step = CinemaStep.SESSION
                 CinemaStep.TRAILER -> step = CinemaStep.RESULT
                 else -> step = if (configured) CinemaStep.SESSION else CinemaStep.MENU
             }
@@ -173,7 +197,10 @@ internal fun ScoutCinemaDialog(
                     ScoutChip(stringResource(R.string.cinema_company), onClick = onPickCompany, modifier = Modifier.focusRequester(first))
                     ScoutChip(
                         stringResource(R.string.cinema_guest),
-                        onClick = { guest = if (guest == null) ScoutCinemaGuest() else null },
+                        onClick = {
+                            guest = if (guest == null) ScoutCinemaGuest() else null
+                            if (guest == null) preferences = preferences - 0
+                        },
                         on = guest != null
                     )
                     ScoutChip(
@@ -186,17 +213,6 @@ internal fun ScoutCinemaDialog(
                             onClick = { guest = companion.copy(familyLimit = !companion.familyLimit) },
                             on = companion.familyLimit
                         )
-                    }
-                }
-                guest?.let { companion ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(28 to R.string.cinema_guest_action, 35 to R.string.cinema_guest_comedy, 18 to R.string.cinema_guest_drama).forEach { (genre, label) ->
-                            ScoutChip(
-                                stringResource(label),
-                                onClick = { guest = companion.copy(genre = genre.takeUnless { it == companion.genre }) },
-                                on = genre == companion.genre
-                            )
-                        }
                     }
                 }
                 Text(stringResource(R.string.cinema_mood))
@@ -236,6 +252,33 @@ internal fun ScoutCinemaDialog(
                     },
                     primary = true
                 )
+            }
+            CinemaStep.TASTES -> {
+                val participant = missing.first()
+                Text(participant.second)
+                Text(stringResource(R.string.cinema_session_genres))
+                Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        ScoutSlices.all.filter { it.id.startsWith("genre_") && it.titleRes != 0 }.forEach { slice ->
+                            val id = slice.id.removePrefix("genre_").toIntOrNull() ?: return@forEach
+                            ScoutChip(stringResource(slice.titleRes),
+                                onClick = { selectedGenres = if (id in selectedGenres) selectedGenres - id else selectedGenres + id },
+                                on = id in selectedGenres)
+                        }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ScoutChip(stringResource(R.string.cinema_no_genre), modifier = Modifier.focusRequester(first),
+                        onClick = {
+                            preferences = preferences + (participant.first to emptySet<Int>())
+                            step = CinemaStep.LOADING
+                        })
+                    ScoutChip(stringResource(R.string.close_save), enabled = selectedGenres.isNotEmpty(), primary = true,
+                        onClick = {
+                            preferences = preferences + (participant.first to selectedGenres)
+                            step = CinemaStep.LOADING
+                        })
+                }
             }
             CinemaStep.PREFERENCES -> {
                 Text(stringResource(R.string.cinema_profile_hint))

@@ -42,4 +42,5 @@
     <string name="cinema_genre_drama">Drama</string>
     <string name="cinema_save_genre">Salvar preferência</string>
     <string name="cinema_search_terms">Termos de título e sinopse, separados por vírgula</string>
+    <string name="cinema_session_genres">Escolha os gêneros para esta sessão</string>
 </resources>

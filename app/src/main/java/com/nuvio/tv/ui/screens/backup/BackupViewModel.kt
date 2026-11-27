@@ -165,6 +165,47 @@ class BackupViewModel @Inject constructor(
         }
     }
 
+    fun exportPortable(uri: android.net.Uri, document: BackupDocument) {
+        viewModelScope.launch {
+            val done = withContext(Dispatchers.IO) {
+                runCatching {
+                    val output = context.contentResolver.openOutputStream(uri, "wt")
+                        ?: error("Backup destination unavailable")
+                    output.bufferedWriter(Charsets.UTF_8).use {
+                        it.write(com.nuvio.tv.core.backup.BackupFormat.encode(document))
+                    }
+                }.isSuccess
+            }
+            showMessage(context.getString(if (done) R.string.ml06_export_saved else R.string.ml06_export_failed))
+        }
+    }
+
+    fun openPortable(uri: android.net.Uri) {
+        viewModelScope.launch {
+            val document = withContext(Dispatchers.IO) {
+                runCatching {
+                    val input = context.contentResolver.openInputStream(uri)
+                        ?: error("Backup source unavailable")
+                    val text = input.bufferedReader(Charsets.UTF_8).use { reader ->
+                        val limit = 16 * 1024 * 1024
+                        val body = StringBuilder()
+                        val buffer = CharArray(8 * 1024)
+                        while (true) {
+                            val count = reader.read(buffer)
+                            if (count < 0) break
+                            require(body.length + count <= limit)
+                            body.append(buffer, 0, count)
+                        }
+                        body.toString()
+                    }
+                    com.nuvio.tv.core.backup.BackupFormat.decode(text)
+                }.getOrNull()
+            }
+            if (document == null) showMessage(context.getString(R.string.ml06_import_failed))
+            else _state.update { it.copy(dialog = BackupDialog.Restore(document)) }
+        }
+    }
+
     fun openWhereFrom() = _state.update { it.copy(dialog = BackupDialog.WhereFrom) }
 
     fun openChoose() {

@@ -38,7 +38,7 @@ class WeTrakrConfiguration(
     private val savedClientId: () -> String? = { null }
 ) {
     private val defaultClientId = clientId
-    val clientId: String get() = savedClientId()?.takeIf(String::isNotBlank) ?: defaultClientId
+    val clientId: String get() = defaultClientId.takeIf(String::isNotBlank) ?: savedClientId()?.takeIf(String::isNotBlank).orEmpty()
 }
 
 enum class WeTrakrHttpMethod { GET, POST, DELETE }

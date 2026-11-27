@@ -39,7 +39,7 @@ class ScoutCinemaTest {
     @Test fun sparseMemberPreservesAffinityAndStillAppliesExclusions() {
         val preferred = movie.copy(genres = listOf(12))
         val excluded = movie.copy(tmdbId = 18, rating = 10f)
-        val other = movie.copy(tmdbId = 60, rating = 9f, genres = listOf(18))
+        val other = movie.copy(tmdbId = 60, rating = 7f, genres = listOf(18))
         val guest = ScoutGroupMember(null, ScoutExclusions(tmdbKeys = setOf(excluded.key)))
         assertEquals(
             listOf(preferred, other),
@@ -71,5 +71,15 @@ class ScoutCinemaTest {
         assertEquals(listOf(candidates[2], candidates[0], candidates[1], candidates[3]),
             cinemaRefineCached(candidates, listOf("movie:99", "movie:3")))
         assertEquals(candidates, cinemaRefineCached(candidates, emptyList()))
+    }
+    @Test fun temporaryTasteAffectsEachParticipantAndGuestCannotPromoteGlobally() {
+        val guestOnly = movie.copy(tmdbId = 10, genres = listOf(10749))
+        val groupFit = movie.copy(tmdbId = 11, genres = listOf(10749, 53, 18))
+        val missing = ScoutGroupMember(null, ScoutExclusions())
+        assertEquals(groupFit, com.nuvio.tv.core.scout.scoutOrderCinemaPicks(
+            listOf(guestOnly, groupFit), null, ScoutExclusions(), listOf(missing),
+            temporaryGenres = listOf(setOf(53), setOf(28, 18)), guestGenres = setOf(10749)
+        ).first())
+        assertEquals(1.0, com.nuvio.tv.core.scout.cinemaGenreAffinity(emptyList(), emptySet()), 0.0)
     }
 }

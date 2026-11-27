@@ -7,6 +7,7 @@ import com.nuvio.tv.ui.theme.NuvioTheme
 import androidx.activity.compose.BackHandler
 import com.nuvio.tv.LocalContentFocusRequester
 import androidx.compose.animation.core.AnimationSpec
+import com.nuvio.tv.ui.v2.navigation.behindTopNavigation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.BringIntoViewSpec
@@ -519,7 +520,7 @@ fun ClassicHomeContent(
                 HeroCarouselBackdrop(
                     item = item,
                     fullPage = true,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize().behindTopNavigation()
                 )
             }
         }

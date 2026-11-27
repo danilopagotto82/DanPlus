@@ -98,6 +98,7 @@ object BackupCatalog {
         BackupStoreSpec(BackupStoreKind.PROTECTED, "floppy_auth", BackupPart.SECRETS, keyAlias = "com.nuvio.tv.floppy.credentials.v1"),
         BackupStoreSpec(BackupStoreKind.PROTECTED, "mdblist_auth", BackupPart.SECRETS, keyAlias = "com.nuvio.tv.mdblist.credentials.v1"),
         BackupStoreSpec(BackupStoreKind.PROTECTED, "wetrakr_auth", BackupPart.SECRETS, keyAlias = "com.nuvio.tv.wetrakr.credentials.v1"),
+        BackupStoreSpec(BackupStoreKind.PROTECTED, "danplus_seekr_key", BackupPart.SECRETS, keyAlias = "danplus_seekr_key_v1"),
         BackupStoreSpec(BackupStoreKind.PROTECTED, "scout_ask_keys", BackupPart.SECRETS, keyAlias = "scout_ask_keys_v1"),
 
         BackupStoreSpec(BackupStoreKind.FILE, "scout_taste", BackupPart.SETTINGS, filePrefix = "scout/taste")

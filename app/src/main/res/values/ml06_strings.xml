@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ml06_space_recovered">Update storage freed: %1$s</string>
+    <string name="ml06_sources_immediate">Immediate playback</string>
+    <string name="ml06_sources_timed">Timed autoplay</string>
+    <string name="ml06_sources_fallback">Fallback and source timeouts</string>
+    <string name="ml06_export_document">Save to files or Drive</string>
+    <string name="ml06_export_saved">Backup exported</string>
+    <string name="ml06_export_failed">Could not export the backup</string>
+    <string name="ml06_export_unavailable">File destinations are unavailable on this device</string>
+    <string name="ml06_import_document">Restore from files or Drive</string>
+    <string name="ml06_import_failed">Could not read this backup</string>
+    <string name="ml06_discard_download">Discard download</string>
+    <string name="ml06_discard_unavailable">Download is in use or no longer available</string>
+</resources>

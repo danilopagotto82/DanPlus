@@ -32,6 +32,9 @@ data class UpdateUiState(
     val isUpdateAvailable: Boolean = false,
     val isDownloading: Boolean = false,
     val downloadProgress: Float? = null,
+    val downloadBytes: Long = 0,
+    val downloadTotal: Long? = null,
+    val downloadBytesPerSecond: Long? = null,
     val downloadedApkPath: String? = null,
     val showBanner: Boolean = false,
     val showUnknownSourcesDialog: Boolean = false,
@@ -56,8 +59,24 @@ class UpdateViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(UpdateUiState())
     val uiState: StateFlow<UpdateUiState> = _uiState.asStateFlow()
     private var updateCheckJob: Job? = null
+    private var downloadJob: Job? = null
+
+    fun cancelDownload() { downloadJob?.cancel() }
 
     init {
+        viewModelScope.launch {
+            downloadStore.transfer.collect { transfer ->
+                if (transfer != null) _uiState.update { state ->
+                    if (!state.isDownloading || state.update?.dismissalKey != transfer.release) state
+                    else state.copy(
+                        downloadProgress = transfer.total?.let { (transfer.bytes.toDouble() / it).toFloat().coerceIn(0f, 1f) },
+                        downloadBytes = transfer.bytes,
+                        downloadTotal = transfer.total,
+                        downloadBytesPerSecond = transfer.bytesPerSecond
+                    )
+                }
+            }
+        }
         viewModelScope.launch {
             val enabled = updatePreferences.updateBannerEnabled.first()
             try { updatePreferences.initializeForkStream() } catch (_: java.io.IOException) { /* Retry next launch. */ }
@@ -70,7 +89,11 @@ class UpdateViewModel @Inject constructor(
                     autoInstallNoticeEnabled = autoInstallNoticeEnabled
                 )
             }
-            downloadStore.clearIfInstalled()
+            val recovered = withContext(Dispatchers.IO) { downloadStore.clearIfInstalled() }
+            if (recovered > 0) {
+                val size = android.text.format.Formatter.formatShortFileSize(context, recovered)
+                _uiState.update { it.copy(feedbackMessage = context.getString(R.string.ml06_space_recovered, size)) }
+            }
             consumeAutoInstalledUpdate()
             syncBackgroundJobs()
             if (enabled && !BuildConfig.IS_DEBUG_BUILD) {
@@ -230,27 +253,25 @@ class UpdateViewModel @Inject constructor(
         val update = _uiState.value.update ?: return
         _uiState.update { it.copy(isDownloading = true) }
 
-        viewModelScope.launch {
+        downloadJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     isDownloading = true,
-                    downloadProgress = 0f,
+                    downloadProgress = null,
+                    downloadBytes = 0,
+                    downloadTotal = null,
+                    downloadBytesPerSecond = null,
                     errorMessage = null
                 )
             }
 
-            val result = withContext(Dispatchers.IO) {
-                downloadStore.download(update) { downloaded, total ->
-                    val progress = if (total != null && total > 0) {
-                        (downloaded.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                    } else {
-                        null
-                    }
-                    _uiState.update { it.copy(downloadProgress = progress) }
-                }.mapCatching { file ->
-                    ApkInstaller.validateUpdate(context, file, update.versionCode, update.assetSizeBytes)
-                    file
-                }
+            val result = try {
+                withContext(Dispatchers.IO) { downloadStore.download(update) }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                _uiState.update { it.copy(isDownloading = false, downloadProgress = null) }
+                throw cancelled
+            } catch (error: Exception) {
+                Result.failure(error)
             }
 
             result
@@ -263,10 +284,8 @@ class UpdateViewModel @Inject constructor(
                             errorMessage = null
                         )
                     }
-                    installUpdateOrRequestPermission()
                 }
                 .onFailure { error ->
-                    downloadStore.clear()
                     _uiState.update {
                         it.copy(
                             isDownloading = false,
@@ -277,6 +296,24 @@ class UpdateViewModel @Inject constructor(
                         )
                     }
                 }
+        }
+    }
+
+    fun discardDownload() {
+        val path = _uiState.value.downloadedApkPath ?: return
+        viewModelScope.launch {
+            val reclaimed = withContext(Dispatchers.IO) { downloadStore.discardReady(path) }
+            if (reclaimed != null) {
+                val size = android.text.format.Formatter.formatShortFileSize(context, reclaimed)
+                _uiState.update { state ->
+                    if (state.downloadedApkPath != path) state else state.copy(
+                        downloadedApkPath = null,
+                        feedbackMessage = context.getString(R.string.ml06_space_recovered, size)
+                    )
+                }
+            } else {
+                _uiState.update { it.copy(errorMessage = context.getString(R.string.ml06_discard_unavailable)) }
+            }
         }
     }
 
@@ -310,11 +347,16 @@ class UpdateViewModel @Inject constructor(
             }
             _uiState.update { it.copy(showUnknownSourcesDialog = false) }
             withContext(Dispatchers.IO) {
-                runCatching { ApkInstaller.install(context, apkFile, background = false) }
-                    .recoverCatching {
-                        Log.w(TAG, "Session install failed, falling back to the system installer", it)
-                        ApkInstaller.launchSystemInstaller(context, apkFile)
+                val reservation = runCatching { downloadStore.stageForInstaller(apkFile.absolutePath) }
+                reservation.mapCatching { file ->
+                    _uiState.update { it.copy(downloadedApkPath = file.absolutePath) }
+                    try {
+                        ApkInstaller.install(context, file, background = false)
+                    } catch (error: Exception) {
+                        Log.w(TAG, "Session install failed, falling back to the system installer", error)
+                        ApkInstaller.launchSystemInstaller(context, file)
                     }
+                }
             }.onFailure { error ->
                 _uiState.update { it.copy(errorMessage = error.message, showBanner = true) }
             }

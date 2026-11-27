@@ -122,7 +122,17 @@ internal fun scoutOrderCinemaPicks(
     pool: ScoutPool?,
     exclusions: ScoutExclusions,
     others: List<ScoutGroupMember>
-): List<ScoutPick> = orderScoutPicks(candidates, pool, exclusions, 0L, others, balanceCinema = true)
+): List<ScoutPick> = scoutOrderCinemaPicks(candidates, pool, exclusions, others, emptyList(), null)
+
+internal fun scoutOrderCinemaPicks(
+    candidates: List<ScoutPick>,
+    pool: ScoutPool?,
+    exclusions: ScoutExclusions,
+    others: List<ScoutGroupMember>,
+    temporaryGenres: List<Set<Int>?>,
+    guestGenres: Set<Int>?
+): List<ScoutPick> = orderScoutPicks(candidates, pool, exclusions, 0L, others, balanceCinema = true,
+    temporaryGenres = temporaryGenres, guestGenres = guestGenres)
 
 private fun orderScoutPicks(
     candidates: List<ScoutPick>,
@@ -130,18 +140,22 @@ private fun orderScoutPicks(
     exclusions: ScoutExclusions,
     seed: Long,
     others: List<ScoutGroupMember>,
-    balanceCinema: Boolean
+    balanceCinema: Boolean,
+    temporaryGenres: List<Set<Int>?> = emptyList(),
+    guestGenres: Set<Int>? = null
 ): List<ScoutPick> {
     val seeds = pool?.picked.orEmpty().associate { it.key to it.seedName }
     val random = Random(seed)
     val pools = listOf(pool) + others.map { it.pool }
-    val informedPools = pools.filter { !it?.picked.isNullOrEmpty() }
     return candidates.distinctBy { it.key }
         .filterNot { pick -> exclusions.blocks(pick) || others.any { it.exclusions.blocks(pick) } }
         .map { pick ->
             val fit = if (balanceCinema) {
-                val affinities = informedPools.map { scoutFit(pick, it) }
-                if (affinities.isEmpty()) 0.0 else .65 * affinities.min() + .35 * affinities.average()
+                val affinities = pools.mapIndexed { index, memberPool ->
+                    if (!memberPool?.picked.isNullOrEmpty()) scoutFit(pick, memberPool)
+                    else cinemaGenreAffinity(pick.genres, temporaryGenres.getOrNull(index).orEmpty())
+                } + listOfNotNull(guestGenres?.let { cinemaGenreAffinity(pick.genres, it) })
+                .65 * affinities.min() + .35 * affinities.average()
             } else pools.minOf { scoutFit(pick, it) }
             val named = seeds[pick.key]?.let { pick.copy(seedName = it) } ?: pick
             val shuffle = if (balanceCinema) 0.0 else random.nextDouble() * SHUFFLE
@@ -150,6 +164,9 @@ private fun orderScoutPicks(
         .sortedByDescending { it.second }
         .map { it.first }
 }
+
+internal fun cinemaGenreAffinity(candidate: List<Int>, preferred: Set<Int>): Double =
+    if (preferred.isEmpty()) 1.0 else if (candidate.any(preferred::contains)) 1.0 else 0.0
 
 private const val EXCLUSIONS_FRESH_MS = 60_000L
 private const val DAY_MS = 24L * 60 * 60 * 1000

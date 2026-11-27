@@ -31,6 +31,8 @@ fun UpdateBannerHost(
     state: UpdateUiState,
     onDismissBanner: () -> Unit,
     onDownload: () -> Unit,
+    onCancelDownload: () -> Unit = {},
+    onDiscardDownload: () -> Unit = {},
     onInstall: () -> Unit,
     onDismissUnknownSources: () -> Unit,
     onOpenUnknownSources: () -> Unit,
@@ -84,6 +86,8 @@ fun UpdateBannerHost(
                     isInstalledUpdate = state.update == null,
                     autoDismissPaused = showReleaseNotes,
                     onDownload = onDownload,
+                    onCancelDownload = onCancelDownload,
+                    onDiscardDownload = onDiscardDownload,
                     onInstall = onInstall,
                     onShowReleaseNotes = { showReleaseNotes = true },
                     onDismiss = onDismissBanner

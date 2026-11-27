@@ -736,6 +736,21 @@ class ScoutViewModel @Inject constructor(
         store.saveCinemaGenre(audience.owner.profileId, genre) { isCurrent(audience) }
     }
 
+    internal suspend fun cinemaMissingTastes(audience: ScoutAudience, guest: Boolean): List<Pair<Int, String>>? {
+        if (!isCurrent(audience)) return null
+        if (audience.others.isEmpty() && !guest) return emptyList()
+        val others = group(audience)
+        if (others.size != audience.others.size || !isCurrent(audience)) return null
+        val candidates = listOf(audience.owner.profileId to finder.pool()) + audience.others.zip(others.map { it.pool })
+        val names = profiles.value.associate { it.id to it.name }
+        if (candidates.any { it.first !in names }) return null
+        val missing = candidates.mapNotNull { (id, pool) ->
+            if (pool?.picked.isNullOrEmpty() && store.observeCinemaGenre(id).first() == null) id to names.getValue(id)
+            else null
+        }
+        return missing.takeIf { isCurrent(audience) }
+    }
+
     internal suspend fun cinemaChoice(
         audience: ScoutAudience,
         mood: ScoutMood?,
@@ -743,7 +758,8 @@ class ScoutViewModel @Inject constructor(
         rejected: Set<String>,
         configuredSession: Boolean,
         allowRewatch: Boolean,
-        guest: ScoutCinemaGuest?
+        guest: ScoutCinemaGuest?,
+        temporaryGenres: Map<Int, Set<Int>>
     ): ScoutCinemaChoice? {
         val snapshot = _state.value
         if (!isCurrent(audience)) return null
@@ -776,6 +792,11 @@ class ScoutViewModel @Inject constructor(
         if (others.size != audience.others.size || !isCurrent(audience)) return null
         val pool = finder.pool()
         val profileGenre = cinemaGenre(audience)
+        val otherGenres = audience.others.map { id ->
+            if (!isCurrent(audience)) return null
+            temporaryGenres[id] ?: store.observeCinemaGenre(id).first()?.let(::setOf)
+        }
+        val genrePreferences = listOf(temporaryGenres[audience.owner.profileId] ?: profileGenre?.let(::setOf)) + otherGenres
         val cachedAi = if (guest == null && audience.others.isEmpty()) {
             withContext(Dispatchers.IO) {
                 val ownerId = audience.owner.profileId
@@ -797,10 +818,11 @@ class ScoutViewModel @Inject constructor(
             val guestSafe = if (extraLimit != null) {
                 ratingLimits.keepFitting(extraLimit, allowed) { "tmdb:${it.tmdbId}" to "movie" }
             } else allowed
-            val preferredGenre = guest?.genre ?: profileGenre
             val ordered = withContext(Dispatchers.Default) {
-                val ranked = scoutOrderCinemaPicks(guestSafe, pool, exclusions, others)
-                if (preferredGenre == null) ranked else ranked.sortedBy { preferredGenre !in it.genres }
+                val ranked = scoutOrderCinemaPicks(guestSafe, pool, exclusions, others, genrePreferences, guest?.genres)
+                if (others.isEmpty() && guest == null && profileGenre != null) {
+                    ranked.sortedBy { profileGenre !in it.genres }
+                } else ranked
             }
             val reviewed = linkedMapOf<ScoutPick, ScoutPickDetail>()
             val shortlistSize = if (cachedAi.any { key -> ordered.take(3).any { it.key == key } }) 3 else 1

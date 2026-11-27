@@ -1355,6 +1355,8 @@ open class MainActivity : ComponentActivity() {
                         state = updateBannerState,
                         onDismissBanner = updateViewModel::dismissBanner,
                         onDownload = updateViewModel::downloadUpdate,
+                        onCancelDownload = updateViewModel::cancelDownload,
+                        onDiscardDownload = updateViewModel::discardDownload,
                         onInstall = updateViewModel::installUpdateOrRequestPermission,
                         onDismissUnknownSources = updateViewModel::dismissUnknownSourcesDialog,
                         onOpenUnknownSources = updateViewModel::openUnknownSourcesSettings,

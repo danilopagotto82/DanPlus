@@ -74,6 +74,8 @@ internal fun UpdateBanner(
     isInstalledUpdate: Boolean,
     autoDismissPaused: Boolean,
     onDownload: () -> Unit,
+    onCancelDownload: () -> Unit,
+    onDiscardDownload: () -> Unit,
     onInstall: () -> Unit,
     onShowReleaseNotes: () -> Unit,
     onDismiss: () -> Unit
@@ -94,6 +96,13 @@ internal fun UpdateBanner(
     val progressAlpha = if (lightAccent) 0.18f else 1f
     val dividerColor = NuvioTheme.colors.Border
     var bannerHasFocus by remember { mutableStateOf(false) }
+    val transfer = listOfNotNull(
+        state.downloadBytes.takeIf { it > 0 }?.let { bytes ->
+            val received = Formatter.formatShortFileSize(context, bytes)
+            state.downloadTotal?.let { received + " / " + Formatter.formatShortFileSize(context, it) } ?: received
+        },
+        state.downloadBytesPerSecond?.let { Formatter.formatShortFileSize(context, it) + "/s" }
+    ).joinToString("  ·  ")
     val subtitle = when {
         isInstalledUpdate -> stringResource(R.string.update_installed_automatically)
         state.errorMessage != null -> state.errorMessage
@@ -101,6 +110,7 @@ internal fun UpdateBanner(
             R.string.update_downloading_progress,
             (state.downloadProgress * 100).toInt().coerceIn(0, 100)
         )
+        state.isDownloading && transfer.isNotEmpty() -> transfer
         state.isDownloading -> stringResource(R.string.update_preparing_download)
         state.downloadedApkPath != null -> stringResource(R.string.update_download_complete)
         else -> stringResource(R.string.update_available)
@@ -177,7 +187,9 @@ internal fun UpdateBanner(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = subtitle,
+                    text = if (state.isDownloading && state.downloadProgress != null && transfer.isNotEmpty()) {
+                        subtitle + "  ·  " + transfer
+                    } else subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = when {
                         state.errorMessage != null -> NuvioTheme.colors.Error
@@ -188,6 +200,9 @@ internal fun UpdateBanner(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (state.isDownloading && state.downloadProgress == null) {
+                    androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
             }
 
             UpdateBannerIconButton(
@@ -197,12 +212,16 @@ internal fun UpdateBanner(
                 enabled = update.notes.isNotBlank()
             )
 
+            if (!isInstalledUpdate && !state.isDownloading && state.downloadedApkPath != null) {
+                Button(onClick = onDiscardDownload) { Text(stringResource(R.string.ml06_discard_download)) }
+            }
+
             // An update installed automatically has nothing left to download or install.
             if (!isInstalledUpdate) {
                 Button(
                     onClick = {
                         when {
-                            state.isDownloading -> Unit
+                            state.isDownloading -> onCancelDownload()
                             state.downloadedApkPath != null -> onInstall()
                             else -> onDownload()
                         }
@@ -221,7 +240,7 @@ internal fun UpdateBanner(
                 ) {
                     Text(
                         text = when {
-                            state.isDownloading -> stringResource(R.string.update_downloading_ellipsis)
+                            state.isDownloading -> stringResource(android.R.string.cancel)
                             state.downloadedApkPath != null -> stringResource(R.string.update_install)
                             state.errorMessage != null -> stringResource(R.string.action_retry)
                             else -> stringResource(R.string.update_download)

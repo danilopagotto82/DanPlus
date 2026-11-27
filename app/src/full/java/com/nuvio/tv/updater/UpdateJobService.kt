@@ -94,13 +94,7 @@ class UpdateJobService : JobService() {
         ) return
         if (update.dismissalKey == preferences.ignoredTag.first()) return
 
-        val file = downloadStore.download(update).getOrThrow()
-        try {
-            ApkInstaller.validateUpdate(applicationContext, file, update.versionCode, update.assetSizeBytes)
-        } catch (e: Exception) {
-            downloadStore.clear()
-            throw e
-        }
+        downloadStore.download(update).getOrThrow()
         Log.d(TAG, "Downloaded ${update.tag} in the background")
         if (autoInstallEnabled) scheduleIdleInstall(applicationContext)
     }
@@ -119,7 +113,8 @@ class UpdateJobService : JobService() {
         }
         Log.d(TAG, "Installing $tag while the device is idle")
         preferences.setAutoInstalledTag(tag, code)
-        ApkInstaller.install(applicationContext, apkFile, background = true)
+        val reserved = downloadStore.stageForInstaller(apkFile.absolutePath)
+        ApkInstaller.install(applicationContext, reserved, background = true)
     }
 
     companion object {

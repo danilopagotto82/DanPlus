@@ -92,7 +92,7 @@ class UpdateRepository @Inject constructor(private val gitHubReleaseApi: GitHubR
             tag = dto.tagName!!, title = dto.name?.takeIf { it.isNotBlank() } ?: dto.tagName,
             notes = dto.body.orEmpty().replace(Regex("""<!-- nuvio-fork-version-code: [0-9]+ -->"""), "").trim(),
             releaseUrl = dto.htmlUrl, assetName = asset.name, assetUrl = asset.browserDownloadUrl,
-            assetSizeBytes = asset.size, versionCode = ReleaseSelector.versionCode(dto)
+            assetSizeBytes = asset.size, versionCode = ReleaseSelector.versionCode(dto), assetDigest = asset.digest
         ))
     } catch (cancelled: CancellationException) {
         throw cancelled

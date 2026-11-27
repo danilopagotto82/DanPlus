@@ -22,7 +22,7 @@ internal fun cinemaRuntimeFits(minutes: Int?, minimum: Int?, maximum: Int?, sess
         (sessionMaximum == null || minutes <= sessionMaximum)
 
 
-internal data class ScoutCinemaGuest(val familyLimit: Boolean = false, val genre: Int? = null)
+internal data class ScoutCinemaGuest(val familyLimit: Boolean = false, val genres: Set<Int> = emptySet())
 
 internal fun cinemaRefineCached(
     local: List<ScoutPick>,

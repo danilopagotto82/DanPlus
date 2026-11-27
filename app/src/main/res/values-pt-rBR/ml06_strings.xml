@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ml06_space_recovered">Espaço recuperado de atualizações: %1$s</string>
+    <string name="ml06_sources_immediate">Reprodução imediata</string>
+    <string name="ml06_sources_timed">Autoplay temporizado</string>
+    <string name="ml06_sources_fallback">Fallback e tempo limite das fontes</string>
+    <string name="ml06_export_document">Salvar em arquivos ou no Drive</string>
+    <string name="ml06_export_saved">Backup exportado</string>
+    <string name="ml06_export_failed">Não foi possível exportar o backup</string>
+    <string name="ml06_export_unavailable">Destinos de arquivos indisponíveis neste aparelho</string>
+    <string name="ml06_import_document">Restaurar de arquivos ou do Drive</string>
+    <string name="ml06_import_failed">Não foi possível ler este backup</string>
+    <string name="ml06_discard_download">Descartar download</string>
+    <string name="ml06_discard_unavailable">Download em uso ou indisponível</string>
+</resources>

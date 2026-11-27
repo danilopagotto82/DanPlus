@@ -273,4 +273,13 @@ class ScoutPicksAndTasteTest {
         assertEquals(listOf("rescue"), summary.recurringThemes.map { it.key })
         assertFalse(summary.isEmpty)
     }
+    @Test fun fiveInitialLovesProducePositiveProfileSeedsAndChangeTheCacheSignature() {
+        val ratings = (1..5).map { entry("tmdb:" + it, ScoutRating.LOVE, it.toLong()) }
+        val before = com.nuvio.tv.domain.model.scoutSeeds(emptyList(), emptyList())
+        val after = com.nuvio.tv.domain.model.scoutSeeds(emptyList(), ratings)
+        assertEquals(5, after.size)
+        assertTrue(after.all { it.weight > 0 })
+        assertTrue(com.nuvio.tv.domain.model.scoutHistorySignature(before, emptySet()) !=
+            com.nuvio.tv.domain.model.scoutHistorySignature(after, emptySet()))
+    }
 }

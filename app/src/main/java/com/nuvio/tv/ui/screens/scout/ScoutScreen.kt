@@ -508,8 +508,9 @@ fun ScoutScreen(
                 cinemaPickingCompany = true
                 choosing = CHOOSING_WHO
             },
-            choose = { mood, duration, rejected, configured, allowRewatch, guest ->
-                viewModel.cinemaChoice(audience, mood, duration, rejected, configured, allowRewatch, guest)
+            missingTastes = { guest -> viewModel.cinemaMissingTastes(audience, guest) },
+            choose = { mood, duration, rejected, configured, allowRewatch, guest, choices ->
+                viewModel.cinemaChoice(audience, mood, duration, rejected, configured, allowRewatch, guest, choices)
             },
             loadGenre = { viewModel.cinemaGenre(audience) },
             saveGenre = { genre -> viewModel.saveCinemaGenre(audience, genre) },
