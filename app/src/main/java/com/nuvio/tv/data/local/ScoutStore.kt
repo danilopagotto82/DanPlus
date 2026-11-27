@@ -51,6 +51,7 @@ class ScoutStore @Inject constructor(
     private val becauseRow = booleanPreferencesKey("because_row")
     private val gemsRow = booleanPreferencesKey("gems_row")
     private val tilesRow = booleanPreferencesKey("tiles_row_chosen")
+    private val cinemaGenre = stringPreferencesKey("cinema_favorite_genre_v1")
     private val showWatched = booleanPreferencesKey("show_watched")
     private val showInMenu = booleanPreferencesKey("show_in_menu")
     private val listEmojis = booleanPreferencesKey("list_emojis")
@@ -87,6 +88,17 @@ class ScoutStore @Inject constructor(
 
     private fun decodeDiscovery(raw: String?): ScoutDiscoveryHistory =
         raw?.let { runCatching { discoveryAdapter.fromJson(it) }.getOrNull() } ?: ScoutDiscoveryHistory()
+
+    internal fun observeCinemaGenre(profileId: Int): Flow<Int?> =
+        factory.get(profileId, FEATURE).data.map { it[cinemaGenre]?.toIntOrNull() }.distinctUntilChanged()
+
+    internal suspend fun saveCinemaGenre(profileId: Int, genre: Int?, isCurrent: () -> Boolean) {
+        factory.get(profileId, FEATURE).edit { prefs ->
+            if (!isCurrent()) return@edit
+            if (genre == null) prefs.remove(cinemaGenre)
+            else prefs[cinemaGenre] = genre.toString()
+        }
+    }
 
     fun observeShowInMenu(profileId: Int): Flow<Boolean> =
         factory.get(profileId, FEATURE).data.map { it[showInMenu] ?: true }.distinctUntilChanged()

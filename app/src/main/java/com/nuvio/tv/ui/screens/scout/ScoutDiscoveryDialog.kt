@@ -104,7 +104,7 @@ internal fun ScoutDiscoveryDialog(viewModel: ScoutViewModel, audience: ScoutAudi
                 }
                 else -> {
                     NuvioTextField(query.exactPhrase, { query = query.copy(exactPhrase = it.take(160)) },
-                        Modifier.fillMaxWidth(), stringResource(R.string.e05_scout_phrase))
+                        Modifier.fillMaxWidth(), stringResource(R.string.cinema_search_terms))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         NuvioTextField(year, { year = it.filter(Char::isDigit).take(4) },
                             Modifier.weight(1f), stringResource(R.string.e05_scout_year))
@@ -138,7 +138,7 @@ internal fun ScoutDiscoveryDialog(viewModel: ScoutViewModel, audience: ScoutAudi
                             }, primary = selected)
                         }
                     }
-                    if (query.keywordIds.size > 1) {
+                    if (query.keywordIds.size > 1 || query.titleTerms().size > 1) {
                         ScoutChip(
                             stringResource(if (query.matchAnyKeyword) R.string.e05_scout_any else R.string.e05_scout_all),
                             { query = query.copy(matchAnyKeyword = !query.matchAnyKeyword) }

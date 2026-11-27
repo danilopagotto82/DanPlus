@@ -263,4 +263,14 @@ class ScoutPicksAndTasteTest {
                 .contains(com.nuvio.tv.ui.navigation.Screen.Scout.route)
         )
     }
+    @Test fun recurringThemesRequireDistinctPositivelyWeightedTitles() {
+        val shared = ScoutKeyword(1, "rescue")
+        val unique = ScoutKeyword(2, "ocean")
+        val first = ScoutTasteTitle("first", keywords = listOf(shared, shared, unique))
+        val second = ScoutTasteTitle("second", keywords = listOf(shared))
+        assertTrue(scoutTasteSummary(listOf(first, first), emptyMap()).recurringThemes.isEmpty())
+        val summary = scoutTasteSummary(listOf(first, second), emptyMap())
+        assertEquals(listOf("rescue"), summary.recurringThemes.map { it.key })
+        assertFalse(summary.isEmpty)
+    }
 }

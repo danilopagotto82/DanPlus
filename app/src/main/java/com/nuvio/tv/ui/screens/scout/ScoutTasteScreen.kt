@@ -148,26 +148,38 @@ internal fun ScoutTasteHero(state: ScoutTasteState, focus: (String) -> Modifier,
         }
         if (summary.isEmpty) return@Column
         ScoutTasteHead(state)
+        val themes = summary.recurringThemes.take(TASTE_LINES)
+        val chartWidth = if (themes.isEmpty()) TASTE_CHART_WIDTH else 210.dp
+        val decadesWidth = if (themes.isEmpty()) TASTE_DECADES_WIDTH else 190.dp
         Row(
             modifier = Modifier.offset(x = -NuvioTheme.spacing.xs).padding(top = CHARTS_DROP),
             horizontalArrangement = Arrangement.spacedBy(CHART_GAP)
         ) {
             val genres = summary.genres.mapNotNull { bar -> genreName(bar.key)?.let { bar to it } }.take(TASTE_LINES)
-            ScoutChart(stringResource(R.string.scout_taste_genres), TASTE_CHART_WIDTH) {
+            ScoutChart(stringResource(R.string.scout_taste_genres), chartWidth) {
                 ScoutChartLines(genres.size) {
                     genres.forEachIndexed { index, (bar, name) ->
                         ScoutGenreRow(name, bar.share, index == 0, onClick = { onGenre(bar.key) }, modifier = focus("taste_genre_${bar.key}"))
                     }
                 }
             }
-            ScoutChart(stringResource(R.string.scout_taste_decades), TASTE_DECADES_WIDTH) {
+            ScoutChart(stringResource(R.string.scout_taste_decades), decadesWidth) {
                 ScoutDecades(summary.decades)
             }
             val countries = summary.countries.take(TASTE_LINES)
-            ScoutChart(stringResource(R.string.scout_taste_from), TASTE_CHART_WIDTH) {
+            ScoutChart(stringResource(R.string.scout_taste_from), chartWidth) {
                 ScoutChartLines(countries.size) {
                     countries.forEachIndexed { index, bar ->
                         ScoutBarLine(countryName(bar.key), bar.share, index == 0, Modifier.padding(horizontal = NuvioTheme.spacing.xs, vertical = NuvioTheme.spacing.xxs))
+                    }
+                }
+            }
+            if (themes.isNotEmpty()) {
+                ScoutChart(stringResource(R.string.cinema_taste_themes), chartWidth) {
+                    ScoutChartLines(themes.size) {
+                        themes.forEachIndexed { index, theme ->
+                            ScoutBarLine(theme.key, theme.share, index == 0, Modifier.padding(horizontal = NuvioTheme.spacing.xs))
+                        }
                     }
                 }
             }
@@ -178,7 +190,11 @@ internal fun ScoutTasteHero(state: ScoutTasteState, focus: (String) -> Modifier,
 /** Same title line and same body height for every chart, however much each one has to show. */
 @Composable
 private fun ScoutChart(title: String, width: Dp, body: @Composable () -> Unit) {
-    Column(Modifier.width(width), verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)) {
+    Column(
+        Modifier.width(width).scoutPanel(RoundedCornerShape(NuvioTheme.radii.lg))
+            .padding(NuvioTheme.spacing.xs),
+        verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)
+    ) {
         Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = NuvioTheme.colors.TextPrimary, modifier = Modifier.padding(horizontal = NuvioTheme.spacing.xs))
         Box(Modifier.fillMaxWidth().height(CHART_BODY)) { body() }
     }

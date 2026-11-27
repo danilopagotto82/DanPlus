@@ -20,3 +20,15 @@ internal fun cinemaRuntimeFits(minutes: Int?, minimum: Int?, maximum: Int?, sess
         (minimum == null || minutes >= minimum) &&
         (maximum == null || minutes <= maximum) &&
         (sessionMaximum == null || minutes <= sessionMaximum)
+
+
+internal data class ScoutCinemaGuest(val familyLimit: Boolean = false, val genre: Int? = null)
+
+internal fun cinemaRefineCached(
+    local: List<ScoutPick>,
+    cachedKeys: List<String>
+): List<ScoutPick> {
+    val candidateKeys = local.take(3).mapTo(hashSetOf(), ScoutPick::key)
+    val first = cachedKeys.firstOrNull { it in candidateKeys } ?: return local
+    return local.sortedBy { it.key != first }
+}

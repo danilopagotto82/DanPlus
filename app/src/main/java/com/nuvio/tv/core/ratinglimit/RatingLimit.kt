@@ -28,6 +28,30 @@ fun ratingRank(certification: String?): Int? = when (certification?.trim()?.uppe
 fun usFilmCertification(countries: List<Pair<String?, List<String?>>>): String? =
     countries.firstOrNull { it.first == "US" }?.second?.firstOrNull { ratingRank(it) != null }
 
+internal fun ratingPolicyCountry(): String =
+    if (java.util.Locale.getDefault().country.equals("BR", ignoreCase = true)) "BR" else "US"
+
+internal fun brazilianCeiling(limit: RatingLimit): String = when (limit) {
+    RatingLimit.PRESCHOOL, RatingLimit.YOUNG -> "L"
+    RatingLimit.PG -> "10"
+    RatingLimit.TEEN -> "12"
+}
+
+internal fun brazilianRatingRank(certification: String?): Int? =
+    when (certification?.trim()?.uppercase(java.util.Locale.ROOT)) {
+        "L", "LIVRE" -> 0
+        "10" -> 2
+        "12" -> 3
+        "14", "16", "18" -> 4
+        else -> null
+    }
+
+internal fun brazilianCertification(candidates: List<String?>): String? =
+    candidates.mapNotNull { label ->
+        val normalized = label?.trim()?.uppercase(java.util.Locale.ROOT) ?: return@mapNotNull null
+        brazilianRatingRank(normalized)?.let { normalized }
+    }.maxByOrNull { if (it == "L" || it == "LIVRE") 0 else it.toInt() }
+
 private val RATED_CATALOG_TYPES = setOf("movie", "series")
 
 /** Add-on rows of other types (downloads, cloud files, channels) carry no rating, so a profile with a limit leaves them out. */

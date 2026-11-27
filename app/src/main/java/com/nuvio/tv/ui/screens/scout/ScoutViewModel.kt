@@ -28,6 +28,7 @@ import com.nuvio.tv.domain.model.CosmeticEntitlement
 import com.nuvio.tv.core.scout.SCOUT_QUICK_EPISODE_LIMIT
 import com.nuvio.tv.core.scout.ScoutAnswers
 import com.nuvio.tv.core.scout.ScoutFolderSupport
+import com.nuvio.tv.core.scout.ScoutAiStore
 import com.nuvio.tv.core.scout.ScoutGroupMember
 import com.nuvio.tv.core.scout.ScoutMood
 import com.nuvio.tv.core.scout.ScoutPickDetail
@@ -40,6 +41,7 @@ import com.nuvio.tv.core.scout.scoutOrderPicks
 import com.nuvio.tv.core.scout.ask.AskFailure
 import com.nuvio.tv.core.scout.ask.AskItem
 import com.nuvio.tv.core.scout.ask.AskOutcome
+import com.nuvio.tv.core.scout.ask.AskKeyVault
 import com.nuvio.tv.core.scout.ask.AskRunner
 import com.nuvio.tv.domain.model.ContentType
 import com.nuvio.tv.core.sync.ProfileSyncService
@@ -197,7 +199,9 @@ class ScoutViewModel @Inject constructor(
     private val ratingLimits: RatingLimitGate,
     private val trailerService: TrailerService,
     private val tmdbService: TmdbService,
-    private val tmdbSettings: TmdbSettingsDataStore
+    private val tmdbSettings: TmdbSettingsDataStore,
+    private val cinemaAi: ScoutAiStore,
+    private val cinemaKeys: AskKeyVault
 ) : ViewModel() {
     private val _state = MutableStateFlow(ScoutScreenState())
     private var sessionOwner = profileOwner()
@@ -681,63 +685,101 @@ class ScoutViewModel @Inject constructor(
         loadRow(0)
     }
 
+    internal suspend fun cinemaGenre(audience: ScoutAudience): Int? =
+        if (isCurrent(audience)) store.observeCinemaGenre(audience.owner.profileId).first().takeIf { isCurrent(audience) }
+        else null
+
+    internal suspend fun saveCinemaGenre(audience: ScoutAudience, genre: Int?) {
+        if (!isCurrent(audience)) return
+        if (genre != null && genre !in setOf(28, 35, 18)) return
+        store.saveCinemaGenre(audience.owner.profileId, genre) { isCurrent(audience) }
+    }
+
     internal suspend fun cinemaChoice(
         audience: ScoutAudience,
         mood: ScoutMood?,
         maxMinutes: Int?,
         rejected: Set<String>,
-        configuredSession: Boolean
+        configuredSession: Boolean,
+        allowRewatch: Boolean,
+        guest: ScoutCinemaGuest?
     ): ScoutCinemaChoice? {
         val snapshot = _state.value
         if (!isCurrent(audience)) return null
         val answers = snapshot.answers.copy(
             watch = if (snapshot.answers.watch == ScoutWatch.ANYTHING) ScoutWatch.MOVIE else snapshot.answers.watch,
             mood = if (configuredSession) mood else snapshot.answers.mood,
-            time = if (configuredSession) ScoutTime.ANY else snapshot.answers.time
+            time = if (configuredSession) ScoutTime.ANY else snapshot.answers.time,
+            family = snapshot.answers.family || guest?.familyLimit == true
         )
         val filters = answers.slice().movie ?: return null
         val today = java.time.LocalDate.now()
         val display = watchedDisplay.first { it.profileId == audience.owner.profileId && it.loaded }
         if (!isCurrent(audience)) return null
 
-        val exclusions = finder.exclusions(audience.owner) ?: return null
-        val others = group(audience)
+        val exclusions = (if (allowRewatch) finder.rewatchExclusions(audience.owner)
+            else finder.exclusions(audience.owner)) ?: return null
+        val others = if (allowRewatch) audience.others.map { id ->
+            if (!isCurrent(audience)) return null
+            finder.rewatchMember(id)
+        } else group(audience)
         if (others.size != audience.others.size || !isCurrent(audience)) return null
         val pool = finder.pool()
+        val profileGenre = cinemaGenre(audience)
+        val cachedAi = if (guest == null && audience.others.isEmpty()) {
+            withContext(Dispatchers.IO) {
+                val ownerId = audience.owner.profileId
+                if (cinemaKeys.current(ownerId).activeConfig == null) emptyList()
+                else cinemaAi.read(ownerId).takeIf { it.sortOn }?.sorted.orEmpty().map { it.key }
+            }
+        } else emptyList()
         for (page in 1..3) {
             val query = snapshot.advancedSearch
             val fetched = if (query == null) finder.fetch(answers, page, relaxed = false)
                 else finder.fetchAdvanced(query, answers, page)
-            val candidates = display.visible(fetched).filter { pick ->
+            val candidates = (if (allowRewatch) fetched else display.visible(fetched)).filter { pick ->
                 cinemaCandidateFits(pick, today, rejected)
             }
             val allowed = restrictRecommendations(candidates.filterNot { pick ->
                 exclusions.blocks(pick) || others.any { it.exclusions.blocks(pick) }
             }, audience)
+            val guestSafe = if (guest?.familyLimit == true) {
+                ratingLimits.keepFitting(RatingLimit.PG, allowed) { "tmdb:${it.tmdbId}" to "movie" }
+            } else allowed
+            val preferredGenre = guest?.genre ?: profileGenre
             val ordered = withContext(Dispatchers.Default) {
-                scoutOrderCinemaPicks(allowed, pool, exclusions, others)
+                val ranked = scoutOrderCinemaPicks(guestSafe, pool, exclusions, others)
+                if (preferredGenre == null) ranked else ranked.sortedBy { preferredGenre !in it.genres }
             }
+            val reviewed = linkedMapOf<ScoutPick, ScoutPickDetail>()
+            val shortlistSize = if (cachedAi.any { key -> ordered.take(3).any { it.key == key } }) 3 else 1
             for (pick in ordered) {
-                val detail = finder.detail(pick, withRating = audience.limit != null) ?: continue
+                val detail = finder.detail(pick, withRating = audience.limit != null || guest?.familyLimit == true) ?: continue
                 if (!cinemaRuntimeFits(detail.minutes, filters.withRuntimeGte, filters.withRuntimeLte, maxMinutes)) continue
-                val logo = finder.logo(pick)
-                if (!isCurrent(audience) || _state.value.answers != snapshot.answers ||
-                    _state.value.advancedSearch != snapshot.advancedSearch) return null
-                return ScoutCinemaChoice(ScoutShownPick(pick, detail), logo)
+                reviewed[pick] = detail
+                if (reviewed.size == shortlistSize) break
             }
+            val pick = cinemaRefineCached(reviewed.keys.toList(), cachedAi).firstOrNull() ?: continue
+            val logo = finder.logo(pick)
+            if (!isCurrent(audience) || _state.value.answers != snapshot.answers ||
+                _state.value.advancedSearch != snapshot.advancedSearch) return null
+            return ScoutCinemaChoice(ScoutShownPick(pick, reviewed.getValue(pick)), logo)
         }
         return null
     }
 
     internal fun cinemaAudienceIsCurrent(audience: ScoutAudience): Boolean = isCurrent(audience)
 
-    internal suspend fun cinemaTrailer(audience: ScoutAudience, pick: ScoutPick): TrailerPlaybackSource? {
+    internal suspend fun cinemaTrailer(audience: ScoutAudience, pick: ScoutPick): ScoutCinemaTrailer? {
         if (!isCurrent(audience) || !tmdbSettings.settings.first().useTrailers) return null
         val source = if (AppFeaturePolicy.inAppTrailerPlaybackEnabled) {
             lookupTrailerPreview(
                 trailerService, tmdbService, "tmdb:${pick.tmdbId}", "movie", pick.name,
                 pick.released?.take(4), imdbId = null, ytIds = emptyList()
-            ).source
+            ).source?.let { ScoutCinemaTrailer(it, external = false) }
+        } else if (AppFeaturePolicy.externalTrailerPlaybackEnabled) {
+            trailerService.getExternalTrailerUrl(pick.tmdbId.toString(), "movie", preferBrazilian = true)
+                ?.let { ScoutCinemaTrailer(TrailerPlaybackSource(it), external = true) }
         } else null
         return source.takeIf { isCurrent(audience) }
     }

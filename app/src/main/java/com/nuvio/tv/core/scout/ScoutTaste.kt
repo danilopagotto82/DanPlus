@@ -111,9 +111,10 @@ data class ScoutTasteSummary(
     val actors: List<ScoutTastePerson> = emptyList(),
     val backdrops: List<String> = emptyList(),
     val latelyGenre: Int? = null,
-    val latelyCountry: String? = null
+    val latelyCountry: String? = null,
+    val recurringThemes: List<ScoutTasteBar> = emptyList()
 ) {
-    val isEmpty: Boolean get() = genres.isEmpty() && decades.isEmpty() && countries.isEmpty()
+    val isEmpty: Boolean get() = genres.isEmpty() && decades.isEmpty() && countries.isEmpty() && recurringThemes.isEmpty()
 
     /** The two decades with the most behind them, oldest first. */
     val topDecades: List<String> get() = decades.sortedByDescending { it.share }.take(2).map { it.key }.sorted()
@@ -160,6 +161,9 @@ fun scoutTasteSummary(
     val genres = HashMap<String, Double>()
     val decades = HashMap<Int, Double>()
     val countries = HashMap<String, Double>()
+    val themeScores = HashMap<Int, Double>()
+    val themeTitles = HashMap<Int, MutableSet<String>>()
+    val themeLabels = HashMap<Int, String>()
     val personWeight = HashMap<Int, Double>()
     val personTitles = HashMap<Int, Int>()
     val persons = HashMap<Int, ScoutTastePerson>()
@@ -174,6 +178,12 @@ fun scoutTasteSummary(
         title.genres.distinct().forEach { genres.merge(it.toString(), weight, Double::plus) }
         title.decade?.let { decades.merge(it, weight, Double::plus) }
         title.countries.forEach { countries.merge(it, weight, Double::plus) }
+        title.keywords.distinctBy { it.id }.forEach { keyword ->
+            if (keyword.name.isNotBlank() && themeTitles.getOrPut(keyword.id) { mutableSetOf() }.add(title.contentId)) {
+                themeLabels.putIfAbsent(keyword.id, keyword.name)
+                themeScores.merge(keyword.id, weight, Double::plus)
+            }
+        }
         title.people.distinctBy { it.id }.forEach { person ->
             personWeight.merge(person.id, personScore, Double::plus)
             personTitles.merge(person.id, 1, Int::plus)
@@ -199,7 +209,10 @@ fun scoutTasteSummary(
             .sortedByDescending { scoutTasteWeight(ratings[it.contentId]?.rating) }
             .take(3).mapNotNull { it.backdrop },
         latelyGenre = shareRise(titles, recent) { it.genres },
-        latelyCountry = shareRise(titles, recent) { it.countries }
+        latelyCountry = shareRise(titles, recent) { it.countries },
+        recurringThemes = bars(themeScores.filterKeys { themeTitles.getValue(it).size >= 2 }
+            .entries.groupBy { themeLabels.getValue(it.key) }
+            .mapValues { (_, matches) -> matches.maxOf { it.value } })
     )
 }
 

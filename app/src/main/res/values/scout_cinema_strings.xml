@@ -27,4 +27,19 @@
     <string name="cinema_taste_suspense">Suspense enthusiast</string>
     <string name="cinema_taste_worlds">Traveler of other worlds</string>
     <string name="cinema_taste_explorer">Story explorer</string>
+    <string name="cinema_taste_themes">Recurring themes</string>
+    <string name="cinema_allow_rewatch">Include watched movies</string>
+    <string name="cinema_guest">Guest</string>
+    <string name="cinema_guest_family">Family limit for guest</string>
+    <string name="cinema_guest_action">Guest likes action</string>
+    <string name="cinema_guest_comedy">Guest likes comedy</string>
+    <string name="cinema_guest_drama">Guest likes drama</string>
+    <string name="cinema_profile_preferences">My cinema taste</string>
+    <string name="cinema_profile_hint">Choose a favorite genre if you want to guide your picks.</string>
+    <string name="cinema_no_genre">Any genre</string>
+    <string name="cinema_genre_action">Action</string>
+    <string name="cinema_genre_comedy">Comedy</string>
+    <string name="cinema_genre_drama">Drama</string>
+    <string name="cinema_save_genre">Save preference</string>
+    <string name="cinema_search_terms">Title and synopsis terms, separated by commas</string>
 </resources>

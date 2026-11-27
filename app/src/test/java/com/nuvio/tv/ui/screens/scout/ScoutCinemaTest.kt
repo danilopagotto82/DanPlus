@@ -65,4 +65,11 @@ class ScoutCinemaTest {
             ).first()
         )
     }
+    @Test fun cachedRankingCanOnlyPromoteAValidatedLocalFinalist() {
+        val candidates = (1..4).map { movie.copy(tmdbId = it) }
+        assertEquals(candidates, cinemaRefineCached(candidates, listOf("movie:99", "movie:4")))
+        assertEquals(listOf(candidates[2], candidates[0], candidates[1], candidates[3]),
+            cinemaRefineCached(candidates, listOf("movie:99", "movie:3")))
+        assertEquals(candidates, cinemaRefineCached(candidates, emptyList()))
+    }
 }

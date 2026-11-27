@@ -507,9 +507,11 @@ fun ScoutScreen(
                 cinemaPickingCompany = true
                 choosing = CHOOSING_WHO
             },
-            choose = { mood, duration, rejected, configured ->
-                viewModel.cinemaChoice(audience, mood, duration, rejected, configured)
+            choose = { mood, duration, rejected, configured, allowRewatch, guest ->
+                viewModel.cinemaChoice(audience, mood, duration, rejected, configured, allowRewatch, guest)
             },
+            loadGenre = { viewModel.cinemaGenre(audience) },
+            saveGenre = { genre -> viewModel.saveCinemaGenre(audience, genre) },
             loadTrailer = { pick -> viewModel.cinemaTrailer(audience, pick) },
             onDismiss = { cinema = null },
             onPlay = { choice ->

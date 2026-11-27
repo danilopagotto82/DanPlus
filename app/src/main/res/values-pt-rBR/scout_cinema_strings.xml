@@ -27,4 +27,19 @@
     <string name="cinema_taste_suspense">Mestre do suspense</string>
     <string name="cinema_taste_worlds">Cinéfilo de outros mundos</string>
     <string name="cinema_taste_explorer">Explorador de histórias</string>
+    <string name="cinema_taste_themes">Temas recorrentes</string>
+    <string name="cinema_allow_rewatch">Incluir filmes assistidos</string>
+    <string name="cinema_guest">Convidado</string>
+    <string name="cinema_guest_family">Limite familiar para convidado</string>
+    <string name="cinema_guest_action">Convidado prefere ação</string>
+    <string name="cinema_guest_comedy">Convidado prefere comédia</string>
+    <string name="cinema_guest_drama">Convidado prefere drama</string>
+    <string name="cinema_profile_preferences">Meu gosto no cinema</string>
+    <string name="cinema_profile_hint">Escolha um gênero favorito se quiser orientar suas escolhas.</string>
+    <string name="cinema_no_genre">Qualquer gênero</string>
+    <string name="cinema_genre_action">Ação</string>
+    <string name="cinema_genre_comedy">Comédia</string>
+    <string name="cinema_genre_drama">Drama</string>
+    <string name="cinema_save_genre">Salvar preferência</string>
+    <string name="cinema_search_terms">Termos de título e sinopse, separados por vírgula</string>
 </resources>

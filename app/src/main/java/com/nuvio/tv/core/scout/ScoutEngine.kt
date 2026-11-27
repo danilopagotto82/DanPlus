@@ -260,7 +260,10 @@ class ScoutEngine @Inject constructor(
     }
 
     /** Another profile on this box: its saved picks, built once if it has none, and what it has seen. */
-    suspend fun memberFor(profileId: Int, now: Long = System.currentTimeMillis()): ScoutGroupMember = withContext(ArcDispatchers.background) {
+    suspend fun memberFor(profileId: Int, now: Long = System.currentTimeMillis()): ScoutGroupMember =
+        memberForCinema(profileId, false, now)
+
+    internal suspend fun memberForCinema(profileId: Int, allowRewatch: Boolean, now: Long = System.currentTimeMillis()): ScoutGroupMember = withContext(ArcDispatchers.background) {
         val owner = selection()
         val revision = fileRevision
         val policy = scoutReadPolicy { ScoutPoolScope(owner, ratingLimits.get().limitFor(profileId)) }
@@ -274,7 +277,7 @@ class ScoutEngine @Inject constructor(
         if (!isCurrent()) return@withContext ScoutGroupMember(null, ScoutExclusions())
         val started = progressOf.get().observeAllProgress(profileId).first()
         if (!isCurrent()) return@withContext ScoutGroupMember(null, ScoutExclusions())
-        val exclusions = exclusionsOf(profile, watched, started, ScoutListed())
+        val exclusions = exclusionsOf(profile, watched, started, ScoutListed(), allowRewatch)
         val saved = readPool(profileId, policy.limit)
         if (!isCurrent()) return@withContext ScoutGroupMember(null, ScoutExclusions())
         if (saved != null && now - saved.builtAt < MEMBER_POOL_MAX_AGE_MS) {
@@ -448,23 +451,28 @@ class ScoutEngine @Inject constructor(
         }
     }
 
-    internal suspend fun exclusions(profile: ScoutProfile, owner: ScoutSelection): ScoutExclusions? = withContext(Dispatchers.Default) {
+    internal suspend fun exclusions(profile: ScoutProfile, owner: ScoutSelection): ScoutExclusions? =
+        exclusionsForCinema(profile, owner, false)
+
+    internal suspend fun exclusionsForCinema(profile: ScoutProfile, owner: ScoutSelection, allowRewatch: Boolean): ScoutExclusions? = withContext(Dispatchers.Default) {
         if (profile.profileId != owner.profileId || owner != selection()) return@withContext null
         val watched = watchedItems.getAllItems(owner.profileId)
         if (owner != selection()) return@withContext null
         val started = progressOf.get().observeAllProgress(owner.profileId).first()
         if (owner != selection()) return@withContext null
         val listed = folderSupport.listed(owner, started)
-        if (owner == selection()) exclusionsOf(profile, watched, started, listed) else null
+        if (owner == selection()) exclusionsOf(profile, watched, started, listed, allowRewatch) else null
     }
 
     private fun exclusionsOf(
         profile: ScoutProfile,
         watched: List<com.nuvio.tv.domain.model.WatchedItem>,
         started: List<com.nuvio.tv.domain.model.WatchProgress>,
-        listed: ScoutListed
+        listed: ScoutListed,
+        allowRewatch: Boolean = false
     ): ScoutExclusions {
-        val names = watched.map { scoutExclusionName(it.title, it.releaseInfo) } +
+        val excludedWatched = if (allowRewatch) watched.filter { it.contentType != "movie" } else watched
+        val names = excludedWatched.map { scoutExclusionName(it.title, it.releaseInfo) } +
             started.map { scoutNormalizedName(it.name) } +
             profile.ratings.values.filter { it.rating == com.nuvio.tv.domain.model.ScoutRating.NOT_FOR_ME }.map { scoutNormalizedName(it.title.name) } +
             listed.names
@@ -472,7 +480,7 @@ class ScoutEngine @Inject constructor(
             val tmdb = id.removePrefix("tmdb:")
             listOf("movie:$tmdb", "tv:$tmdb")
         }
-        val ids = (watched.map { it.contentId to it.contentType } + started.map { it.contentId to it.contentType } +
+        val ids = (excludedWatched.map { it.contentId to it.contentType } + started.map { it.contentId to it.contentType } +
             profile.ratings.values.filter { it.rating == com.nuvio.tv.domain.model.ScoutRating.NOT_FOR_ME }.map { it.title.id to it.title.type })
             .mapNotNull { (id, type) ->
                 val tmdb = id.removePrefix("tmdb:").takeIf { id.startsWith("tmdb:") } ?: return@mapNotNull null

@@ -16,7 +16,7 @@ data class ScoutAdvancedSearch(
     val originalLanguage: String? = null,
 ) {
     fun normalized(): ScoutAdvancedSearch = copy(
-        exactPhrase = scoutNormalizedName(exactPhrase.take(160)),
+        exactPhrase = titleTerms().joinToString(", "),
         genreIds = genreIds.filter { it > 0 }.sorted().take(12).toSet(),
         keywordIds = keywordIds.filter { it > 0 }.sorted().take(12).toSet(),
         year = year?.takeIf { it in 1800..2199 },
@@ -26,12 +26,22 @@ data class ScoutAdvancedSearch(
     internal fun keywordExpression(): String? = keywordIds.takeIf { it.isNotEmpty() }
         ?.joinToString(if (matchAnyKeyword) "|" else ",")
 
+    internal fun titleTerms(): List<String> = exactPhrase.take(160)
+        .split(',')
+        .map(::scoutNormalizedName)
+        .filter(String::isNotBlank)
+        .distinct()
+        .take(3)
+
     internal fun matches(pick: ScoutPick): Boolean {
         if (year != null && pick.released?.take(4)?.toIntOrNull() != year) return false
         if (originalLanguage != null && originalLanguage != pick.language) return false
         if (!pick.genres.containsAll(genreIds)) return false
-        if (exactPhrase.isEmpty()) return true
-        return listOfNotNull(pick.name, pick.overview).any { " ${scoutNormalizedName(it)} ".contains(" $exactPhrase ") }
+        val terms = titleTerms()
+        if (terms.isEmpty()) return true
+        val fields = listOfNotNull(pick.name, pick.overview).map { " " + scoutNormalizedName(it) + " " }
+        val matches: (String) -> Boolean = { term -> fields.any { it.contains(" $term ") } }
+        return if (matchAnyKeyword) terms.any(matches) else terms.all(matches)
     }
 }
 

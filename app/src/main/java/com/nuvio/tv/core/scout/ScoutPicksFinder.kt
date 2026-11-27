@@ -2,6 +2,9 @@ package com.nuvio.tv.core.scout
 
 import android.content.Context
 import com.nuvio.tv.core.ratinglimit.RatingLimit
+import com.nuvio.tv.core.ratinglimit.brazilianCeiling
+import com.nuvio.tv.core.ratinglimit.brazilianRatingRank
+import com.nuvio.tv.core.ratinglimit.ratingPolicyCountry
 import com.nuvio.tv.core.ratinglimit.ratingLimitGateOrNull
 import com.nuvio.tv.core.ratinglimit.ratingRank
 import com.nuvio.tv.domain.model.isAnimeRecap
@@ -319,6 +322,12 @@ class ScoutPicksFinder @Inject constructor(
         return seen.exclusions.withNotForMe(profile).takeIf { owner == engine.selection() }
     }
 
+    internal suspend fun rewatchExclusions(owner: ScoutSelection): ScoutExclusions? =
+        engine.exclusionsForCinema(store.profileOf(owner.profileId), owner, allowRewatch = true)
+
+    internal suspend fun rewatchMember(profileId: Int): ScoutGroupMember =
+        engine.memberForCinema(profileId, allowRewatch = true)
+
     fun pool(): ScoutPool? = engine.activePool()
 
     suspend fun refreshPool() = engine.refreshIfDue()
@@ -393,13 +402,18 @@ class ScoutPicksFinder @Inject constructor(
                     answers.copy(watch = ScoutWatch.ANYTHING).isUnset
                 if (normalized.exactPhrase.isNotEmpty() && canUseTitleSearch && normalized.keywordIds.isEmpty()) {
                     val apiKey = com.nuvio.tv.core.tmdb.TmdbApiKey.value
-                    val response = try {
-                        if (tv) tmdbApi.searchTv(apiKey, normalized.exactPhrase, language, page = page)
-                        else tmdbApi.searchMovies(apiKey, normalized.exactPhrase, language, page = page)
-                    } catch (_: java.io.IOException) {
-                        return emptyList()
-                    }
-                    return eligibleForActiveProfile(response.body()?.results.orEmpty().mapNotNull { it.toPick(tv) }, scope)
+                    val terms = normalized.titleTerms()
+                    val searched = if (normalized.matchAnyKeyword) terms else listOfNotNull(terms.maxByOrNull { it.length })
+                    val picks = searched.flatMap { term ->
+                        val response = try {
+                            if (tv) tmdbApi.searchTv(apiKey, term, language, page = page)
+                            else tmdbApi.searchMovies(apiKey, term, language, page = page)
+                        } catch (_: java.io.IOException) {
+                            return@flatMap emptyList()
+                        }
+                        response.body()?.results.orEmpty().mapNotNull { it.toPick(tv) }
+                    }.distinctBy(ScoutPick::key)
+                    return eligibleForActiveProfile(picks, scope)
                 }
                 return discover(filters.withQuery(), tv, slice.sortBy, page, language, scope)
             }
@@ -507,6 +521,9 @@ class ScoutPicksFinder @Inject constructor(
     private suspend fun certification(pick: ScoutPick): String? = runCatching {
         val country = Locale.getDefault().country.uppercase(Locale.ROOT)
         val key = com.nuvio.tv.core.tmdb.TmdbApiKey.value
+        if (country == "BR") return scoutReadPolicy {
+            ratingLimitGateOrNull(context)?.rating("tmdb:" + pick.tmdbId, if (pick.tv) "series" else "movie")?.certification
+        }
         if (pick.tv) {
             val results = tmdbApi.getTvContentRatings(pick.tmdbId, key).body()?.results.orEmpty()
             results.firstOrNull { it.iso31661 == country }?.rating?.takeIf { it.isNotBlank() }
@@ -542,12 +559,22 @@ class ScoutPicksFinder @Inject constructor(
     ): List<ScoutPick> {
         if (scope == null || engine.scopeFor(scope.selection) != scope) return emptyList()
         val limit = scope.limit
-        val f = if (limit != null) filters.copy(
-            certificationCountry = "US",
-            certificationLte = filters.certificationLte?.takeIf {
-                filters.certificationCountry == "US" && limit.allows(ratingRank(it))
-            } ?: scoutLimitCertification(limit, tv)
-        ) else filters
+        val f = when {
+            limit == null -> filters
+            ratingPolicyCountry() == "BR" && tv -> filters.copy(certificationCountry = null, certificationLte = null)
+            ratingPolicyCountry() == "BR" -> filters.copy(
+                certificationCountry = "BR",
+                certificationLte = filters.certificationLte?.takeIf {
+                    filters.certificationCountry == "BR" && limit.allows(brazilianRatingRank(it))
+                } ?: brazilianCeiling(limit)
+            )
+            else -> filters.copy(
+                certificationCountry = "US",
+                certificationLte = filters.certificationLte?.takeIf {
+                    filters.certificationCountry == "US" && limit.allows(ratingRank(it))
+                } ?: scoutLimitCertification(limit, tv)
+            )
+        }
         val key = com.nuvio.tv.core.tmdb.TmdbApiKey.value
         val body = runCatching {
             if (tv) tmdbApi.discoverTv(

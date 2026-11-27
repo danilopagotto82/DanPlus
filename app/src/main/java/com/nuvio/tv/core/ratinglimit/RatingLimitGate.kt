@@ -140,16 +140,18 @@ class RatingLimitGate @Inject constructor(
 
     /** Whether a title is known to fit, without asking TMDB; for lists that must not wait. */
     suspend fun knownToFit(limit: RatingLimit, contentId: String, contentType: String): Boolean? {
-        val entry = cached(ratingTitleKey(contentId, contentType)) ?: return null
+        val entry = cached(ratingCacheKey(ratingTitleKey(contentId, contentType), ratingPolicyCountry())) ?: return null
         return limit.allows(entry.optInt("rank", -1).takeIf { it >= 0 })
     }
 
     suspend fun rating(contentId: String, contentType: String, save: Boolean = true): TitleRating {
-        val key = ratingTitleKey(contentId, contentType)
+        val titleKey = ratingTitleKey(contentId, contentType)
+        val country = ratingPolicyCountry()
+        val key = ratingCacheKey(titleKey, country)
         cached(key)?.let { return TitleRating(it.optInt("rank", -1).takeIf { r -> r >= 0 }, it.optString("cert").ifBlank { null }) }
-        val tv = key.startsWith("tv|")
+        val tv = titleKey.startsWith("tv|")
         val found = try {
-            lookUp(key.substringAfter('|'), tv)
+            lookUp(titleKey.substringAfter('|'), tv, country)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
@@ -161,20 +163,27 @@ class RatingLimitGate @Inject constructor(
         return found
     }
 
-    private suspend fun lookUp(id: String, tv: Boolean): TitleRating {
+    private fun ratingCacheKey(titleKey: String, country: String): String =
+        if (country == "BR") "BR|$titleKey" else titleKey
+
+    private suspend fun lookUp(id: String, tv: Boolean, country: String): TitleRating {
         val tmdb = tmdbService.ensureTmdbId(id, if (tv) "tv" else "movie")?.toIntOrNull() ?: return TitleRating(null, null)
         val key = com.nuvio.tv.core.tmdb.TmdbApiKey.value
         val certification = if (tv) {
             val response = tmdbApi.getTvContentRatings(tmdb, key)
             if (!response.isSuccessful) throw java.io.IOException("TMDB ${response.code()}")
-            response.body()?.results.orEmpty().firstOrNull { it.iso31661 == "US" }?.rating?.takeIf { ratingRank(it) != null }
+            val ratings = response.body()?.results.orEmpty().filter { it.iso31661 == country }.map { it.rating }
+            if (country == "BR") brazilianCertification(ratings) else ratings.firstOrNull { ratingRank(it) != null }
         } else {
             val response = tmdbApi.getMovieReleaseDates(tmdb, key)
             if (!response.isSuccessful) throw java.io.IOException("TMDB ${response.code()}")
-            usFilmCertification(response.body()?.results.orEmpty()
-                .map { country -> country.iso31661 to country.releaseDates.orEmpty().map { it.certification } })
+            val releases = response.body()?.results.orEmpty()
+                .map { region -> region.iso31661 to region.releaseDates.orEmpty().map { it.certification } }
+            if (country == "BR") brazilianCertification(releases.filter { it.first == "BR" }.flatMap { it.second })
+            else usFilmCertification(releases)
         }
-        return TitleRating(ratingRank(certification), certification)
+        val rank = if (country == "BR") brazilianRatingRank(certification) else ratingRank(certification)
+        return TitleRating(rank, certification)
     }
 
     private suspend fun cached(key: String): JSONObject? = cacheLock.withLock {

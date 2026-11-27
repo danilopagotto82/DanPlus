@@ -63,4 +63,12 @@ class ScoutAdvancedSearchTest {
         assertFalse(movie.copy(tv = true).isAnimeRecap())
         assertFalse(movie.copy(language = null).isAnimeRecap())
     }
+    @org.junit.Test fun commaSeparatedTermsMatchAnyOrEvery() {
+        val pick = ScoutPick(1, false, "Space Station", overview = "A rescue is planned")
+        assertEquals(listOf("space station", "rescue"), ScoutAdvancedSearch("space station, rescue").titleTerms())
+        assertEquals(true, ScoutAdvancedSearch("space station, rescue").matches(pick))
+        assertEquals(false, ScoutAdvancedSearch("space station, ocean").matches(pick))
+        assertEquals(true, ScoutAdvancedSearch("space station, ocean", matchAnyKeyword = true).matches(pick))
+        assertEquals(false, ScoutAdvancedSearch("spa, resc").matches(pick))
+    }
 }

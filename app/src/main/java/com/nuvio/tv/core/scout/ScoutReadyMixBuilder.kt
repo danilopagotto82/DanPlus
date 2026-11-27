@@ -3,6 +3,7 @@ package com.nuvio.tv.core.scout
 import android.content.Context
 import com.nuvio.tv.core.tmdb.TmdbService
 import com.nuvio.tv.core.ratinglimit.ratingLimitGateOrNull
+import com.nuvio.tv.core.ratinglimit.ratingPolicyCountry
 import com.nuvio.tv.core.ratinglimit.ratingRank
 import com.nuvio.tv.core.util.withAppLocale
 import com.nuvio.tv.data.local.ScoutMixStore
@@ -289,12 +290,18 @@ class ScoutReadyMixBuilder @Inject constructor(
 
     /** The bundled lists, read once. */
     suspend fun occasionEpisodes(occasion: ScoutOccasion): List<ScoutOccasionEpisode> {
-        val limit = ratingLimitGateOrNull(context)?.activeLimit()
+        val gate = ratingLimitGateOrNull(context)
+        val limit = gate?.activeLimit()
         val read = occasions ?: withContext(Dispatchers.IO) {
             runCatching { parseScoutOccasions(context.assets.open(OCCASIONS_FILE).bufferedReader().use { it.readText() }) }.getOrDefault(emptyMap())
         }
         occasions = read
-        return read[occasion.code].orEmpty().filter { limit == null || limit.allows(ratingRank(it.ratings["US"])) }
+        val episodes = read[occasion.code].orEmpty()
+        if (limit == null) return episodes
+        if (ratingPolicyCountry() != "BR") return episodes.filter { limit.allows(ratingRank(it.ratings["US"])) }
+        if (gate == null) return emptyList()
+        val allowed = gate.keepFitting(limit, episodes.map(ScoutOccasionEpisode::imdb).distinct()) { it to "series" }.toSet()
+        return episodes.filter { it.imdb in allowed }
     }
 
     companion object {
