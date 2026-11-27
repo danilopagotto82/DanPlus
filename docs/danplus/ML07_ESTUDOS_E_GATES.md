@@ -1,0 +1,31 @@
+﻿# Estudos e gates do ML07
+
+## RS-27 e RS-36
+
+O TVDB pode listar o mesmo episódio em ordens distintas, e edições DVD/alternativas podem dividir ou reunir episódios. A lista alternativa resolve apresentação. Para reproduzir, usar identidade de fonte, edição e parte. Para sincronizar histórico, exigir ID de série e episódio confirmado para cada provedor, com proveniência do mapeamento. Os números de temporada/episódio são posições dentro de uma ordem. [Ordens TVDB](https://thetvdb.com/blog/something-new) · [Episódios combinados](https://support.thetvdb.com/kb/faq.php?id=24)
+
+O calendário, a Ordem Certa e os mapeadores de Trakt/WeTrakr continuam com as suas rotas atuais. Antes de ligar uma ordem alternativa, validar cobertura por série/ordem, licença, credencial e proveniência para cada destino. A fixture EpisodeOrderStudyTest representa três casos fictícios e exige correspondência 1:1 por provedor. Se dois streams correspondem ao mesmo episódio, é preciso comprovar limites e conclusão de todas as partes. Se um stream contém dois episódios, é preciso comprovar limites, retomada e a regra de conclusão de cada episódio. Ausência ou ambiguidade mantém a proposta desligada. Nenhuma migração de histórico.
+
+## LAB-USENET
+
+A viabilidade depende de acesso a servidor NNTP com TLS obrigatório, limites de conexões, retenção e disponibilidade de partes. Um produto para binários também exigiria descoberta por catálogo/indexador, montagem de partes e verificação de integridade. Reparos e extração trazem custo de CPU, disco e memória, especialmente em Fire TV. Downloads e arquivos extraídos precisariam ficar em espaço privado com cotas, validação de caminhos e limites de descompressão. Credenciais ficariam no cofre e fora de logs. A origem e a licença do conteúdo exigiriam verificação antes de qualquer piloto. [NNTP](https://datatracker.ietf.org/doc/rfc3977/) · [TLS para NNTP](https://www.rfc-editor.org/rfc/rfc8143)
+
+O custo operacional inclui acesso ao servidor, eventual assinatura de indexador, armazenamento temporário e tráfego. O projeto não contratou serviços nem mediu preços de um plano específico. A rota futura exige um orçamento aprovado e medição em aparelhos antes de entrar no player. LAB-USENET permanece estudo. Usenet, IPTV, EPG, Sports Hub e Multiview ficam fora da 2.1.2. LAB-EM-CENA permanece HOLD com evidências existentes.
+
+## RS-29 — preparação e autorização externa
+
+O protótipo v2 usa o transporte e o envelope AES-GCM do ML06. O envelope admite gênero existente, visibilidade do Scout no menu e emojis nas listas. São chaves do ScoutStore fora do payload ProfileSettingsSyncService. Drive preserva o isolamento por conta Google, conta DanPlus e perfil vinculado. Campos com bases comuns conciliam alterações independentes. Base ausente com divergência, arquivo removido e conflito de revisão exigem decisão explícita. PIN incorreto e perfil divergente invalidam o envelope. Drive automático segue desativado e o backup manual mantém o formato existente. [Responsabilidade por campo](MATRIZ_RESPONSABILIDADE_BACKUP_ML06.csv)
+
+Para autorizar o gate, o proprietário deverá habilitar a Drive API em um projeto Google Cloud de teste, configurar a tela de consentimento, incluir contas fictícias autorizadas e criar um cliente OAuth para TVs e dispositivos de entrada limitada. O fluxo apresenta código na TV e conclui em navegador separado com escopo drive.appdata, sem depender de Play Services. A configuração deverá entrar por canal privado. Confirmar o suporte do projeto e do consentimento em Shield e Fire TV, revogação e expiração, e guardar tokens no armazenamento protegido do dispositivo. [OAuth para TV](https://developers.google.com/identity/protocols/oauth2/limited-input-device) · [Pasta de dados do app](https://developers.google.com/workspace/drive/api/guides/appdata)
+
+O arquivo v2 precisa de provisionamento dedicado em appDataFolder. O adaptador ML06 exige ID pré-provisionado e grant do dispositivo. O gate deve obter/vincular esse ID por perfil e conta, rejeitar duplicidade a partir de dois dispositivos, verificar acesso ao ID específico e testar escrita por revisão no serviço real. A versão v1 permanece separada. Arquivo presente com conteúdo desconhecido, grant revogado ou arquivo excluído suspende sincronização. Restauração explícita passa por releitura, comparação com snapshot local, PIN e consentimento. Revisão e snapshot são confirmados somente após escrita ou adoção bem-sucedida. O transporte simulado não valida OAuth real nem o comportamento de ETag do serviço.
+
+No aplicativo, ligar execução apenas após startup carregar conta e perfil estável. Capturar a geração da sessão, conferir grant por dispositivo, serializar por perfil e cancelar tarefas em logout, troca de perfil, revogação ou fim do trabalho em primeiro plano. O hook isCurrent protege os pontos de leitura e escrita; resultados devem ser descartados se a sessão ou o snapshot mudar antes de gravar localmente. Uma escrita já enviada pode completar no escopo anterior e deve ser reconciliada ao reabrir esse perfil. Hook de produção, persistência da base por perfil, provisionamento e OAuth continuam no gate autorizado. O código v2 é compilável sem credencial e sem inicializar Drive.
+
+## HIST-01
+
+O backlog junta as 146 decisões e as 20 entradas adicionais da evidência E00 por ID. Preserva evidência, limites, ação e estado documental por linha. As entradas MUD e REQ16 mantêm escopo e direção histórica com vínculos explícitos quando verificados. Classificações estáticas anteriores foram transportadas. A verificação de cada caminho e regressão em runtime permanece pendente quando o backlog exige reprodução. A documentação de ML01 a ML06 permanece no checkpoint e no histórico do Git. [Backlog HIST-01](auditoria/HIST_01_BACKLOG_ML07.csv)
+
+## UI-13
+
+Home imersiva, Home moderna e Scout já desenhavam o fundo atrás do cabeçalho. O fundo de foco da Home clássica perdia essa cobertura ao rolar para o catálogo. O mesmo modificador foi aplicado ao fundo de foco com inset preservado para os controles. Descobrir e Biblioteca usam V2Atmosphere para o fundo de página e Focus Dock para a arte do painel. Focus Dock é conteúdo localizado. Contraste, transparência, foco, transições e composição continuam no gate físico.

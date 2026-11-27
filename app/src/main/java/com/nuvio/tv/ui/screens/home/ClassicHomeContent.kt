@@ -540,7 +540,7 @@ fun ClassicHomeContent(
         enabled = uiState.classicFocusGradientEnabled,
         visibleProvider = { catalogFocusBackdropVisible.value },
         updatesPausedProvider = { isVerticalScrollingState.value },
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize().behindTopNavigation()
     )
     LazyColumn(
         state = columnListState,
