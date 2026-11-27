@@ -36,7 +36,8 @@ internal data class DriveStoredGrant(
     val refresh: String,
     val pin: String,
     val automatic: Boolean = true,
-    val lastSuccessfulSync: Long? = null
+    val lastSuccessfulSync: Long? = null,
+    val refreshProof: String? = null
 ) {
     override fun toString() = "DriveStoredGrant"
 
@@ -45,14 +46,15 @@ internal data class DriveStoredGrant(
     fun encode(): String = JSONObject().put("actor", actor).put("drive", scope.driveAccount)
         .put("owner", scope.appAccount).put("profile", scope.profile).put("client", clientId)
         .put("refresh", refresh).put("pin", pin).put("automatic", automatic)
-        .put("lastSuccessfulSync", lastSuccessfulSync).toString()
+        .put("lastSuccessfulSync", lastSuccessfulSync).put("refreshProof", refreshProof).toString()
     companion object {
         fun decode(text: String): DriveStoredGrant {
             val j = JSONObject(text)
             return DriveStoredGrant(j.getString("actor"), DriveCinemaScope(j.getString("drive"),
                 j.getString("owner"), j.getString("profile")), j.getString("client"),
                 j.getString("refresh"), j.getString("pin"), j.optBoolean("automatic", true),
-                j.optLong("lastSuccessfulSync").takeIf { it > 0 }).also {
+                j.optLong("lastSuccessfulSync").takeIf { it > 0 },
+                j.optString("refreshProof").takeIf(::validDriveRefreshProof)).also {
                 require(it.pin.length >= 12 && BackupCrypto.isValidPin(it.pin) &&
                     it.refresh.isNotBlank() && it.clientId.isNotBlank() && it.scope.driveAccount.isNotBlank())
             }
@@ -76,15 +78,18 @@ class DriveGrantVault @Inject constructor(@ApplicationContext context: Context) 
         // Do not discard a previous journal baseline on reconnect to the same scope.
         val old = grants.read(id)?.let { DriveStoredGrant.decode(it) }
         if (old != null && old.scope != grant.scope) return@synchronized false
-        grants.write(id, grant.encode())
+        grants.write(id, (if (old != null && old.actor == grant.actor) {
+            grant.copy(automatic = old.automatic, lastSuccessfulSync = old.lastSuccessfulSync)
+        } else grant).encode())
         _revision.value++
         true
     }
-    internal fun rotate(id: Int, before: DriveStoredGrant, token: String, current: () -> Boolean) = synchronized(lock) {
+    internal fun rotate(id: Int, before: DriveStoredGrant, token: String, proof: String?, current: () -> Boolean) = synchronized(lock) {
         check(current())
         val saved = checkNotNull(grants.read(id)?.let { DriveStoredGrant.decode(it) })
-        check(saved.scope == before.scope && saved.actor == before.actor && saved.refresh == before.refresh)
-        grants.write(id, saved.copy(refresh = token).encode())
+        check(saved.scope == before.scope && saved.actor == before.actor && saved.refresh == before.refresh &&
+            saved.refreshProof == before.refreshProof)
+        grants.write(id, saved.copy(refresh = token, refreshProof = proof).encode())
     }
     internal fun recordSuccess(id: Int, time: Long, current: () -> Boolean) = synchronized(lock) {
         if (!current()) return@synchronized
@@ -119,7 +124,12 @@ class DriveGrantVault @Inject constructor(@ApplicationContext context: Context) 
     }
 }
 
-internal data class DriveSyncStatus(val available: Boolean = false, val connected: Boolean = false, val automatic: Boolean = false)
+internal data class DriveSyncStatus(
+    val available: Boolean = false,
+    val connected: Boolean = false,
+    val automatic: Boolean = false,
+    val reconnectRequired: Boolean = false
+)
 
 @Singleton
 class DriveSyncRuntime @Inject constructor(
@@ -174,9 +184,10 @@ class DriveSyncRuntime @Inject constructor(
                     val coordinator = DriveJournalCoordinator(
                         GoogleDriveRevisionStore(http, driveNamespace(grant.scope), token, valid),
                         ProtectedDriveJournalProgress(context, binding.id, valid))
-                    _status.value = DriveSyncStatus(available = true, connected = true, automatic = grant.automatic)
+                    _status.value = DriveSyncStatus(available = true, connected = true, automatic = grant.automatic,
+                        reconnectRequired = grant.refreshProof == null)
                     sessions.value = DriveProfileSession(grant.scope, binding.id, grant.pin, coordinator,
-                        grant.automatic, grant.lastSuccessfulSync, { time ->
+                        grant.automatic && grant.refreshProof != null, grant.lastSuccessfulSync, { time ->
                             runCatching { vault.recordSuccess(binding.id, time, valid) }
                         }, valid)
                 } catch (cancelled: CancellationException) {
@@ -214,20 +225,23 @@ class DriveSyncRuntime @Inject constructor(
     internal suspend fun connect(pin: String, display: suspend (DriveBrokerChallenge) -> Unit): Boolean = operation.withLock {
         require(pin.length >= 12 && BackupCrypto.isValidPin(pin))
         val b = binding() ?: return@withLock false
-        val client = DriveBrokerClient(http, checkNotNull(endpoint), {
-            val session = auth.currentSessionOrNull()
-            session?.takeIf { current(b) && it.user?.id == b.actor }?.let {
-                DriveBrokerHeaders(BuildConfig.DANPLUS_D12_SUPABASE_KEY, server.publishableKey, it.accessToken)
-            }
-        }, { current(b) })
+        val client = broker(b)
         val code = client.start()
         display(code)
         val grant = client.awaitGrant(code) ?: return@withLock false
         val account = driveAccountId(http, grant.tokens.accessToken) { current(b) }
         val stored = DriveStoredGrant(b.actor, DriveCinemaScope(account, b.owner, b.remoteProfile),
-            grant.clientId, grant.tokens.refreshToken, pin)
+            grant.clientId, grant.tokens.refreshToken, pin, refreshProof = grant.refreshProof)
         withContext(Dispatchers.IO) { vault.save(b.id, stored) { current(b) } }
     }
+
+    private fun broker(b: Binding) =
+        DriveBrokerClient(http, checkNotNull(endpoint), {
+            val session = auth.currentSessionOrNull()
+            session?.takeIf { current(b) && it.user?.id == b.actor }?.let {
+                DriveBrokerHeaders(BuildConfig.DANPLUS_D12_SUPABASE_KEY, server.publishableKey, it.accessToken)
+            }
+        }, { current(b) })
 
     internal suspend fun setAutomatic(enabled: Boolean): Boolean = operation.withLock {
         val b = binding() ?: return@withLock false
@@ -277,12 +291,24 @@ class DriveSyncRuntime @Inject constructor(
                 if (!current(b)) return@withLock null
                 val now = TimeUnit.NANOSECONDS.toMillis(System.nanoTime())
                 if (now < until) return@withLock access
-                val refreshed = google.refresh(stored.clientId, stored.refresh)
+                val proof = stored.refreshProof ?: return@withLock null
+                val grant = try {
+                    broker(b).refresh(stored.refresh, proof)
+                } catch (_: DriveReauthorizationRequired) {
+                    if (current(b)) {
+                        vault.rotate(b.id, stored, stored.refresh, null) { current(b) }
+                        stored = stored.copy(refreshProof = null)
+                        if (current(b)) _status.value = _status.value.copy(reconnectRequired = true)
+                    }
+                    return@withLock null
+                }
+                require(grant.clientId == stored.clientId)
+                val refreshed = grant.tokens
                 if (driveAccountId(http, refreshed.accessToken) { current(b) } != stored.scope.driveAccount) return@withLock null
                 if (!current(b)) return@withLock null
-                if (refreshed.refreshToken != stored.refresh) {
-                    vault.rotate(b.id, stored, refreshed.refreshToken) { current(b) }
-                    stored = stored.copy(refresh = refreshed.refreshToken)
+                if (refreshed.refreshToken != stored.refresh || grant.refreshProof != proof) {
+                    vault.rotate(b.id, stored, refreshed.refreshToken, grant.refreshProof) { current(b) }
+                    stored = stored.copy(refresh = refreshed.refreshToken, refreshProof = grant.refreshProof)
                 }
                 access = refreshed.accessToken
                 until = now + (refreshed.expiresInSeconds - 60).coerceAtLeast(0) * 1000

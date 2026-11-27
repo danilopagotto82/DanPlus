@@ -104,7 +104,7 @@ internal fun BackupSettingsContent(
                 )
             }
             SettingsGroupCard(title = stringResource(R.string.drive_sync_title)) {
-                val label = when (result) {
+                val label = if (drive.reconnectRequired) R.string.drive_sync_connect else when (result) {
                     DriveJournalOutcome.IN_SYNC -> R.string.drive_sync_current
                     DriveJournalOutcome.AWAITING_REMOTE -> R.string.backup_working
                     DriveJournalOutcome.CAPACITY -> R.string.drive_sync_capacity
@@ -125,13 +125,15 @@ internal fun BackupSettingsContent(
                     onClick = {
                         when {
                             !drive.available -> Unit
-                            !drive.connected -> viewModel.connectDrive()
+                            !drive.connected || drive.reconnectRequired -> viewModel.connectDrive()
                             else -> viewModel.syncDriveNow()
                         }
                     }
                 )
                 if (drive.connected) {
-                    SettingsActionRow(stringResource(R.string.drive_sync_now), subtitle = null, onClick = viewModel::syncDriveNow)
+                    if (!drive.reconnectRequired) {
+                        SettingsActionRow(stringResource(R.string.drive_sync_now), subtitle = null, onClick = viewModel::syncDriveNow)
+                    }
                     SettingsToggleRow(stringResource(R.string.drive_sync_auto), subtitle = null, checked = drive.automatic,
                         onToggle = { viewModel.driveAutomatic(!drive.automatic) })
                     if (result == DriveJournalOutcome.CONFLICT) {

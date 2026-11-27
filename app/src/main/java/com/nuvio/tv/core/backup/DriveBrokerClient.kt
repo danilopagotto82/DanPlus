@@ -19,7 +19,9 @@ internal class DriveBrokerChallenge(
     internal val ticket: String, val userCode: String, val url: HttpUrl,
     internal val expiresAt: Long, internal val interval: Long
 )
-internal class DriveBrokerGrant(val clientId: String, val tokens: DriveDeviceTokens)
+internal class DriveBrokerGrant(val clientId: String, val tokens: DriveDeviceTokens, val refreshProof: String)
+internal class DriveReauthorizationRequired : Exception("Drive authorization must be renewed")
+internal fun validDriveRefreshProof(proof: String) = proof.matches(Regex("[A-Za-z0-9_-]{43}"))
 
 internal fun driveBrokerEndpoint(base: String): HttpUrl? =
     base.trim().trimEnd('/').takeIf { Regex("https://[a-z0-9-]+\\.supabase\\.co").matches(it) }
@@ -62,13 +64,7 @@ internal class DriveBrokerClient(
                 delay(interval)
                 if (!isCurrent()) return@withTimeoutOrNull null
                 val (status, json) = request(JSONObject().put("operation", "poll").put("device_code", code.ticket))
-                if (status == 200) {
-                    require(json.getString("scope") == "https://www.googleapis.com/auth/drive.file")
-                    require(json.getString("token_type").equals("Bearer", ignoreCase = true))
-                    return@withTimeoutOrNull DriveBrokerGrant(json.bounded("client_id", 1024),
-                        DriveDeviceTokens(json.bounded("access_token", 4096), json.bounded("refresh_token", 4096),
-                            seconds(json, "expires_in") / 1000))
-                }
+                if (status == 200) return@withTimeoutOrNull readGrant(json)
                 if (status != 400) throw DriveAuthorizationException(status)
                 when (json.optString("error")) {
                     "authorization_pending" -> Unit
@@ -80,6 +76,27 @@ internal class DriveBrokerClient(
             @Suppress("UNREACHABLE_CODE")
             null
         }
+    }
+
+    suspend fun refresh(token: String, proof: String): DriveBrokerGrant {
+        require(token.isNotBlank() && token.length <= 4096 && validDriveRefreshProof(proof))
+        val (status, json) = request(JSONObject().put("operation", "refresh")
+            .put("refresh_token", token).put("refresh_proof", proof))
+        if ((status == 410 && json.optString("error") == "reauthorization_required") ||
+            (status == 403 && json.optString("error") == "invalid_refresh_proof")) {
+            throw DriveReauthorizationRequired()
+        }
+        if (status != 200) throw DriveAuthorizationException(status)
+        return readGrant(json)
+    }
+
+    private fun readGrant(json: JSONObject): DriveBrokerGrant {
+        require(json.getString("scope") == "https://www.googleapis.com/auth/drive.file")
+        require(json.getString("token_type").equals("Bearer", ignoreCase = true))
+        val proof = json.getString("refresh_proof").also { require(validDriveRefreshProof(it)) }
+        return DriveBrokerGrant(json.bounded("client_id", 1024),
+            DriveDeviceTokens(json.bounded("access_token", 4096), json.bounded("refresh_token", 4096),
+                seconds(json, "expires_in") / 1000), proof)
     }
 
     private suspend fun request(body: JSONObject): Pair<Int, JSONObject> = withContext(io) {

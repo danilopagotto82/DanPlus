@@ -6,6 +6,7 @@ const UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const encoder = new TextEncoder();
 type Json = Record<string, unknown>;
 type Config = { clientId: string; clientSecret: string; ticketSecret: string; owners: string[] };
+type Identity = { owner: string; actor: string };
 type Operation = "start" | "poll";
 type Dependencies = {
     config: Config;
@@ -73,12 +74,25 @@ function unb64(value: string) {
 async function signingKey(config: Config) {
     return crypto.subtle.importKey("raw", encoder.encode(config.ticketSecret), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
 }
+function refreshBinding(config: Config, identity: Identity, token: string) {
+    return encoder.encode(JSON.stringify(["danplus-drive-refresh-v1", config.clientId, identity.owner, identity.actor, SCOPE, token]));
+}
+async function issueRefreshProof(config: Config, identity: Identity, token: string) {
+    const signature = await crypto.subtle.sign("HMAC", await signingKey(config), refreshBinding(config, identity, token));
+    return b64(new Uint8Array(signature));
+}
+async function verifyRefreshProof(config: Config, identity: Identity, token: string, proof: unknown) {
+    if (typeof proof !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(proof) ||
+        !await crypto.subtle.verify("HMAC", await signingKey(config), unb64(proof), refreshBinding(config, identity, token))) {
+        throw new Refusal(403, "invalid_refresh_proof");
+    }
+}
 async function issueTicket(config: Config, payload: Json) {
     const data = b64(encoder.encode(JSON.stringify(payload)));
     const mac = await crypto.subtle.sign("HMAC", await signingKey(config), encoder.encode(data));
     return data + "." + b64(new Uint8Array(mac));
 }
-async function verifyTicket(config: Config, ticket: string, identity: { owner: string; actor: string }, now: number) {
+async function verifyTicket(config: Config, ticket: string, identity: Identity, now: number) {
     const parts = ticket.split(".");
     if (parts.length !== 2 || !await crypto.subtle.verify("HMAC", await signingKey(config), unb64(parts[1]), encoder.encode(parts[0]))) throw new Refusal(400, "invalid_ticket");
     const payload: unknown = JSON.parse(new TextDecoder().decode(unb64(parts[0])));
@@ -124,6 +138,17 @@ function seconds(value: unknown): number {
     if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1 || value > 86400) throw new Refusal(502, "invalid_google_response");
     return value;
 }
+async function grantResponse(config: Config, identity: Identity, data: Json, previousRefresh?: string) {
+    // RFC 6749 §5.1/§6 allow an omitted scope on renewal of the original grant.
+    const scope = data.scope === undefined && previousRefresh !== undefined ? SCOPE : data.scope;
+    if (scope !== SCOPE || typeof data.token_type !== "string" || data.token_type.toLowerCase() !== "bearer") {
+        throw new Refusal(502, "invalid_scope");
+    }
+    const token = str(data.refresh_token === undefined ? previousRefresh : data.refresh_token);
+    return reply({ access_token: str(data.access_token), refresh_token: token,
+        refresh_proof: await issueRefreshProof(config, identity, token),
+        expires_in: seconds(data.expires_in), token_type: "Bearer", scope: SCOPE, client_id: config.clientId });
+}
 export async function handleDriveAuthorization(req: Request, deps: Dependencies): Promise<Response> {
     try {
         if (req.method !== "POST") throw new Refusal(405, "method");
@@ -152,9 +177,21 @@ export async function handleDriveAuthorization(req: Request, deps: Dependencies)
                 if (typeof error === "string" && ["authorization_pending", "slow_down", "expired_token", "access_denied"].includes(error)) return reply({ error }, 400);
                 throw new Refusal(502, "google_unavailable");
             }
-            if (r.data.scope !== SCOPE || typeof r.data.token_type !== "string" || r.data.token_type.toLowerCase() !== "bearer") throw new Refusal(502, "invalid_scope");
-            return reply({ access_token: str(r.data.access_token), refresh_token: str(r.data.refresh_token),
-                expires_in: seconds(r.data.expires_in), token_type: "Bearer", scope: SCOPE, client_id: c.clientId });
+            return await grantResponse(c, identity, r.data);
+        }
+        if (body.operation === "refresh") {
+            const token = str(body.refresh_token);
+            await verifyRefreshProof(c, identity, token, body.refresh_proof);
+            // Share the existing persistent six-per-ten-minute budget for Google grant operations.
+            await requireAdmission(deps, identity.owner, "start");
+            const r = await google(deps, "token", { client_id: c.clientId, client_secret: c.clientSecret,
+                refresh_token: token, grant_type: "refresh_token" });
+            if (!r.ok) {
+                if (r.data.error === "invalid_grant") throw new Refusal(410, "reauthorization_required");
+                if (r.status === 429) throw new Refusal(429, "rate_limited");
+                throw new Refusal(502, "google_unavailable");
+            }
+            return await grantResponse(c, identity, r.data, token);
         }
         throw new Refusal(400, "invalid_request");
     } catch (error) {
