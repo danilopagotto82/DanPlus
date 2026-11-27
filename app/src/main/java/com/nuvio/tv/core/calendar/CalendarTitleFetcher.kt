@@ -129,6 +129,12 @@ class CalendarTitleFetcher(
                 tvmazeStreaming = dates.streaming,
                 tvmazeAnime = dates.anime
             ).withSource(CalendarSource.TVMAZE, dates.entries, now)
+            val tvMazeHasFuture = dates.entries.any { it.sortInstant() != null && !it.isOut(now) }
+            val tmdbId = updated.ids.tmdb
+            if (!tvMazeHasFuture && !dates.status.isOver && tmdbId != null && !dates.anime) {
+                val fallback = remote.tmdbShow(tmdbId)
+                return updated.withSource(CalendarSource.TMDB, fallback.entries, now)
+            }
             return withFinales(withTraktTime(withTvdbTimes(updated, CalendarSource.TVMAZE, now), now), now)
         }
         val trakt = try {

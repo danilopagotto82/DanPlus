@@ -173,4 +173,14 @@
     <string name="calendar_zone_region_indian">Oceano Índico</string>
     <string name="calendar_zone_region_pacific">Pacífico</string>
     <string name="calendar_streaming_source">Streaming</string>
+    <string name="calendar_filter_title">Filtrar calendário</string>
+    <string name="calendar_filter_anime">Animes</string>
+    <string name="calendar_filter_cinema">Cinema</string>
+    <string name="calendar_filter_digital">Digital</string>
+    <string name="calendar_filter_physical">Disco</string>
+    <string name="calendar_film_physical">Lançamento em disco</string>
+    <string name="calendar_filtered_empty">Nenhum lançamento neste filtro</string>
+    <string name="calendar_sources_unavailable">Calendário indisponível</string>
+    <string name="calendar_sources_partial">Algumas fontes falharam. Os lançamentos salvos continuam visíveis.</string>
+    <string name="calendar_retry">Tentar novamente</string>
 </resources>

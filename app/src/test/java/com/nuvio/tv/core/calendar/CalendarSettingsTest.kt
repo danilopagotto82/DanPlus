@@ -30,6 +30,14 @@ class CalendarSettingsTest {
         assertNull(mutablePreferencesOf(CalendarSettingsKeys.zoneOverride to "").toCalendarSettings().zoneOverride)
     }
 
+    @Test fun theCalendarFilterAndViewAreReadFromTheProfilePreferences() {
+        val first = mutablePreferencesOf(CalendarSettingsKeys.filter to "ANIME", CalendarSettingsKeys.viewMode to "MONTH")
+        val second = mutablePreferencesOf(CalendarSettingsKeys.filter to "DIGITAL", CalendarSettingsKeys.viewMode to "LIST")
+        assertEquals("ANIME" to "MONTH", first.toCalendarSettings().let { it.filter to it.viewMode })
+        assertEquals("DIGITAL" to "LIST", second.toCalendarSettings().let { it.filter to it.viewMode })
+        assertNull(emptyPreferences().toCalendarSettings().filter)
+    }
+
     @Test fun storedValuesAreReadAndOddOnesFallBack() {
         val preferences = mutablePreferencesOf(
             CalendarSettingsKeys.menuVisible to false,

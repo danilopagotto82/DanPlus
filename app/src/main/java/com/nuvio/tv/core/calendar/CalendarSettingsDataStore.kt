@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 
 data class CalendarSettings(
@@ -41,7 +42,8 @@ data class CalendarSettings(
     val comingUpHiddenNames: Map<String, String> = emptyMap(),
     /** The view last picked in the Calendar header (Week, List or Month), by name; null until one was picked. */
     val viewMode: String? = null,
-    val brazilMovieReleases: Boolean = true
+    val brazilMovieReleases: Boolean = true,
+    val filter: String? = null
 )
 
 internal object CalendarSettingsKeys {
@@ -59,10 +61,11 @@ internal object CalendarSettingsKeys {
     val comingUpHiddenNames = stringSetPreferencesKey("calendar_coming_up_hidden_names")
     val viewMode = stringPreferencesKey("calendar_view_mode")
     val brazilMovieReleases = booleanPreferencesKey("calendar_brazil_movie_releases")
+    val filter = stringPreferencesKey("calendar_filter")
 
     val names: Set<String> = setOf(
         menuVisible, includePersonalLists, followOtherServices, windowDays, zoneOverride, cornerMessage, comingUpRow,
-        hiddenTitleKeys, bellOn, hiddenTitleNames, comingUpHiddenKeys, comingUpHiddenNames, viewMode, brazilMovieReleases
+        hiddenTitleKeys, bellOn, hiddenTitleNames, comingUpHiddenKeys, comingUpHiddenNames, viewMode, brazilMovieReleases, filter
     ).mapTo(linkedSetOf()) { it.name }
 }
 
@@ -100,7 +103,8 @@ internal fun Preferences.toCalendarSettings() = CalendarSettings(
     comingUpHiddenNames = decodeCalendarHiddenNames(this[CalendarSettingsKeys.comingUpHiddenNames])
         .filterKeys { it in this[CalendarSettingsKeys.comingUpHiddenKeys].orEmpty() },
     viewMode = this[CalendarSettingsKeys.viewMode],
-    brazilMovieReleases = this[CalendarSettingsKeys.brazilMovieReleases] ?: true
+    brazilMovieReleases = this[CalendarSettingsKeys.brazilMovieReleases] ?: true,
+    filter = this[CalendarSettingsKeys.filter]
 )
 
 /** Turning a title off also removes keys that name the same title by another of its ids. */
@@ -139,8 +143,12 @@ class CalendarSettingsDataStore @Inject constructor(
     private fun store(profileId: Int = profileManager.activeProfileId.value) = factory.get(profileId, FEATURE)
 
     /** Null until the active profile's settings have been read, so hidden titles and the zone are never skipped. */
-    val settings: StateFlow<CalendarSettings?> = profileManager.activeProfileId.flatMapLatest { profileId ->
-        factory.get(profileId, FEATURE).data.map { it.toCalendarSettings().copy(profileId = profileId) }
+    val activeProfileId: StateFlow<Int> = profileManager.activeProfileId
+
+    val settings: StateFlow<CalendarSettings?> = activeProfileId.flatMapLatest { profileId ->
+        factory.get(profileId, FEATURE).data
+            .map<Preferences, CalendarSettings?> { it.toCalendarSettings().copy(profileId = profileId) }
+            .onStart { emit(null) }
     }.stateIn(scope, SharingStarted.Eagerly, null)
 
     suspend fun current(profileId: Int = profileManager.activeProfileId.value): CalendarSettings =
@@ -166,7 +174,13 @@ class CalendarSettingsDataStore @Inject constructor(
 
     suspend fun setComingUpRow(enabled: Boolean) = store().edit { it[CalendarSettingsKeys.comingUpRow] = enabled }
 
-    suspend fun setViewMode(mode: String) = store().edit { it[CalendarSettingsKeys.viewMode] = mode }
+    suspend fun setViewMode(profileId: Int, mode: String) {
+        store(profileId).edit { it[CalendarSettingsKeys.viewMode] = mode }
+    }
+
+    suspend fun setFilter(profileId: Int, filter: String) {
+        store(profileId).edit { it[CalendarSettingsKeys.filter] = filter }
+    }
 
     suspend fun setBrazilMovieReleases(enabled: Boolean) =
         store().edit { it[CalendarSettingsKeys.brazilMovieReleases] = enabled }

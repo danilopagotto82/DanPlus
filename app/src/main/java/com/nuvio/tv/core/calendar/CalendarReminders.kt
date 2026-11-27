@@ -45,7 +45,7 @@ fun dueReminders(
         .filter { title -> bells.any(title::matchesKey) }
         .flatMap { title ->
             title.entries.mapNotNull { entry ->
-                if (entry.kind == CalendarEntryKind.MOVIE_THEATRICAL) return@mapNotNull null
+                if (entry.kind.isPhysicalOrTheatrical) return@mapNotNull null
                 val dueAt = calendarReminderDueAt(entry) ?: return@mapNotNull null
                 if (dueAt.isAfter(now) || dueAt.isBefore(oldest)) return@mapNotNull null
                 if (title.episodeKey(entry) in seenEpisodeKeys || isWatched(title, entry)) return@mapNotNull null

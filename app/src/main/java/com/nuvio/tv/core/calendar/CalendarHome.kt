@@ -25,7 +25,7 @@ fun calendarNextReminderAt(
     .filter { title -> bells.any(title::matchesKey) }
     .flatMap { title ->
         title.entries.mapNotNull { entry ->
-            if (entry.kind == CalendarEntryKind.MOVIE_THEATRICAL) return@mapNotNull null
+            if (entry.kind.isPhysicalOrTheatrical) return@mapNotNull null
             val dueAt = calendarReminderDueAt(entry) ?: return@mapNotNull null
             dueAt.takeIf { it.isAfter(now) && title.episodeKey(entry) !in seenEpisodeKeys }
         }
@@ -107,6 +107,7 @@ fun buildCalendarComingUp(
         var newestOut: CalendarComingUpItem? = null
         var soonest: CalendarComingUpItem? = null
         title.entries.forEach { entry ->
+            if (entry.kind == CalendarEntryKind.MOVIE_PHYSICAL) return@forEach
             val date = entry.localDate(zone) ?: return@forEach
             val time = entry.airInstantMs?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalTime() }
             if (shownInContinueWatching(title, entry)) return@forEach

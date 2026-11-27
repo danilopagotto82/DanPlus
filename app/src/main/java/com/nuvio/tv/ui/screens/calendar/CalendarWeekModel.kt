@@ -1,17 +1,47 @@
 package com.nuvio.tv.ui.screens.calendar
 
 import androidx.compose.runtime.Immutable
+import com.nuvio.tv.core.calendar.CalendarEntryKind
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 
-enum class CalendarFilter { ALL, SHOWS, FILMS;
+enum class CalendarFilter {
+    ALL, SHOWS, FILMS, ANIME, CINEMA, DIGITAL, PHYSICAL;
 
     fun keeps(row: CalendarRow): Boolean = when (this) {
         ALL -> true
         SHOWS -> !row.isFilm
         FILMS -> row.isFilm
+        ANIME -> !row.isFilm && row.anime
+        CINEMA -> row.kind == CalendarRowKind.FILM_CINEMA || row.releaseKind == CalendarEntryKind.MOVIE_BR_CINEMA ||
+            row.releaseKind == CalendarEntryKind.MOVIE_BR_CINEMA_AND_DIGITAL
+        DIGITAL -> row.kind == CalendarRowKind.FILM_DIGITAL || row.releaseKind == CalendarEntryKind.MOVIE_BR_DIGITAL ||
+            row.releaseKind == CalendarEntryKind.MOVIE_BR_CINEMA_AND_DIGITAL
+        PHYSICAL -> row.kind == CalendarRowKind.FILM_PHYSICAL
     }
+
+    companion object {
+        fun fromPreference(value: String?): CalendarFilter = entries.firstOrNull { it.name == value } ?: ALL
+    }
+}
+
+internal fun CalendarListModel.filtered(filter: CalendarFilter): CalendarListModel {
+    if (filter == CalendarFilter.ALL) return this
+    var pendingHeading: CalendarHeaderEntry? = null
+    val visible = buildList {
+        for (entry in entries) when (entry) {
+            is CalendarHeaderEntry -> pendingHeading = entry
+            is CalendarRowEntry -> if (filter.keeps(entry.row)) {
+                pendingHeading?.let(::add)
+                pendingHeading = null
+                add(entry)
+            }
+        }
+    }
+    val rows = visible.filterIsInstance<CalendarRowEntry>()
+    val preferred = rows.firstOrNull { it.row.section != com.nuvio.tv.core.calendar.CalendarSectionKind.JUST_AIRED }
+    return CalendarListModel(visible, (preferred ?: rows.firstOrNull())?.key)
 }
 
 /** One card on a day: a release, or several episodes of a show that come out together. */
@@ -23,7 +53,9 @@ data class CalendarCard(val rows: List<CalendarRow>) {
 
     /** The last episode when the card holds a run of one season, for "S2 E1-E3". */
     val lastEpisode: Int?
-        get() = if (rows.size > 1 && rows.all { it.season == row.season && it.episode != null }) rows.last().episode else null
+        get() = if (rows.size > 1 && rows.all { it.season == row.season && it.episode != null } &&
+            rows.zipWithNext().all { (first, second) -> first.episode!! + 1 == second.episode }
+        ) rows.last().episode else null
 }
 
 @Immutable
@@ -40,7 +72,7 @@ fun calendarWeekStart(date: LocalDate, firstDay: DayOfWeek): LocalDate = date.wi
 fun calendarCards(rows: List<CalendarRow>): List<CalendarCard> {
     val groups = LinkedHashMap<String, MutableList<CalendarRow>>()
     rows.forEach { row ->
-        val group = if (row.isFilm || row.kind != CalendarRowKind.EPISODE) row.key else "${row.titleKey}|${row.time}"
+        val group = if (row.isFilm || row.kind != CalendarRowKind.EPISODE) row.key else "${row.titleKey}|${row.releaseInstantMs ?: row.time}"
         groups.getOrPut(group) { mutableListOf() } += row
     }
     return groups.values.map { group ->

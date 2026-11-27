@@ -210,6 +210,7 @@ internal fun CalendarMonthView(
             date = focusedDay,
             today = today,
             rows = dayRows,
+            filtered = uiState.filter != CalendarFilter.ALL,
             rowFocus = rowFocus,
             onBell = viewModel::toggleBell,
             onWatch = onWatch,
@@ -349,7 +350,7 @@ private fun CalendarMosaicArt(mosaic: CalendarMosaic, performance: Boolean, modi
 @Composable
 private fun CalendarMosaicTile(row: CalendarRow, logoHeight: Dp, modifier: Modifier) {
     Box(modifier) {
-        CalendarArtImage(url = row.backdrop, fallback = row.poster, modifier = Modifier.fillMaxSize())
+        CalendarArtImage(url = row.poster, fallback = row.backdrop, modifier = Modifier.fillMaxSize())
         Box(Modifier.fillMaxSize().background(calendarArtScrim()))
         if (!row.logo.isNullOrBlank() || logoHeight >= 18.dp) {
             CalendarLogo(
@@ -381,6 +382,7 @@ private fun CalendarDayPanel(
     date: LocalDate,
     today: LocalDate,
     rows: List<CalendarRow>,
+    filtered: Boolean,
     rowFocus: CalendarFocus?,
     onBell: (CalendarRow) -> Unit,
     onWatch: (CalendarRow) -> Unit,
@@ -397,7 +399,8 @@ private fun CalendarDayPanel(
     if (first == null) {
         Column(modifier.padding(NuvioTheme.spacing.md), verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)) {
             Text(day, style = MaterialTheme.typography.titleMedium, color = NuvioTheme.colors.TextPrimary)
-            Text(stringResource(R.string.calendar_month_day_empty), style = MaterialTheme.typography.bodySmall,
+            Text(stringResource(if (filtered) R.string.calendar_filtered_empty else R.string.calendar_month_day_empty),
+                style = MaterialTheme.typography.bodySmall,
                 color = NuvioTheme.colors.TextSecondary)
         }
         return

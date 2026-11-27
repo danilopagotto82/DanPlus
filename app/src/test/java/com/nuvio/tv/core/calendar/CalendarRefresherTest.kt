@@ -260,6 +260,25 @@ class CalendarRefresherTest {
         assertEquals(listOf("show:1", "show:2"), remote.calls.toList())
     }
 
+    @Test fun manualRetryRecoversFailedTitlesBeforeBackoffWithoutRereadingHealthyTitles() = runBlocking {
+        inputs.followed[1] = shows(1, 2)
+        remote.failing += 2
+        refresher.requestRefresh(CalendarRefreshReason.CALENDAR_OPENED)
+        awaitIdle()
+        assertTrue(refresher.state.value.refreshFailed)
+        assertEquals(1, titles().getValue(1).entries.size)
+
+        remote.failing -= 2
+        refresher.requestRefresh(CalendarRefreshReason.MANUAL_RETRY)
+        until("failed title to recover") { titles()[2]?.entries?.isNotEmpty() == true }
+        awaitIdle()
+
+        assertFalse(refresher.state.value.refreshFailed)
+        assertEquals(1, remote.calls.count { it == "show:1" })
+        assertEquals(2, remote.calls.count { it == "show:2" })
+        assertEquals(2, storage.load(1).titles.count { it.entries.isNotEmpty() })
+    }
+
     @Test fun aCancelledRefreshCarriesOnWhereItStopped() = runBlocking {
         inputs.followed[1] = shows(1, 2, 3)
         remote.gates[2] = CompletableDeferred()

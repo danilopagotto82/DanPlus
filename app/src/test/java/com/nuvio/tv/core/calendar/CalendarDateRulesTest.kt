@@ -5,10 +5,27 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
+import java.time.LocalDate
+import com.nuvio.tv.data.remote.api.TmdbDiscoverResult
 
 class CalendarDateRulesTest {
 
     private fun at(text: String) = Instant.parse(text).toEpochMilli()
+
+    @Test fun aBrazilianPremiereInCinemaAndDigitalOnTheSameDayIsOneRelease() {
+        val from = LocalDate.of(2026, 11, 1)
+        val title = brazilianMovieRelease(
+            TmdbDiscoverResult(id = 123, title = "Filme"),
+            listOf(country("BR", 3, "2026-11-05"), country("BR", 4, "2026-11-05"), country("US", 3, "2026-10-11")),
+            from,
+            from.plusDays(30)
+        )
+
+        val entry = title!!.entries.single()
+        assertEquals(CalendarEntryKind.MOVIE_BR_CINEMA_AND_DIGITAL, entry.kind)
+        assertEquals("2026-11-05", entry.airDate)
+        assertNull(entry.airInstantMs)
+    }
 
     private fun country(code: String, type: Int, date: String) = com.nuvio.tv.data.remote.api.TmdbMovieReleaseDateCountry(
         iso31661 = code,
@@ -106,6 +123,21 @@ class CalendarDateRulesTest {
             CalendarSource.TRAKT to listOf(episode(CalendarSource.TRAKT, instant = "2026-11-07T13:00:00Z", number = 6))
         )
         assertEquals(listOf(6), record.entries.map { it.episode })
+    }
+
+    @Test fun `two named episodes on the same day stay separate across sources`() {
+        val record = show(
+            CalendarSource.TVMAZE to listOf(episode(CalendarSource.TVMAZE, date = "2026-11-07", number = 7).copy(title = "Episode seven")),
+            CalendarSource.TRAKT to listOf(episode(CalendarSource.TRAKT, instant = "2026-11-07T13:00:00Z", number = 6).copy(title = "Episode six"))
+        )
+        assertEquals(setOf("S2E6", "S2E7"), record.entries.map { it.slot }.toSet())
+    }
+
+    @Test fun `physical releases use the provider's type and date`() {
+        val entries = tmdbFilmReleaseEntries(listOf(country("BR", 5, "2026-11-07")), "BR")
+        assertEquals(CalendarEntryKind.MOVIE_PHYSICAL, entries.single().kind)
+        assertEquals("2026-11-07", entries.single().airDate)
+        assertNull(entries.single().airInstantMs)
     }
 
     @Test fun `under the Trakt calendar TVmaze still adds a release on a day Trakt has nothing`() {

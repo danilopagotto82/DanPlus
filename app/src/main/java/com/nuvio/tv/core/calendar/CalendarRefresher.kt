@@ -47,7 +47,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 @Retention(AnnotationRetention.BINARY)
 annotation class CalendarClock
 
-enum class CalendarRefreshReason { HOME_SETTLED, CALENDAR_OPENED, SETTINGS_CHANGED, SOURCES_PENDING }
+enum class CalendarRefreshReason { HOME_SETTLED, CALENDAR_OPENED, SETTINGS_CHANGED, SOURCES_PENDING, MANUAL_RETRY }
 
 /** Waits before a refresh is run again because a source was not ready; one per refresh that stays incomplete. */
 val CALENDAR_SOURCE_RETRIES: List<Duration> = listOf(Duration.ofSeconds(30), Duration.ofSeconds(60), Duration.ofSeconds(120))
@@ -62,7 +62,8 @@ data class CalendarState(
     val remaining: Int = 0,
     val seenReminders: Set<String> = emptySet(),
     /** Watched episodes as last read by a refresh; null until one has run for this profile. */
-    val watched: CalendarWatchedIndex? = null
+    val watched: CalendarWatchedIndex? = null,
+    val refreshFailed: Boolean = false
 )
 
 /** Whether the app is on screen; the activity sets it. */
@@ -215,6 +216,7 @@ class CalendarRefresher internal constructor(
     private var data = CalendarSnapshot()
     private var owner: Owner? = null
     private var watched: CalendarWatchedIndex? = null
+    private var providerFailed = false
 
     private val _state = MutableStateFlow(CalendarState())
     val state: StateFlow<CalendarState> = _state.asStateFlow()
@@ -224,7 +226,9 @@ class CalendarRefresher internal constructor(
         synchronized(jobLock) {
             val previous = job
             if (previous?.isActive == true && jobTakesRequests) {
-                if (runAgain == null || reason == CalendarRefreshReason.SETTINGS_CHANGED) runAgain = reason
+                if (runAgain == null || reason == CalendarRefreshReason.MANUAL_RETRY ||
+                    (reason == CalendarRefreshReason.SETTINGS_CHANGED && runAgain != CalendarRefreshReason.MANUAL_RETRY)
+                ) runAgain = reason
                 return
             }
             retry?.cancel()
@@ -325,6 +329,7 @@ class CalendarRefresher internal constructor(
     private suspend fun runRefresh(reason: CalendarRefreshReason): Boolean {
         val me = currentCoroutineContext()[Job]
         val current = ensureLoaded(inputs.activeProfileId.value)
+        withOwner(current) { providerFailed = false }
         setRefreshing(current, me, refreshing = true, remaining = 0)
         var complete = true
         try {
@@ -346,9 +351,17 @@ class CalendarRefresher internal constructor(
             val traktSignedIn = inputs.traktSignedIn()
             val snapshot = dataMutex.withLock { data }
             val traktDue = now.toEpochMilli() - snapshot.traktCalendarFetchedAtMs >= CALENDAR_TRAKT_REFRESH.toMillis()
-            val traktItems = if (traktSignedIn && traktDue && sources.traktWatchedLoaded) {
+            val askTrakt = traktSignedIn && sources.traktWatchedLoaded &&
+                (traktDue || reason == CalendarRefreshReason.MANUAL_RETRY)
+            val traktItems = if (askTrakt) {
                 awaitNoPlayback()
-                inputs.traktCalendar(now.atZone(ZoneOffset.UTC).toLocalDate())
+                try {
+                    inputs.traktCalendar(now.atZone(ZoneOffset.UTC).toLocalDate())
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                }
             } else {
                 null
             }
@@ -372,6 +385,7 @@ class CalendarRefresher internal constructor(
             val followed = result.titles.withCachedPosters(sources.cachedPosters)
 
             val due = withOwner(current) {
+                providerFailed = askTrakt && traktItems == null
                 var records = applyAddonEntries(reconcileCalendarRecords(followed, data.titles), sources.addonEntries, now)
                     .withCachedArt(sources.cachedArt)
                 records = when {
@@ -389,7 +403,7 @@ class CalendarRefresher internal constructor(
                     }
                 )
                 publishLocked()
-                records.filter { it.isDue(now) }
+                records.filter { it.isDue(now) || (reason == CalendarRefreshReason.MANUAL_RETRY && it.failures > 0) }
                     .sortedWith(compareByDescending<CalendarTitleRecord> { CalendarOrigin.BELL in it.origins }.thenBy { it.nextRefreshAtMs })
             } ?: return true
             save(current, force = true)
@@ -428,6 +442,7 @@ class CalendarRefresher internal constructor(
             throw cancelled
         } catch (error: Exception) {
             Log.w(TAG, "Calendar refresh stopped: ${error.message}")
+            withOwner(current) { providerFailed = true }
             complete = true
         } finally {
             withContext(NonCancellable) {
@@ -492,6 +507,7 @@ class CalendarRefresher internal constructor(
             data = storage.load(profileId)
             owner = wanted
             watched = null
+            providerFailed = false
             publishLocked(refreshing = false, remaining = 0)
         }
         wanted
@@ -500,7 +516,9 @@ class CalendarRefresher internal constructor(
     /** Runs [block] under the lock only while [current] still owns the data; null otherwise. */
     private suspend inline fun <T> withOwner(current: Owner, block: () -> T): T? = dataMutex.withLock {
         currentCoroutineContext().ensureActive()
-        if (owner != current) null else block()
+        if (owner != current || inputs.activeProfileId.value != current.profileId ||
+            storage.generation() != current.generation
+        ) null else block()
     }
 
     private suspend fun watchedIndex(current: Owner): CalendarWatchedIndex {
@@ -557,7 +575,8 @@ class CalendarRefresher internal constructor(
             refreshing = refreshing,
             remaining = remaining,
             seenReminders = data.seenReminders.keys,
-            watched = watched
+            watched = watched,
+            refreshFailed = providerFailed || data.titles.any { it.failures > 0 }
         )
     }
 

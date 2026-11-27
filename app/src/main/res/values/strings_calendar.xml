@@ -175,4 +175,14 @@
     <string name="calendar_zone_region_indian">Indian Ocean</string>
     <string name="calendar_zone_region_pacific">Pacific</string>
     <string name="calendar_streaming_source">Streaming</string>
+    <string name="calendar_filter_title">Filter calendar</string>
+    <string name="calendar_filter_anime">Anime</string>
+    <string name="calendar_filter_cinema">Cinema</string>
+    <string name="calendar_filter_digital">Digital</string>
+    <string name="calendar_filter_physical">Disc</string>
+    <string name="calendar_film_physical">Disc release</string>
+    <string name="calendar_filtered_empty">No releases match this filter</string>
+    <string name="calendar_sources_unavailable">Calendar data unavailable</string>
+    <string name="calendar_sources_partial">Some sources could not be updated. Saved releases are still shown.</string>
+    <string name="calendar_retry">Retry</string>
 </resources>

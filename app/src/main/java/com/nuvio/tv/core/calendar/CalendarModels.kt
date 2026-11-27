@@ -103,7 +103,17 @@ enum class CalendarOrigin(val started: Boolean = false, val personalList: Boolea
 }
 
 @Serializable
-enum class CalendarEntryKind { EPISODE, MOVIE_THEATRICAL, MOVIE_DIGITAL, MOVIE_BR_RELEASE }
+enum class CalendarEntryKind {
+    EPISODE, MOVIE_THEATRICAL, MOVIE_DIGITAL, MOVIE_BR_RELEASE, MOVIE_PHYSICAL,
+    MOVIE_BR_CINEMA, MOVIE_BR_DIGITAL, MOVIE_BR_CINEMA_AND_DIGITAL;
+
+    val isBrazilianPremiere: Boolean
+        get() = this == MOVIE_BR_RELEASE || this == MOVIE_BR_CINEMA ||
+            this == MOVIE_BR_DIGITAL || this == MOVIE_BR_CINEMA_AND_DIGITAL
+
+    val isPhysicalOrTheatrical: Boolean
+        get() = this == MOVIE_PHYSICAL || this == MOVIE_THEATRICAL
+}
 
 @Serializable
 enum class CalendarEpisodeLabel {

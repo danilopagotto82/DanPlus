@@ -47,9 +47,9 @@ fun buildCalendarSections(
     val undated = mutableListOf<CalendarItem>()
     titles.forEach { title ->
         val items = title.entries.mapNotNull { entry ->
-            val given = entry.localDate(zone) ?: return@mapNotNull null
-            val date = if (given < today && !entry.isOut(now)) today else given
-            val time = entry.airInstantMs?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalTime() }
+            val date = entry.calendarDate(zone) ?: return@mapNotNull null
+            val time = entry.airInstantMs?.takeIf { entry.source != CalendarSource.TVDB }
+                ?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalTime() }
             CalendarItem(title, entry, date, time)
         }
         items.filterTo(dated) { it.date!! >= firstDay && it.date < windowEnd }
@@ -80,10 +80,15 @@ fun buildCalendarSections(
     return sections
 }
 
+/** Date-only releases stay on their published date. TVDB's regular slot is not an episode air time. */
+internal fun CalendarEntry.calendarDate(zone: ZoneId): LocalDate? =
+    airInstantMs?.takeIf { source != CalendarSource.TVDB }?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalDate() }
+        ?: airDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+
 private val itemOrder: Comparator<CalendarItem> =
     compareBy<CalendarItem> { it.date }
         .thenBy { it.time == null }
-        .thenBy { it.entry?.airInstantMs ?: 0L }
+        .thenBy { if (it.time == null) 0L else it.entry?.airInstantMs ?: 0L }
         .thenBy { it.title.name.orEmpty().lowercase() }
         .thenBy { it.entry?.season ?: 0 }
         .thenBy { it.entry?.episode ?: 0 }

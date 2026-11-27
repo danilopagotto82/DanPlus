@@ -125,9 +125,16 @@ internal fun brazilianMovieRelease(
         .filter { it.type == TYPE_THEATRICAL || it.type == TYPE_DIGITAL }
         .mapNotNull { item ->
             item.releaseDate?.take(10)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                ?.let { date -> date to item.type }
         }
     // A prior Brazilian theatrical/digital release means this is not an upcoming premiere.
-    val date = dates.minOrNull()?.takeIf { it in from..through } ?: return null
+    val date = dates.minOfOrNull { it.first }?.takeIf { it in from..through } ?: return null
+    val formats = dates.filter { it.first == date }.mapTo(hashSetOf()) { it.second }
+    val kind = when {
+        TYPE_THEATRICAL in formats && TYPE_DIGITAL in formats -> CalendarEntryKind.MOVIE_BR_CINEMA_AND_DIGITAL
+        TYPE_THEATRICAL in formats -> CalendarEntryKind.MOVIE_BR_CINEMA
+        else -> CalendarEntryKind.MOVIE_BR_DIGITAL
+    }
     val ids = CalendarIds(tmdb = movie.id.toLong())
     val key = calendarTitleKey(CalendarTitleType.MOVIE, ids) ?: return null
     return CalendarTitleRecord(
@@ -136,7 +143,7 @@ internal fun brazilianMovieRelease(
         backdrop = movie.backdropPath?.takeIf { it.startsWith("/") }?.let { "https://image.tmdb.org/t/p/w780$it" },
         rating = movie.voteAverage?.takeIf { it > 0 },
         sources = mapOf(CalendarSource.TMDB to listOf(
-            CalendarEntry(kind = CalendarEntryKind.MOVIE_BR_RELEASE, airDate = date.toString(), source = CalendarSource.TMDB)
+            CalendarEntry(kind = kind, airDate = date.toString(), source = CalendarSource.TMDB)
         ))
     )
 }
@@ -168,8 +175,7 @@ fun tmdbShowStatus(status: String?): CalendarShowStatus = when (status?.trim()?.
 }
 
 /**
- * A film's cinema date (type 3, or 2 when there is no 3) and digital date (type 4), each from [region] when it has
- * one, else from the US. Dates only.
+ * Cinema (type 3 or 2), digital (type 4) and physical (type 5) dates, from [region] or the US when known.
  */
 fun tmdbFilmReleaseEntries(results: List<TmdbMovieReleaseDateCountry>, region: String): List<CalendarEntry> {
     fun datesOf(country: String, type: Int): List<String> = results
@@ -194,6 +200,7 @@ fun tmdbFilmReleaseEntries(results: List<TmdbMovieReleaseDateCountry>, region: S
 
     val cinema = firstDate(TYPE_THEATRICAL, TYPE_THEATRICAL_LIMITED)
     val digital = firstDate(TYPE_DIGITAL)
+    val physical = firstDate(TYPE_PHYSICAL)
     val noneNearby = cinema == null && digital == null
     return listOfNotNull(
         (cinema ?: firstAnywhere(TYPE_THEATRICAL, TYPE_THEATRICAL_LIMITED).takeIf { noneNearby })?.let {
@@ -201,6 +208,9 @@ fun tmdbFilmReleaseEntries(results: List<TmdbMovieReleaseDateCountry>, region: S
         },
         (digital ?: firstAnywhere(TYPE_DIGITAL).takeIf { noneNearby })?.let {
             CalendarEntry(kind = CalendarEntryKind.MOVIE_DIGITAL, airDate = it, source = CalendarSource.TMDB)
+        },
+        physical?.let {
+            CalendarEntry(kind = CalendarEntryKind.MOVIE_PHYSICAL, airDate = it, source = CalendarSource.TMDB)
         }
     )
 }
@@ -209,6 +219,7 @@ private const val FALLBACK_REGION = "US"
 private const val TYPE_THEATRICAL_LIMITED = 2
 private const val TYPE_THEATRICAL = 3
 private const val TYPE_DIGITAL = 4
+private const val TYPE_PHYSICAL = 5
 private const val MAX_RELEASE_PAGES = 4
 private const val MAX_RELEASE_TITLES = 80
 private const val RELEASE_CACHE_MS = 6 * 60 * 60 * 1000L

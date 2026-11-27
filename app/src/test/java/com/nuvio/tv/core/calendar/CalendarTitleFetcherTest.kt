@@ -92,6 +92,25 @@ class CalendarTitleFetcherTest {
         assertEquals(listOf("tvmaze:7"), remote.calls)
     }
 
+    @Test fun aKnownShowWithoutFutureTvMazeEpisodesKeepsDatedEpisodesFromTheSameTmdbId() = runBlocking {
+        val remote = FakeRemote().apply {
+            tvMazeShow = CalendarShowDates(status = CalendarShowStatus.RUNNING, entries = listOf(
+                CalendarEntry(season = 2, episode = 3, airInstantMs = inDays(-2), source = CalendarSource.TVMAZE)
+            ))
+            tmdbShow = CalendarShowDates(entries = listOf(
+                CalendarEntry(season = 2, episode = 4, airDate = "2026-10-12", source = CalendarSource.TMDB)
+            ))
+        }
+        val known = show.copy(tvmazeId = 83, ids = show.ids.copy(tmdb = 5))
+
+        val result = CalendarTitleFetcher(remote, "AU").refresh(known, emptyMap(), false, now).record
+
+        assertEquals(listOf("tvmaze:83", "tmdbShow:5"), remote.calls)
+        assertEquals(listOf("S2E3", "S2E4"), result.entries.map { it.slot })
+        assertEquals("2026-10-12", result.entries.last().airDate)
+        assertNull(result.entries.last().airInstantMs)
+    }
+
     @Test fun showsTvMazeDoesNotKnowAskTraktThenTmdbAndTheMissIsRememberedForAMonth() = runBlocking {
         val remote = FakeRemote().apply {
             tmdbId = 77

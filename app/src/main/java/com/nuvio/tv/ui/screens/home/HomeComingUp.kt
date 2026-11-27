@@ -127,7 +127,8 @@ fun calendarComingUpCard(
                 CalendarEntryKind.EPISODE -> entry.shownTitle
                 CalendarEntryKind.MOVIE_THEATRICAL -> text.cinema
                 CalendarEntryKind.MOVIE_DIGITAL -> text.digital
-                CalendarEntryKind.MOVIE_BR_RELEASE -> null
+                CalendarEntryKind.MOVIE_BR_RELEASE, CalendarEntryKind.MOVIE_BR_CINEMA, CalendarEntryKind.MOVIE_BR_DIGITAL,
+                CalendarEntryKind.MOVIE_BR_CINEMA_AND_DIGITAL, CalendarEntryKind.MOVIE_PHYSICAL -> null
             },
             thumbnail = null,
             hasAired = item.whenKind == CalendarComingUpWhen.NEW,

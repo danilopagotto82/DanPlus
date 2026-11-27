@@ -102,6 +102,17 @@ class CalendarSectionsTest {
         assertEquals(listOf("noon", "evening", "noTime"), day.items.map { it.title.key })
     }
 
+    @Test fun aPublishedDateDoesNotRollOverOrShowAGuessedTime() {
+        val date = LocalDate.of(2026, 10, 5)
+        val evening = Instant.parse("2026-10-06T03:00:00Z").toEpochMilli()
+        val addon = on(date.toString()).copy(source = CalendarSource.ADDON, placeAtMs = evening)
+        val tvdb = on(date.toString()).copy(source = CalendarSource.TVDB, airInstantMs = evening)
+        val calendar = buildCalendarSections(listOf(title("addon", addon), title("tvdb", tvdb)), now, sydney)
+        val items = calendar.first { it.kind == CalendarSectionKind.JUST_AIRED }.items
+        assertEquals(setOf("addon", "tvdb"), items.map { it.title.key }.toSet())
+        assertTrue(items.all { it.date == date && it.time == null })
+    }
+
     @Test fun laterHoldsEachTitlesNextReleaseAfterTheWindowAndNoDateHoldsRunningShowsWithNothingDated() {
         val titles = listOf(
             title("inWindow", on("2026-10-15"), on("2026-11-20", episode = 2)),

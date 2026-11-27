@@ -3,6 +3,8 @@ package com.nuvio.tv.ui.screens.calendar
 import com.nuvio.tv.core.calendar.CalendarClock
 import com.nuvio.tv.core.calendar.CalendarTitleRecord
 import com.nuvio.tv.core.calendar.TmdbCalendarClient
+import com.nuvio.tv.core.tmdb.TmdbMetadataService
+import com.nuvio.tv.domain.model.ContentType
 import com.nuvio.tv.core.player.ScreensaverController
 import java.time.LocalDate
 import com.nuvio.tv.core.calendar.CalendarEpisodeResolver
@@ -78,7 +80,9 @@ interface CalendarScreenData {
     suspend fun setComingUpRow(enabled: Boolean)
     suspend fun setHiddenFromComingUp(titleKey: String, hidden: Boolean)
     suspend fun unhideAllFromComingUp()
-    suspend fun setViewMode(mode: CalendarViewMode) {}
+    val activeProfileId: StateFlow<Int?>? get() = null
+    suspend fun setViewMode(profileId: Int?, mode: CalendarViewMode) {}
+    suspend fun setFilter(profileId: Int?, filter: CalendarFilter) {}
     /** From what the app already holds; with [fetch] the title's details are asked for once when they are missing. */
     suspend fun details(row: CalendarRow, fetch: Boolean = false): CalendarRowDetails?
 
@@ -102,14 +106,16 @@ class DefaultCalendarScreenData @Inject constructor(
     private val traktSettings: TraktSettingsDataStore,
     private val trackingProviders: TrackingProviderRegistry,
     private val tmdbCalendar: TmdbCalendarClient,
+    private val tmdbMetadata: TmdbMetadataService,
     private val screensaverController: ScreensaverController
 ) : CalendarScreenData {
     override val state get() = refresher.state
     override val settings get() = settingsStore.settings
     override val zones = zoneProvider.zones
+    override val activeProfileId get() = settingsStore.activeProfileId
 
     private val snapshotLock = Mutex()
-    private var snapshots: Pair<List<CachedNextUpItem>, List<CachedInProgressItem>>? = null
+    private var snapshots: Pair<Int, Pair<List<CachedNextUpItem>, List<CachedInProgressItem>>>? = null
 
     override suspend fun upcomingBrazilianMovies(today: LocalDate): List<CalendarTitleRecord> {
         screensaverController.playbackActive.first { !it }
@@ -118,8 +124,12 @@ class DefaultCalendarScreenData @Inject constructor(
 
     override fun now(): Instant = clock.instant()
     override fun requestRefresh(reason: CalendarRefreshReason) = refresher.requestRefresh(reason)
-    override suspend fun setViewMode(mode: CalendarViewMode) {
-        settingsStore.setViewMode(mode.name)
+    override suspend fun setViewMode(profileId: Int?, mode: CalendarViewMode) {
+        profileId?.let { settingsStore.setViewMode(it, mode.name) }
+    }
+
+    override suspend fun setFilter(profileId: Int?, filter: CalendarFilter) {
+        profileId?.let { settingsStore.setFilter(it, filter.name) }
     }
 
     override suspend fun setBell(titleKey: String, on: Boolean) {
@@ -169,11 +179,13 @@ class DefaultCalendarScreenData @Inject constructor(
     }
 
     override suspend fun details(row: CalendarRow, fetch: Boolean): CalendarRowDetails? {
+        val profileId = activeProfileId.value
         val ids = rowContentIds(row)
         val meta = ids.firstNotNullOfOrNull { metaRepository.getCachedMeta(row.apiType, it) }
             ?: if (fetch) fetchMeta(row.apiType, ids) else null
         val video = meta?.videos?.firstOrNull { it.season == row.season && it.episode == row.episode && row.season != null }
-        val (nextUp, inProgress) = cachedSnapshots()
+        if (activeProfileId.value != profileId) return null
+        val (nextUp, inProgress) = cachedSnapshots(profileId)
         val aliases = ids.flatMapTo(hashSetOf()) { CalendarIds.fromContentId(it).aliases() }
         fun matches(contentId: String) = CalendarIds.fromContentId(contentId).aliases().any { it in aliases }
         val next = nextUp.firstOrNull { matches(it.contentId) }
@@ -181,12 +193,18 @@ class DefaultCalendarScreenData @Inject constructor(
         val episodeText = video?.overview
             ?: next?.takeIf { it.season == row.season && it.episode == row.episode }?.episodeDescription
             ?: started?.takeIf { it.season == row.season && it.episode == row.episode }?.episodeDescription
+        val tmdbId = (ids + listOfNotNull(meta?.id)).firstNotNullOfOrNull { CalendarIds.fromContentId(it).tmdb }
+        val logo = if (fetch && tmdbId != null) withTimeoutOrNull(DETAILS_FETCH_MS) {
+            val type = if (row.isFilm) ContentType.MOVIE else ContentType.SERIES
+            val art = tmdbMetadata.fetchPosterArt(tmdbId.toString(), type, "pt-BR")
+            tmdbMetadata.fetchFocusDockLogo(tmdbId.toString(), type, art?.originalLanguage)
+        } else null
         val details = CalendarRowDetails(
             backdrop = meta?.background ?: next?.backdrop ?: started?.backdrop,
             synopsis = (episodeText ?: meta?.description)?.trim()?.takeIf(String::isNotEmpty),
             runtimeMinutes = video?.runtime?.takeIf { it > 0 },
             filmRuntime = meta?.runtime?.takeIf { row.isFilm && it.isNotBlank() },
-            logo = meta?.logo?.takeIf(String::isNotBlank) ?: next?.logo ?: started?.logo,
+            logo = logo ?: meta?.logo?.takeIf(String::isNotBlank) ?: next?.logo ?: started?.logo,
             rating = meta?.imdbRating?.toDouble()?.takeIf { it > 0 },
             genre = meta?.genres?.firstOrNull { it.isNotBlank() },
             stills = meta?.videos.orEmpty().mapNotNull { v ->
@@ -194,7 +212,7 @@ class DefaultCalendarScreenData @Inject constructor(
                 if (v.season == null || v.episode == null) null else "${v.season}:${v.episode}" to still
             }.toMap()
         )
-        return details.takeIf { it.backdrop != null || it.synopsis != null || it.runtimeMinutes != null || it.filmRuntime != null }
+        return details.takeIf { it.backdrop != null || it.logo != null || it.synopsis != null || it.runtimeMinutes != null || it.filmRuntime != null }
     }
 
     override suspend fun watchTarget(row: CalendarRow): CalendarWatchTarget? {
@@ -218,11 +236,18 @@ class DefaultCalendarScreenData @Inject constructor(
             }
         }
 
-    private suspend fun cachedSnapshots() = snapshotLock.withLock {
-        snapshots ?: runCatching {
-            enrichmentCache.getNextUpSnapshot() to enrichmentCache.getInProgressSnapshot()
-        }.getOrDefault(emptyList<CachedNextUpItem>() to emptyList()).also { snapshots = it }
-    }
+    private suspend fun cachedSnapshots(profileId: Int): Pair<List<CachedNextUpItem>, List<CachedInProgressItem>> =
+        snapshotLock.withLock {
+            snapshots?.takeIf { it.first == profileId }?.second ?: try {
+                val loaded = enrichmentCache.getNextUpSnapshot(profileId) to enrichmentCache.getInProgressSnapshot(profileId)
+                if (activeProfileId.value == profileId) snapshots = profileId to loaded
+                loaded
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                emptyList<CachedNextUpItem>() to emptyList()
+            }
+        }
 }
 
 private const val DETAILS_FETCH_MS = 6_000L

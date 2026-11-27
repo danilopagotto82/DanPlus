@@ -10,14 +10,16 @@ import com.nuvio.tv.core.calendar.CalendarSettings
 import com.nuvio.tv.core.calendar.CalendarState
 import com.nuvio.tv.core.calendar.CalendarTitleRecord
 import com.nuvio.tv.core.calendar.CalendarTitleType
-import kotlinx.coroutines.CancellationException
+import com.nuvio.tv.core.calendar.CalendarWatchTarget
 import com.nuvio.tv.core.calendar.buildCalendarSections
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,6 +29,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -38,7 +41,7 @@ import kotlinx.coroutines.launch
 
 enum class CalendarViewMode { WEEK, LIST, MONTH }
 
-enum class CalendarPhase { LOADING, BUILDING, NOTHING_FOLLOWED, ALL_QUIET, READY }
+enum class CalendarPhase { LOADING, BUILDING, NOTHING_FOLLOWED, ALL_QUIET, UNAVAILABLE, READY }
 
 @Immutable
 data class CalendarUiState(
@@ -53,7 +56,11 @@ data class CalendarUiState(
     val movieReleasesUnavailable: Boolean = false,
     val days: Map<LocalDate, List<CalendarRow>> = emptyMap(),
     val byTitle: Map<String, List<CalendarRow>> = emptyMap(),
-    val brazilMovieReleases: Boolean = true
+    val brazilMovieReleases: Boolean = true,
+    val refreshFailed: Boolean = false,
+    val profileId: Int? = null,
+    val filter: CalendarFilter = CalendarFilter.ALL,
+    val availableFilters: Set<CalendarFilter> = CalendarFilter.entries.take(3).toSet()
 )
 
 @Immutable
@@ -71,7 +78,9 @@ private data class CalendarInputs(
     val settings: CalendarSettings?,
     val zone: ZoneId,
     val now: Instant,
-    val movieReleases: MovieReleasesState
+    val movieReleases: MovieReleasesState,
+    val owner: Int?,
+    val filter: CalendarFilter = CalendarFilter.ALL
 )
 
 private data class MovieReleasesState(
@@ -83,7 +92,9 @@ private data class MovieReleasesState(
 internal fun calendarPhase(state: CalendarState, settingsLoaded: Boolean, list: CalendarListModel): CalendarPhase = when {
     !state.loaded || !settingsLoaded -> CalendarPhase.LOADING
     !list.isEmpty -> CalendarPhase.READY
-    state.refreshing || state.watched == null -> CalendarPhase.BUILDING
+    state.refreshing -> CalendarPhase.BUILDING
+    state.refreshFailed -> CalendarPhase.UNAVAILABLE
+    state.watched == null -> CalendarPhase.BUILDING
     state.titles.isEmpty() -> CalendarPhase.NOTHING_FOLLOWED
     else -> CalendarPhase.ALL_QUIET
 }
@@ -106,19 +117,27 @@ class CalendarViewModel internal constructor(
         }
     }
 
+    val activeProfileId: StateFlow<Int?> = data.activeProfileId ?: MutableStateFlow(null)
+    private val _filter = MutableStateFlow(CalendarFilter.fromPreference(ownedSettings()?.filter))
+    val filter: StateFlow<CalendarFilter> = _filter.asStateFlow()
+
     private val movieReleases = MutableStateFlow(MovieReleasesState())
     private var movieReleasesJob: Job? = null
 
     val uiState: StateFlow<CalendarUiState> =
-        combine(data.state, data.settings, data.zones, ticks, movieReleases) { state, settings, zone, now, releases ->
-            CalendarInputs(state, settings, zone, now, releases)
-        }
+        combine(data.state, activeProfileId) { state, owner -> state to owner }
+            .let { ownedState ->
+                combine(ownedState, data.settings, data.zones, ticks, movieReleases) { (state, owner), settings, zone, now, releases ->
+                    CalendarInputs(state, settings, zone, now, releases, owner)
+                }
+            }
+            .combine(filter) { inputs, selected -> inputs.copy(filter = selected) }
             .mapLatest(::build)
             .distinctUntilChanged()
             .flowOn(computeDispatcher)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS), CalendarUiState())
 
-    private val _viewMode = MutableStateFlow(data.settings.value?.viewMode.toCalendarViewMode())
+    private val _viewMode = MutableStateFlow(ownedSettings()?.viewMode.toCalendarViewMode())
     val viewMode: StateFlow<CalendarViewMode> = _viewMode.asStateFlow()
 
     private val _month = MutableStateFlow(CalendarMonthState())
@@ -127,9 +146,6 @@ class CalendarViewModel internal constructor(
     /** The first day of the week on show; null for this week. */
     private val _weekStart = MutableStateFlow<LocalDate?>(null)
     val weekStart: StateFlow<LocalDate?> = _weekStart.asStateFlow()
-
-    private val _filter = MutableStateFlow(CalendarFilter.ALL)
-    val filter: StateFlow<CalendarFilter> = _filter.asStateFlow()
 
     private val _focus = MutableStateFlow<CalendarFocus?>(null)
     val focus: StateFlow<CalendarFocus?> = _focus.asStateFlow()
@@ -143,14 +159,53 @@ class CalendarViewModel internal constructor(
 
     private var detailsJob: Job? = null
     private var titleOpened = false
+    private var selectedDate: LocalDate? = null
+    private var screenVisible = false
+    private var preferenceOwner = activeProfileId.value
+    private var loadedPreferences = ownedSettings()
+
+    private fun ownedSettings(): CalendarSettings? = data.settings.value?.takeIf {
+        activeProfileId.value == null || it.profileId == activeProfileId.value
+    }
 
     init {
         viewModelScope.launch {
-            data.openAtJustAired.collect { open ->
-                if (!open) return@collect
+            combine(activeProfileId, data.settings) { owner, settings -> owner to settings }
+                .collect { (owner, settings) ->
+                    if (owner != preferenceOwner) {
+                        preferenceOwner = owner
+                        loadedPreferences = null
+                        _filter.value = CalendarFilter.ALL
+                        _viewMode.value = CalendarViewMode.WEEK
+                        titleOpened = false
+                        clearFocus()
+                        showToday()
+                        cancelMovieReleases()
+                        movieReleases.value = MovieReleasesState()
+                    }
+                    if (settings == null || (owner != null && settings.profileId != owner)) return@collect
+                    val previous = loadedPreferences
+                    loadedPreferences = settings
+                    if (previous == null || previous.viewMode != settings.viewMode) {
+                        _viewMode.value = settings.viewMode.toCalendarViewMode()
+                    }
+                    if (previous == null || previous.filter != settings.filter) {
+                        _filter.value = CalendarFilter.fromPreference(settings.filter)
+                    }
+                    if (!settings.brazilMovieReleases) {
+                        cancelMovieReleases()
+                        movieReleases.value = MovieReleasesState()
+                    } else if (screenVisible && previous?.brazilMovieReleases != true) {
+                        loadMovieReleases()
+                    }
+                }
+        }
+        viewModelScope.launch {
+            data.openAtJustAired.collectLatest { open ->
+                if (!open) return@collectLatest
                 val state = uiState.first { it.phase != CalendarPhase.LOADING && it.phase != CalendarPhase.BUILDING }
                 data.consumeOpenAtJustAired()
-                if (state.phase != CalendarPhase.READY) return@collect
+                if (state.phase != CalendarPhase.READY) return@collectLatest
                 _pendingListKey.value = state.list.firstRowKeyIn(CalendarSectionKind.JUST_AIRED) ?: state.list.startRowKey
                 _viewMode.value = CalendarViewMode.LIST
             }
@@ -159,33 +214,49 @@ class CalendarViewModel internal constructor(
 
     /** Each time the page comes into view; the page is kept while you are elsewhere, so this is not done once. */
     fun onScreenShown() {
+        screenVisible = true
         if (!titleOpened) showToday()
         titleOpened = false
         data.requestRefresh(CalendarRefreshReason.CALENDAR_OPENED)
         loadMovieReleases()
     }
 
+    fun onScreenHidden() {
+        screenVisible = false
+        cancelMovieReleases()
+    }
+
+    fun retryCalendar() {
+        data.requestRefresh(CalendarRefreshReason.MANUAL_RETRY)
+        loadMovieReleases()
+    }
+
     fun loadMovieReleases() {
         if (movieReleasesJob?.isActive == true) return
+        val owner = activeProfileId.value
         movieReleasesJob = viewModelScope.launch {
-            if (data.settings.first { it != null }?.brazilMovieReleases != true) {
+            if (data.settings.first { it != null && (owner == null || it.profileId == owner) }?.brazilMovieReleases != true) {
                 movieReleases.value = MovieReleasesState()
                 return@launch
             }
             val today = data.now().atZone(ZoneId.of("America/Sao_Paulo")).toLocalDate()
             movieReleases.value = movieReleases.value.copy(loading = true, unavailable = false)
             try {
-                movieReleases.value = MovieReleasesState(titles = data.upcomingBrazilianMovies(today))
+                val titles = data.upcomingBrazilianMovies(today)
+                if (activeProfileId.value == owner) movieReleases.value = MovieReleasesState(titles = titles)
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
-                movieReleases.value = movieReleases.value.copy(loading = false, unavailable = true)
+                if (activeProfileId.value == owner) {
+                    movieReleases.value = movieReleases.value.copy(loading = false, unavailable = true)
+                }
             }
         }
     }
 
     fun cancelMovieReleases() {
         movieReleasesJob?.cancel()
+        movieReleasesJob = null
     }
 
     fun setWindowDays(days: Int) {
@@ -193,28 +264,65 @@ class CalendarViewModel internal constructor(
     }
 
     /** Back from a title page keeps the month where it was; any other way in starts on today. */
-    fun onTitleOpened() {
+    fun onTitleOpened(row: CalendarRow? = null) {
         titleOpened = true
+        if (row != null && _viewMode.value == CalendarViewMode.LIST) lastFocusedListKey = row.key
     }
 
     /** The menu entry chosen while the Calendar is already open. */
     fun showToday() {
+        selectedDate = null
         _month.value = CalendarMonthState()
         _weekStart.value = null
+        _pendingListKey.value = null
+        _pendingWeekDay.value = null
+        lastFocusedListKey = null
+    }
+
+    fun selectToday() {
+        showToday()
+        uiState.value.today?.let { today ->
+            when (_viewMode.value) {
+                CalendarViewMode.LIST -> openDayInList(today)
+                CalendarViewMode.WEEK -> _pendingWeekDay.value = today
+                CalendarViewMode.MONTH -> focusDay(today)
+            }
+        }
     }
 
     fun shiftWeek(current: LocalDate, weeks: Long) {
-        _weekStart.value = current.plusWeeks(weeks)
+        current.plusWeeks(weeks).let { next ->
+            selectedDate = next
+            _weekStart.value = next
+        }
     }
 
     fun setFilter(filter: CalendarFilter) {
+        if (ownedSettings() == null || _filter.value == filter) return
+        val owner = activeProfileId.value
         _filter.value = filter
+        if (_focus.value?.row?.let { !filter.keeps(it) } == true) clearFocus()
+        _pendingListKey.value = null
+        lastFocusedListKey = null
+        viewModelScope.launch { data.setFilter(owner, filter) }
     }
 
-    suspend fun watchTarget(row: CalendarRow) = runCatching { data.watchTarget(row) }.getOrNull()
+    suspend fun watchTarget(row: CalendarRow): CalendarWatchTarget? {
+        val owner = activeProfileId.value
+        return try {
+            data.watchTarget(row).takeIf { activeProfileId.value == owner }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
+    }
 
     private fun build(inputs: CalendarInputs): CalendarUiState {
-        val (state, settings, zone, now, releases) = inputs
+        val (rawState, rawSettings, zone, now, releases, owner, activeFilter) = inputs
+        val state = rawState.takeIf { owner == null || it.profileId == owner }
+            ?: CalendarState(profileId = owner)
+        val settings = rawSettings?.takeIf { owner == null || it.profileId == owner }
         val bells = settings?.bellOn.orEmpty()
         val windowDays = settings?.windowDays ?: CALENDAR_DEFAULT_WINDOW_DAYS
         val today = now.atZone(zone).toLocalDate()
@@ -242,7 +350,20 @@ class CalendarViewModel internal constructor(
         val list = if (state.loaded && settings != null) {
             buildCalendarList(buildCalendarSections(titles, now, zone, windowDays), now, zone, bells, state.watched)
         } else CalendarListModel()
-        val days = if (state.loaded && settings != null) buildCalendarDays(titles, now, zone, bells, state.watched) else emptyMap()
+        val allDays = if (state.loaded && settings != null) buildCalendarDays(titles, now, zone, bells, state.watched) else emptyMap()
+        val rows = list.entries.asSequence().filterIsInstance<CalendarRowEntry>().map { it.row } +
+            allDays.values.asSequence().flatten()
+        val filters = CalendarFilter.entries.take(3).toMutableSet()
+        val missingFilters = CalendarFilter.entries.drop(3).toMutableSet()
+        for (row in rows) {
+            val found = missingFilters.filter { it.keeps(row) }
+            filters.addAll(found)
+            missingFilters.removeAll(found)
+            if (missingFilters.isEmpty()) break
+        }
+        filters.add(activeFilter)
+        val days = if (activeFilter == CalendarFilter.ALL) allDays
+            else allDays.mapValues { (_, rows) -> rows.filter(activeFilter::keeps) }.filterValues { it.isNotEmpty() }
         return CalendarUiState(
             phase = calendarPhase(state, settings != null, list),
             remaining = state.remaining,
@@ -253,25 +374,42 @@ class CalendarViewModel internal constructor(
             movieReleasesUnavailable = movieReleasesEnabled && releases.unavailable,
             brazilMovieReleases = movieReleasesEnabled,
             windowDays = windowDays,
-            list = list,
+            list = list.filtered(activeFilter),
+            filter = activeFilter,
+            availableFilters = filters,
+            refreshFailed = state.refreshFailed,
+            profileId = owner,
             days = days,
             byTitle = calendarRowsByTitle(days)
         )
     }
 
-    fun setViewMode(mode: CalendarViewMode) {
-        if (mode != CalendarViewMode.LIST && _viewMode.value != mode) showToday()
+    fun setViewMode(mode: CalendarViewMode, firstDay: DayOfWeek = DayOfWeek.MONDAY) {
+        if (ownedSettings() == null) return
+        if (_viewMode.value == mode && ownedSettings()?.viewMode == mode.name) return
+        val owner = activeProfileId.value
+        val date = selectedDate
+        if (date != null && _viewMode.value != mode) when (mode) {
+            CalendarViewMode.MONTH -> focusDay(date)
+            CalendarViewMode.WEEK -> {
+                _weekStart.value = calendarWeekStart(date, firstDay)
+                _pendingWeekDay.value = date
+            }
+            CalendarViewMode.LIST -> _pendingListKey.value = uiState.value.list.rowKeyFor(date)
+        }
         _viewMode.value = mode
         // Only a header choice is remembered; jumps into a day keep the view the user picked.
-        viewModelScope.launch { data.setViewMode(mode) }
+        viewModelScope.launch { data.setViewMode(owner, mode) }
     }
 
     fun focusDay(date: LocalDate) {
+        selectedDate = date
         _month.value = CalendarMonthState(YearMonth.from(date), date)
     }
 
     /** OK on a month day: back to the list, on that day or the next one with something on it. */
     fun openDayInList(date: LocalDate) {
+        selectedDate = date
         _pendingListKey.value = uiState.value.list.rowKeyFor(date)
         _viewMode.value = CalendarViewMode.LIST
     }
@@ -280,11 +418,9 @@ class CalendarViewModel internal constructor(
     private val _pendingWeekDay = MutableStateFlow<LocalDate?>(null)
     val pendingWeekDay: StateFlow<LocalDate?> = _pendingWeekDay.asStateFlow()
 
-    /** OK on a month day with something on: the Week of that day, focused on its first card. An empty day does nothing. */
+    /** Open the requested week with the same filter, including a selected day with no matches. */
     fun openDayInWeek(date: LocalDate, weekStart: LocalDate) {
-        val rows = uiState.value.days[date].orEmpty()
-        if (rows.isEmpty()) return
-        if (rows.none(_filter.value::keeps)) _filter.value = CalendarFilter.ALL
+        selectedDate = date
         _weekStart.value = weekStart
         _pendingWeekDay.value = date
         _viewMode.value = CalendarViewMode.WEEK
@@ -298,20 +434,24 @@ class CalendarViewModel internal constructor(
         _pendingListKey.value = null
     }
 
-    fun onRowFocused(row: CalendarRow, fromList: Boolean) {
+    fun onRowFocused(row: CalendarRow, fromList: Boolean, trackDate: Boolean = true) {
+        if (trackDate && _viewMode.value != CalendarViewMode.MONTH) row.date?.let { selectedDate = it }
         if (fromList) lastFocusedListKey = row.key
         if (_focus.value?.row?.key == row.key && _focus.value?.row == row) return
         _focus.value = CalendarFocus(row)
         detailsJob?.cancel()
+        val owner = activeProfileId.value
         detailsJob = viewModelScope.launch {
             delay(DETAILS_DELAY_MS)
             val cached = runCatching { data.details(row) }.getOrNull()
-            if (_focus.value?.row?.key != row.key) return@launch
+            if (activeProfileId.value != owner || _focus.value?.row?.key != row.key) return@launch
             _focus.value = CalendarFocus(row, cached)
-            if (cached?.complete == true) return@launch
+            if (cached?.complete == true && rowContentIds(row).none { it.startsWith("tmdb:") }) return@launch
             delay(DETAILS_LOOKUP_DELAY_MS - DETAILS_DELAY_MS)
             val fetched = runCatching { data.details(row, fetch = true) }.getOrNull() ?: return@launch
-            if (_focus.value?.row?.key == row.key) _focus.value = CalendarFocus(row, fetched)
+            if (activeProfileId.value == owner && _focus.value?.row?.key == row.key) {
+                _focus.value = CalendarFocus(row, fetched)
+            }
         }
     }
 

@@ -8,9 +8,11 @@ import com.nuvio.tv.core.calendar.CalendarSection
 import com.nuvio.tv.core.calendar.CalendarSectionKind
 import com.nuvio.tv.core.calendar.CalendarSettings
 import com.nuvio.tv.core.calendar.CalendarShowStatus
+import com.nuvio.tv.core.calendar.CalendarSource
 import com.nuvio.tv.core.calendar.CalendarTitleRecord
 import com.nuvio.tv.core.calendar.CalendarTitleType
 import com.nuvio.tv.core.calendar.CalendarWatchedIndex
+import com.nuvio.tv.core.calendar.calendarDate
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -25,7 +27,7 @@ enum class CalendarRowStatus { BELL_OFF, BELL_ON, WATCHED, NOT_WATCHED, NONE;
     val hasBell: Boolean get() = this == BELL_OFF || this == BELL_ON
 }
 
-enum class CalendarRowKind { EPISODE, FILM_CINEMA, FILM_DIGITAL, FILM_BR_RELEASE, SHOW }
+enum class CalendarRowKind { EPISODE, FILM_CINEMA, FILM_DIGITAL, FILM_BR_RELEASE, FILM_PHYSICAL, SHOW }
 
 @Immutable
 data class CalendarRow(
@@ -51,7 +53,10 @@ data class CalendarRow(
     val rating: Double? = null,
     val genre: String? = null,
     val personal: Boolean = false,
-    val streaming: Boolean = false
+    val streaming: Boolean = false,
+    val anime: Boolean = false,
+    val releaseInstantMs: Long? = null,
+    val releaseKind: CalendarEntryKind? = null
 ) {
     val dimmed: Boolean get() = status == CalendarRowStatus.WATCHED
     val isFilm: Boolean get() = type == CalendarTitleType.MOVIE
@@ -96,8 +101,9 @@ data class CalendarListModel(
     /** The first row on [date] or the first one after it; the last row when the date is past them all. */
     fun rowKeyFor(date: LocalDate): String? {
         val rows = entries.filterIsInstance<CalendarRowEntry>().map { it.row }
-        val dated = rows.filter { it.section != CalendarSectionKind.JUST_AIRED && it.date != null }
-        return (dated.firstOrNull { it.date!! >= date } ?: rows.firstOrNull { it.date == date } ?: dated.lastOrNull())?.key
+        val dated = rows.filter { it.date != null }
+            .sortedBy { it.date }
+        return (dated.firstOrNull { it.date!! >= date } ?: dated.lastOrNull())?.key
     }
 }
 
@@ -110,18 +116,21 @@ fun calendarRowStatus(
 ): CalendarRowStatus {
     val bell = bells.any(title::matchesKey)
     if (entry == null) return if (bell) CalendarRowStatus.BELL_ON else CalendarRowStatus.BELL_OFF
-    if (entry.isOut(now)) {
+    if (entry.kind == CalendarEntryKind.MOVIE_PHYSICAL) return CalendarRowStatus.NONE
+    val effectiveRelease = if (entry.source == CalendarSource.TVDB) entry.copy(airInstantMs = null) else entry
+    if (effectiveRelease.isOut(now)) {
         return if (watched?.isWatched(title, entry) == true) CalendarRowStatus.WATCHED else CalendarRowStatus.NOT_WATCHED
     }
-    if (entry.kind == CalendarEntryKind.MOVIE_BR_RELEASE) return CalendarRowStatus.NONE
+    if (entry.kind.isBrazilianPremiere) return CalendarRowStatus.NONE
     if (entry.kind == CalendarEntryKind.MOVIE_THEATRICAL) return CalendarRowStatus.NONE
     return if (bell) CalendarRowStatus.BELL_ON else CalendarRowStatus.BELL_OFF
 }
 
 private fun rowKind(title: CalendarTitleRecord, entry: CalendarEntry?): CalendarRowKind = when {
     entry == null -> CalendarRowKind.SHOW
-    entry.kind == CalendarEntryKind.MOVIE_BR_RELEASE -> CalendarRowKind.FILM_BR_RELEASE
+    entry.kind.isBrazilianPremiere -> CalendarRowKind.FILM_BR_RELEASE
     entry.kind == CalendarEntryKind.MOVIE_THEATRICAL -> CalendarRowKind.FILM_CINEMA
+    entry.kind == CalendarEntryKind.MOVIE_PHYSICAL -> CalendarRowKind.FILM_PHYSICAL
     entry.kind == CalendarEntryKind.MOVIE_DIGITAL -> CalendarRowKind.FILM_DIGITAL
     title.type == CalendarTitleType.MOVIE -> CalendarRowKind.FILM_DIGITAL
     else -> CalendarRowKind.EPISODE
@@ -162,7 +171,10 @@ fun calendarRow(
         rating = title.rating,
         genre = title.genre,
         personal = title.origins.any { it.started || it.savesFilms } || title.key in bells,
-        streaming = title.tvmazeStreaming || kind == CalendarRowKind.FILM_DIGITAL
+        streaming = title.tvmazeStreaming || kind == CalendarRowKind.FILM_DIGITAL,
+        anime = title.tvmazeAnime,
+        releaseInstantMs = entry?.airInstantMs?.takeIf { entry.source != CalendarSource.TVDB },
+        releaseKind = entry?.kind
     )
 }
 
@@ -208,14 +220,14 @@ fun buildCalendarDays(
     val byDay = HashMap<LocalDate, MutableList<CalendarRow>>()
     titles.forEach { title ->
         title.entries.forEach { entry ->
-            val date = entry.localDate(zone) ?: return@forEach
-            val time = entry.airInstantMs?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalTime() }
+            val date = entry.calendarDate(zone) ?: return@forEach
+            val time = entry.airInstantMs?.takeIf { entry.source != CalendarSource.TVDB }?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalTime() }
             byDay.getOrPut(date) { mutableListOf() } +=
                 calendarRow(title, entry, date, time, CalendarSectionKind.DAY, now, today, bells, watched)
         }
     }
     return byDay.mapValues { (_, rows) ->
-        rows.sortedWith(compareBy<CalendarRow> { it.time == null }.thenBy { it.time }.thenBy { it.name.orEmpty().lowercase() })
+        rows.sortedWith(compareBy<CalendarRow> { it.time == null }.thenBy { it.releaseInstantMs }.thenBy { it.name.orEmpty().lowercase() })
             .distinctBy { it.key }
     }
 }

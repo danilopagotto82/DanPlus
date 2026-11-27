@@ -152,7 +152,7 @@ internal fun CalendarWeekView(
 ) {
     val today = uiState.today ?: return
     val chosenStart by viewModel.weekStart.collectAsState()
-    val filter by viewModel.filter.collectAsState()
+    val filter = uiState.filter
     val weekStart = chosenStart ?: calendarWeekStart(today, formats.firstDayOfWeek)
     val week = remember(uiState.days, weekStart, filter) { buildCalendarWeek(uiState.days, weekStart, filter) }
     val shelves = remember(week) { week.filterNot { it.isEmpty } }
@@ -160,6 +160,9 @@ internal fun CalendarWeekView(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val stripRequester = remember { FocusRequester() }
+    val askedDay by viewModel.pendingWeekDay.collectAsState()
+    var stripDay by remember(weekStart) { mutableStateOf(today.takeIf { it in weekStart..weekStart.plusDays(6) } ?: weekStart) }
+    var restoreKey by remember { mutableStateOf<String?>(null) }
     var placed by remember { mutableStateOf(false) }
     val lastKeyRepeat = remember { longArrayOf(0L) }
 
@@ -170,15 +173,16 @@ internal fun CalendarWeekView(
     val heroDetails = focus?.details?.takeIf { focus.row.key == heroRow?.key }
 
     LaunchedEffect(weekStart, filter, openingKey) {
-        if (!focusInWeek) openingCard?.let { viewModel.onRowFocused(it.row, fromList = false) }
+        if (!focusInWeek) openingCard?.let { viewModel.onRowFocused(it.row, fromList = false, trackDate = false) }
     }
 
-    fun jumpTo(date: LocalDate, focusCard: Boolean) {
+    fun jumpTo(date: LocalDate, focusCard: Boolean, cardKey: String? = null) {
         val index = shelves.indexOfFirst { it.date >= date }.takeIf { it >= 0 } ?: shelves.lastIndex
         if (index < 0) return
         scope.launch {
             listState.scrollToItem(index)
-            if (focusCard) shelfRequesters[shelves[index].date]?.requestFocusAfterFrames(1)
+            if (cardKey != null) restoreKey = cardKey
+            else if (focusCard) shelfRequesters[shelves[index].date]?.requestFocusAfterFrames(1)
         }
     }
 
@@ -196,20 +200,28 @@ internal fun CalendarWeekView(
         return true
     }
 
-    LaunchedEffect(Unit) {
-        val asked = viewModel.pendingWeekDay.value
-        viewModel.consumePendingWeekDay()
-        if (shelves.isEmpty()) {
-            stripRequester.requestFocusAfterFrames()
-        } else {
-            jumpTo(asked?.takeIf { day -> shelves.any { it.date == day } } ?: shelves.first().date, focusCard = true)
+    LaunchedEffect(weekStart, filter) {
+        val initial = !placed
+        lastCard[0] = null
+        if (askedDay == null) {
+            val restored = focus?.row?.takeIf { initial && focusInWeek }
+            when {
+                restored?.date != null -> jumpTo(restored.date, focusCard = true, cardKey = restored.key)
+                shelves.isNotEmpty() && initial -> jumpTo(shelves.first().date, focusCard = true)
+                shelves.isNotEmpty() -> listState.scrollToItem(0)
+                initial -> stripRequester.requestFocusAfterFrames()
+            }
         }
         placed = true
     }
-    LaunchedEffect(weekStart, filter) {
-        if (!placed) return@LaunchedEffect
-        lastCard[0] = null
-        if (shelves.isNotEmpty()) listState.scrollToItem(0)
+    LaunchedEffect(askedDay) {
+        val day = askedDay ?: return@LaunchedEffect
+        if (shelves.any { it.date == day }) jumpTo(day, focusCard = true)
+        else {
+            stripDay = day
+            stripRequester.requestFocusAfterFrames()
+        }
+        viewModel.consumePendingWeekDay()
     }
     LaunchedEffect(week) {
         val (key, date) = lastCard[0] ?: return@LaunchedEffect
@@ -231,12 +243,11 @@ internal fun CalendarWeekView(
             week = week,
             today = today,
             formats = formats,
-            filter = filter,
+            stripDay = stripDay,
             performance = performance,
             stripRequester = stripRequester,
-            onDay = { jumpTo(it, focusCard = true) },
-            onShift = { viewModel.shiftWeek(weekStart, it) },
-            onFilter = viewModel::setFilter
+            onDay = { viewModel.openDayInWeek(it, weekStart) },
+            onShift = { viewModel.shiftWeek(weekStart, it) }
         )
         Spacer(Modifier.height(NuvioTheme.spacing.md))
         if (heroRow != null) {
@@ -245,7 +256,7 @@ internal fun CalendarWeekView(
         }
         if (shelves.isEmpty()) {
             Text(
-                text = stringResource(R.string.calendar_week_empty),
+                text = stringResource(if (filter == CalendarFilter.ALL) R.string.calendar_week_empty else R.string.calendar_filtered_empty),
                 style = MaterialTheme.typography.titleMedium,
                 color = NuvioTheme.colors.TextSecondary,
                 modifier = Modifier.padding(top = NuvioTheme.spacing.xl)
@@ -286,9 +297,11 @@ internal fun CalendarWeekView(
                     formats = formats,
                     performance = performance,
                     firstRequester = shelfRequesters[day.date],
+                    restoreKey = restoreKey,
+                    onRestore = { restoreKey = null },
                     onFocused = { row ->
                         focusedShelf[0] = index
-                        lastCard[0] = (week.flatMap { it.cards }.firstOrNull { card -> card.rows.any { it.key == row.key } }?.key ?: row.key) to day.date
+                        lastCard[0] = row.key to day.date
                         viewModel.onRowFocused(row, fromList = false)
                         if (placed && (listState.firstVisibleItemIndex != index || listState.firstVisibleItemScrollOffset != 0)) {
                             scope.launch { if (performance) listState.scrollToItem(index) else listState.animateScrollToItem(index) }
@@ -311,12 +324,11 @@ private fun CalendarWeekStrip(
     week: List<CalendarWeekDay>,
     today: LocalDate,
     formats: CalendarFormats,
-    filter: CalendarFilter,
+    stripDay: LocalDate,
     performance: Boolean,
     stripRequester: FocusRequester,
     onDay: (LocalDate) -> Unit,
-    onShift: (Long) -> Unit,
-    onFilter: (CalendarFilter) -> Unit
+    onShift: (Long) -> Unit
 ) {
     val v2 = LocalV2Appearance.current != null
     val chipShape = RoundedCornerShape(if (v2) NuvioTheme.radii.lg else NuvioTheme.radii.md)
@@ -340,7 +352,7 @@ private fun CalendarWeekStrip(
                 performance = performance,
                 modifier = Modifier
                     .width(if (v2) 58.dp else 54.dp)
-                    .then(if (isToday || (week.none { it.date == today } && day == week.first())) Modifier.focusRequester(stripRequester) else Modifier)
+                    .then(if (day.date == stripDay) Modifier.focusRequester(stripRequester) else Modifier)
             ) { focused ->
                 Column(
                     Modifier
@@ -383,37 +395,7 @@ private fun CalendarWeekStrip(
             performance = performance,
             onClick = { onShift(1) }
         )
-        Spacer(Modifier.width(NuvioTheme.spacing.lg))
-        CalendarFilter.entries.forEach { option ->
-            val selected = option == filter
-            CalendarFocusCard(onClick = { onFilter(option) }, shape = pill, performance = performance, focusedScale = 1.08f) { focused ->
-                Text(
-                    text = stringResource(
-                        when (option) {
-                            CalendarFilter.ALL -> R.string.calendar_filter_all
-                            CalendarFilter.SHOWS -> R.string.calendar_filter_shows
-                            CalendarFilter.FILMS -> R.string.calendar_filter_films
-                        }
-                    ),
-                    style = CalendarText.pill,
-                    color = when {
-                        !v2 && selected && !focused -> NuvioTheme.colors.OnSecondary
-                        else -> NuvioTheme.colors.TextPrimary
-                    },
-                    modifier = Modifier
-                        .then(if (v2 && focused) Modifier.nuvioGlass(GlassRole.CONTROL, focused = true, shape = pill) else Modifier)
-                        .clip(pill)
-                        .background(
-                            when {
-                                !v2 && focused -> NuvioTheme.colors.FocusBackground
-                                selected -> if (v2) NuvioTheme.colors.Secondary.copy(alpha = 0.16f) else NuvioTheme.colors.Secondary
-                                else -> NuvioTheme.colors.BackgroundCard.copy(alpha = if (v2) 0.45f else 0.8f)
-                            }
-                        )
-                        .padding(horizontal = NuvioTheme.spacing.lg, vertical = NuvioTheme.spacing.xs)
-                )
-            }
-        }
+
     }
 }
 
@@ -450,7 +432,7 @@ internal fun CalendarRoundButton(
 private fun CalendarWeekHero(row: CalendarRow, details: CalendarRowDetails?, formats: CalendarFormats, today: LocalDate) {
     Column(Modifier.width(560.dp)) {
         CalendarLogo(
-            logo = row.logo ?: details?.logo,
+            logo = details?.logo ?: row.logo,
             name = row.name,
             height = 48.dp,
             maxWidth = 300.dp,
@@ -520,6 +502,8 @@ private fun CalendarDayShelf(
     formats: CalendarFormats,
     performance: Boolean,
     firstRequester: FocusRequester?,
+    restoreKey: String?,
+    onRestore: () -> Unit,
     onFocused: (CalendarRow) -> Unit,
     onOpen: (CalendarRow) -> Unit,
     onOptions: (CalendarRow) -> Unit
@@ -553,7 +537,18 @@ private fun CalendarDayShelf(
             val cardWidth = (maxWidth - gap * (WEEK_CARDS_ACROSS - 1)) / WEEK_CARDS_ACROSS
             // The row reaches past the page margin by the focus room, so the focused card's ring and lift are not cut.
             CompositionLocalProvider(LocalBringIntoViewSpec provides CalendarMinimalScroll) {
+            val rowState = rememberLazyListState()
+            val restored = remember { FocusRequester() }
+            val restoredIndex = day.cards.indexOfFirst { card -> card.rows.any { it.key == restoreKey } }
+            LaunchedEffect(restoredIndex) {
+                if (restoredIndex >= 0) {
+                    rowState.scrollToItem(restoredIndex)
+                    restored.requestFocusAfterFrames(1)
+                    onRestore()
+                }
+            }
             LazyRow(
+                state = rowState,
                 modifier = Modifier.requiredWidth(maxWidth + FOCUS_ROOM * 2).focusRestorer(),
                 horizontalArrangement = Arrangement.spacedBy(gap),
                 contentPadding = PaddingValues(horizontal = FOCUS_ROOM, vertical = FOCUS_ROOM)
@@ -563,7 +558,11 @@ private fun CalendarDayShelf(
                         card = card,
                         width = cardWidth,
                         performance = performance,
-                        focusRequester = if (index == 0) firstRequester else null,
+                        focusRequester = when (index) {
+                            restoredIndex -> restored
+                            0 -> firstRequester
+                            else -> null
+                        },
                         onFocused = onFocused,
                         onOpen = onOpen,
                         onOptions = onOptions
@@ -619,9 +618,7 @@ private fun CalendarShelfCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        val notAnnounced = stringResource(R.string.calendar_time_not_announced)
-        listOfNotNull(notAnnounced.takeIf { row.time == null && !row.isFilm }, calendarNetworkText(row))
-            .joinToString(" · ").takeIf { it.isNotEmpty() }?.let {
+        calendarNetworkText(row)?.let {
             Spacer(Modifier.height(3.dp))
             Text(
                 text = it,

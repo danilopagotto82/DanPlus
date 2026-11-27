@@ -38,6 +38,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -138,19 +139,37 @@ fun CalendarScreen(
     onOpenTitle: (CalendarRow) -> Unit,
     onWatch: (CalendarWatchTarget) -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val profileId by viewModel.activeProfileId.collectAsState()
+    key(profileId) {
+        CalendarScreenContent(viewModel, profileId, showBuiltInHeader, onOpenTitle, onWatch)
+    }
+}
+
+@Composable
+private fun CalendarScreenContent(
+    viewModel: CalendarViewModel,
+    profileId: Int?,
+    showBuiltInHeader: Boolean,
+    onOpenTitle: (CalendarRow) -> Unit,
+    onWatch: (CalendarWatchTarget) -> Unit
+) {
+    val state by viewModel.uiState.collectAsState()
+    val uiState = state.takeIf { it.profileId == profileId } ?: CalendarUiState()
     val viewMode by viewModel.viewMode.collectAsState()
-    val focus by viewModel.focus.collectAsState()
+    val focused by viewModel.focus.collectAsState()
+    val focus = focused.takeIf { uiState.phase == CalendarPhase.READY }
     val v2 = LocalV2Appearance.current
     val performance = LocalVisualQuality.current.tier == VisualQualityTier.PERFORMANCE
     val formats = rememberCalendarFormats()
-    var optionsRow by remember { mutableStateOf<CalendarRow?>(null) }
+    var optionsRow by remember(profileId) { mutableStateOf<CalendarRow?>(null) }
     val modeFocusRequester = remember { FocusRequester() }
+    val filterRequester = remember { FocusRequester() }
+    var showFilters by remember(profileId) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    var finding by remember { mutableStateOf<CalendarRow?>(null) }
+    var finding by remember(profileId) { mutableStateOf<CalendarRow?>(null) }
     DisposableEffect(viewModel) {
         viewModel.onScreenShown()
-        onDispose { viewModel.cancelMovieReleases() }
+        onDispose { viewModel.onScreenHidden() }
     }
     BackHandler(enabled = finding != null) { finding = null }
 
@@ -162,7 +181,7 @@ fun CalendarScreen(
 
     val open: (CalendarRow) -> Unit = { row ->
         HeroBackdropState.update(viewModel.focus.value?.takeIf { it.row.titleKey == row.titleKey }?.details?.backdrop ?: row.backdrop)
-        viewModel.onTitleOpened()
+        viewModel.onTitleOpened(row)
         onOpenTitle(row)
     }
     val watch: (CalendarRow) -> Unit = { row ->
@@ -172,7 +191,7 @@ fun CalendarScreen(
             if (finding?.key != row.key) return@launch
             finding = null
             if (target != null) {
-                viewModel.onTitleOpened()
+                viewModel.onTitleOpened(row)
                 onWatch(target)
             } else open(row)
         }
@@ -200,14 +219,18 @@ fun CalendarScreen(
                 formats = formats,
                 viewMode = viewMode,
                 modeFocusRequester = modeFocusRequester,
-                onToday = {
-                    if (viewMode == CalendarViewMode.LIST) uiState.today?.let(viewModel::openDayInList)
-                    else viewModel.showToday()
-                },
-                onViewMode = viewModel::setViewMode,
+                onToday = viewModel::selectToday,
+                filterRequester = filterRequester,
+                onFilter = { showFilters = true },
+                onViewMode = { viewModel.setViewMode(it, formats.firstDayOfWeek) },
                 onWindowDays = viewModel::setWindowDays
             )
-            if (uiState.movieReleasesUnavailable) {
+            if (uiState.refreshFailed && uiState.phase == CalendarPhase.READY) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.calendar_sources_partial), style = MaterialTheme.typography.bodySmall)
+                    Button(onClick = viewModel::retryCalendar) { Text(stringResource(R.string.calendar_retry)) }
+                }
+            } else if (uiState.movieReleasesUnavailable) {
                 Button(onClick = viewModel::loadMovieReleases) {
                     Text(stringResource(R.string.calendar_br_release_retry))
                 }
@@ -231,7 +254,14 @@ fun CalendarScreen(
                             onOpen = open,
                             onOptions = { optionsRow = it }
                         )
-                        CalendarViewMode.LIST -> CalendarListView(
+                        CalendarViewMode.LIST -> if (uiState.list.isEmpty) {
+                            EmptyScreenState(
+                                title = stringResource(R.string.calendar_filtered_empty),
+                                subtitle = stringResource(uiState.filter.labelRes),
+                                icon = Icons.Default.CalendarMonth,
+                                height = 250.dp
+                            )
+                        } else CalendarListView(
                             viewModel = viewModel,
                             uiState = uiState,
                             focus = focus,
@@ -252,7 +282,7 @@ fun CalendarScreen(
                             tabsRequester = modeFocusRequester
                         )
                     }
-                    else -> CalendarStateMessage(uiState, modeFocusRequester)
+                    else -> CalendarStateMessage(uiState, modeFocusRequester, viewModel::retryCalendar)
                 }
             }
             TvdbCreditLine(
@@ -274,6 +304,17 @@ fun CalendarScreen(
         )
     }
 
+    if (showFilters) {
+        val close = {
+            showFilters = false
+            scope.launch { filterRequester.requestFocusAfterFrames() }
+            Unit
+        }
+        CalendarFilterDialog(uiState.filter, uiState.availableFilters, close) {
+            viewModel.setFilter(it)
+            close()
+        }
+    }
     optionsRow?.let { row ->
         CalendarOptionsDialog(
             row = row,
@@ -294,6 +335,8 @@ private fun CalendarHeader(
     viewMode: CalendarViewMode,
     modeFocusRequester: FocusRequester,
     onToday: () -> Unit,
+    filterRequester: FocusRequester,
+    onFilter: () -> Unit,
     onViewMode: (CalendarViewMode) -> Unit,
     onWindowDays: (Int) -> Unit
 ) {
@@ -304,12 +347,13 @@ private fun CalendarHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
-            Text(
+            if (showBuiltInHeader) Text(
                 text = stringResource(R.string.calendar_title),
                 style = MaterialTheme.typography.headlineMedium,
-                color = if (showBuiltInHeader) NuvioTheme.colors.TextPrimary else Color.Transparent,
+                color = NuvioTheme.colors.TextPrimary,
                 fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.5.sp
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             uiState.zone?.let { zone ->
                 val name = remember(zone, uiState.now, formats.locale) {
@@ -327,7 +371,7 @@ private fun CalendarHeader(
                 )
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)) {
             Button(onClick = onToday, enabled = uiState.today != null) {
                 Text(stringResource(R.string.calendar_section_today))
             }
@@ -338,6 +382,13 @@ private fun CalendarHeader(
                 Button(onClick = { onWindowDays(nextDays) }) {
                     Text(stringResource(R.string.calendar_br_release_days, displayedDays))
                 }
+            }
+            Button(
+                onClick = onFilter,
+                modifier = Modifier.focusRequester(filterRequester),
+                enabled = uiState.phase != CalendarPhase.LOADING
+            ) {
+                Text(stringResource(uiState.filter.labelRes))
             }
             CalendarViewMode.entries.forEach { mode ->
                 val selected = mode == viewMode
@@ -407,7 +458,7 @@ private fun CalendarPageBackdrop(url: String?) {
 }
 
 @Composable
-private fun CalendarStateMessage(uiState: CalendarUiState, modeFocusRequester: FocusRequester) {
+private fun CalendarStateMessage(uiState: CalendarUiState, modeFocusRequester: FocusRequester, retry: () -> Unit) {
     LaunchedEffect(uiState.phase) { modeFocusRequester.requestFocusAfterFrames() }
     when (uiState.phase) {
         CalendarPhase.LOADING -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
@@ -443,6 +494,15 @@ private fun CalendarStateMessage(uiState: CalendarUiState, modeFocusRequester: F
             icon = Icons.Default.CalendarMonth,
             height = 320.dp
         )
+        CalendarPhase.UNAVAILABLE -> Column(
+            Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(stringResource(R.string.calendar_sources_unavailable))
+            Spacer(Modifier.height(12.dp))
+            Button(onClick = retry) { Text(stringResource(R.string.calendar_retry)) }
+        }
         CalendarPhase.READY -> Unit
     }
 }
@@ -915,6 +975,7 @@ internal fun calendarRowLine(row: CalendarRow): String = when (row.kind) {
     }
     CalendarRowKind.FILM_BR_RELEASE -> stringResource(R.string.calendar_film_br_release)
     CalendarRowKind.FILM_CINEMA -> stringResource(R.string.calendar_film_cinema)
+    CalendarRowKind.FILM_PHYSICAL -> stringResource(R.string.calendar_film_physical)
     CalendarRowKind.FILM_DIGITAL -> stringResource(R.string.calendar_film_digital)
     CalendarRowKind.SHOW -> when (row.showStatus) {
         CalendarShowStatus.IN_PRODUCTION -> stringResource(R.string.calendar_show_in_production)
@@ -989,7 +1050,7 @@ internal fun CalendarSidePanel(
                 )
                 Box(Modifier.fillMaxSize().background(calendarArtScrim()))
                 CalendarLogo(
-                    logo = row.logo ?: details?.logo,
+                    logo = details?.logo ?: row.logo,
                     name = row.name,
                     height = 36.dp,
                     maxWidth = 220.dp,
@@ -1001,14 +1062,6 @@ internal fun CalendarSidePanel(
                 Modifier.fillMaxWidth().padding(NuvioTheme.spacing.sidePanel.inner),
                 verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)
             ) {
-                Text(
-                    text = row.name ?: stringResource(R.string.calendar_unknown_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = NuvioTheme.colors.TextPrimary,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
                 val releaseLine = listOfNotNull(
                     calendarWhenLine(row, formats, today),
                     calendarRowLine(row).takeIf { it.isNotBlank() && it != row.name }
@@ -1103,7 +1156,7 @@ private fun CalendarPanelActions(
 ) {
     val out = row.status == CalendarRowStatus.WATCHED || row.status == CalendarRowStatus.NOT_WATCHED
     Row(horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-        if (out && row.kind != CalendarRowKind.FILM_CINEMA && row.kind != CalendarRowKind.SHOW) {
+        if (out && row.kind !in setOf(CalendarRowKind.FILM_CINEMA, CalendarRowKind.FILM_PHYSICAL, CalendarRowKind.SHOW)) {
             CalendarPanelAction(stringResource(R.string.calendar_reminder_watch_now), Icons.Default.PlayArrow, performance) { onWatch(row) }
         }
         CalendarPanelAction(
@@ -1179,6 +1232,37 @@ private fun CalendarNextRow(
             }
         }
     }
+    }
+}
+
+private val CalendarFilter.labelRes: Int
+    get() = when (this) {
+        CalendarFilter.ALL -> R.string.calendar_filter_all
+        CalendarFilter.SHOWS -> R.string.calendar_filter_shows
+        CalendarFilter.FILMS -> R.string.calendar_filter_films
+        CalendarFilter.ANIME -> R.string.calendar_filter_anime
+        CalendarFilter.CINEMA -> R.string.calendar_filter_cinema
+        CalendarFilter.DIGITAL -> R.string.calendar_filter_digital
+        CalendarFilter.PHYSICAL -> R.string.calendar_filter_physical
+    }
+
+@Composable
+private fun CalendarFilterDialog(
+    active: CalendarFilter,
+    available: Set<CalendarFilter>,
+    onDismiss: () -> Unit,
+    onSelect: (CalendarFilter) -> Unit
+) {
+    val selectedRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { selectedRequester.requestFocusAfterFrames() }
+    NuvioDialog(onDismiss = onDismiss, title = stringResource(R.string.calendar_filter_title), cinematicPageSurface = true) {
+        CalendarFilter.entries.filter { it in available }.forEach { filter ->
+            PanelActionRow(
+                label = stringResource(filter.labelRes),
+                focusRequester = selectedRequester.takeIf { filter == active },
+                onClick = { onSelect(filter) }
+            )
+        }
     }
 }
 

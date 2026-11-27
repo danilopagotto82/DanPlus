@@ -35,7 +35,11 @@ internal fun calendarEntriesToMerge(record: CalendarTitleRecord): List<CalendarE
             // Sources number some shows differently: under the Trakt calendar a TVmaze-only number on a day it already
             // has is that release again, not another one.
             val repeat = traktCovers && entry.slot !in otherSlots && entry.utcDay()?.let { day ->
-                others.any { other -> other.utcDay()?.let { abs(ChronoUnit.DAYS.between(day, it)) <= 1L } == true }
+                others.any { other ->
+                    other.source == CalendarSource.TRAKT &&
+                        other.utcDay()?.let { abs(ChronoUnit.DAYS.between(day, it)) <= 1L } == true &&
+                        episodeNamesCanMatch(entry.shownTitle, other.shownTitle)
+                }
             } == true
             // The same number days away from every other source is a different episode under TVmaze's numbering.
             val otherDays = others.filter { it.slot == entry.slot }.mapNotNull { it.utcDay() }
@@ -49,6 +53,9 @@ internal fun calendarEntriesToMerge(record: CalendarTitleRecord): List<CalendarE
         }
     }
 }
+
+private fun episodeNamesCanMatch(first: String?, second: String?): Boolean =
+    first == null || second == null || first.equals(second, ignoreCase = true)
 
 private fun CalendarEntry.utcDay(): LocalDate? =
     (airInstantMs ?: placeAtMs)?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }

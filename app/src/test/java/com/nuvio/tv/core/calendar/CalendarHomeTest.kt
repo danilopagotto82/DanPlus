@@ -267,11 +267,6 @@ class CalendarHomeTest {
         val item = buildCalendarComingUp(listOf(title), null, now, sydney).single()
         assertEquals(CalendarComingUpWhen.TODAY, item.whenKind)
         assertEquals(LocalDate.of(2026, 10, 6), item.date)
-
-        val sections = buildCalendarSections(listOf(title), now, sydney)
-        assertEquals(listOf(CalendarSectionKind.TODAY), sections.map { it.kind })
-        val later = buildCalendarSections(listOf(title), Instant.parse("2026-10-06T01:00:00Z"), sydney)
-        assertEquals(CalendarSectionKind.JUST_AIRED, later.first().kind)
     }
 
     @Test fun placeholderEpisodeNamesAreNotShown() {

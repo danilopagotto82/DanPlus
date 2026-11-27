@@ -1,16 +1,31 @@
 package com.nuvio.tv.ui.screens.calendar
 
+import com.nuvio.tv.core.calendar.CalendarEntryKind
 import com.nuvio.tv.core.calendar.CalendarTitleType
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CalendarWeekModelTest {
     private val monday = LocalDate.of(2026, 10, 19)
+
+    @Test fun aBrazilianPremiereUsesOnlyFormatsReportedByTheProvider() {
+        val generic = film("br", monday).copy(kind = CalendarRowKind.FILM_BR_RELEASE)
+        assertFalse(CalendarFilter.CINEMA.keeps(generic))
+        assertFalse(CalendarFilter.DIGITAL.keeps(generic))
+        val cinema = generic.copy(releaseKind = CalendarEntryKind.MOVIE_BR_CINEMA)
+        assertTrue(CalendarFilter.CINEMA.keeps(cinema))
+        assertFalse(CalendarFilter.DIGITAL.keeps(cinema))
+        val both = cinema.copy(releaseKind = CalendarEntryKind.MOVIE_BR_CINEMA_AND_DIGITAL)
+        assertTrue(CalendarFilter.CINEMA.keeps(both))
+        assertTrue(CalendarFilter.DIGITAL.keeps(both))
+        assertFalse(CalendarFilter.PHYSICAL.keeps(both))
+    }
 
     private fun episode(show: String, s: Int, e: Int, date: LocalDate, time: LocalTime? = LocalTime.of(20, 0)) = CalendarRow(
         key = "series:imdb:$show|S${s}E$e",

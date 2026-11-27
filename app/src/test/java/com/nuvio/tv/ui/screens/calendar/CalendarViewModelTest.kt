@@ -36,6 +36,7 @@ class CalendarViewModelTest {
     private val sydney = ZoneId.of("Australia/Sydney")
 
     private class FakeData(private val instant: Instant, zone: ZoneId) : CalendarScreenData {
+        override val activeProfileId = MutableStateFlow<Int?>(null)
         override val state = MutableStateFlow(CalendarState())
         override val settings = MutableStateFlow<CalendarSettings?>(null)
         override val zones = MutableStateFlow(zone)
@@ -49,6 +50,12 @@ class CalendarViewModelTest {
         }
         override suspend fun setHidden(titleKey: String, hidden: Boolean, name: String?) { calls += "hide:$titleKey:$hidden:$name" }
         override suspend fun setWindowDays(days: Int) { settings.value = settings.value?.copy(windowDays = days) }
+        override suspend fun setViewMode(profileId: Int?, mode: CalendarViewMode) {
+            calls += "mode:$profileId:$mode"
+        }
+        override suspend fun setFilter(profileId: Int?, filter: CalendarFilter) {
+            calls += "filter:$profileId:$filter"
+        }
         override suspend fun setMenuVisible(visible: Boolean) = Unit
         override suspend fun setZoneOverride(zone: String?) = Unit
         override suspend fun setCornerMessage(enabled: Boolean) = Unit
@@ -67,6 +74,42 @@ class CalendarViewModelTest {
     }
 
     private val data = FakeData(now, sydney)
+
+    @Test fun profileSwitchWaitsForTheNewPreferencesAndRejectsStaleRows() = runBlocking {
+        data.activeProfileId.value = 1
+        data.settings.value = CalendarSettings(profileId = 1, viewMode = "MONTH", filter = "SHOWS")
+        data.state.value = CalendarState(profileId = 1, loaded = true, titles = listOf(show("tt1", "2026-10-06T09:30:00Z")))
+        val vm = viewModel()
+        val initial = vm.until { it.phase == CalendarPhase.READY }
+        assertEquals(CalendarFilter.SHOWS, initial.filter)
+        vm.focusDay(LocalDate.of(2026, 11, 30))
+        vm.setFilter(CalendarFilter.ANIME)
+        assertTrue("filter:1:ANIME" in data.calls)
+
+        data.activeProfileId.value = 2
+        val switching = vm.until { it.profileId == 2 && it.phase == CalendarPhase.LOADING }
+        assertTrue(switching.list.isEmpty)
+        assertNull(vm.month.value.focusedDay)
+        data.settings.value = CalendarSettings(profileId = 2, viewMode = "LIST", filter = "FILMS")
+        data.state.value = CalendarState(profileId = 2, loaded = true, watched = CalendarWatchedIndex())
+        assertEquals(CalendarFilter.FILMS, vm.until { it.profileId == 2 && it.filter == CalendarFilter.FILMS }.filter)
+        assertEquals(CalendarViewMode.LIST, vm.viewMode.value)
+        vm.setViewMode(CalendarViewMode.WEEK)
+        assertTrue("mode:2:WEEK" in data.calls)
+    }
+
+    @Test fun anErrorIsDistinctFromQuietAndRetryCanRecover() = runBlocking {
+        data.settings.value = CalendarSettings()
+        data.state.value = CalendarState(loaded = true, refreshFailed = true)
+        val vm = viewModel()
+        vm.until { it.phase == CalendarPhase.UNAVAILABLE }
+        vm.retryCalendar()
+        assertTrue("refresh:MANUAL_RETRY" in data.calls)
+        data.state.value = CalendarState(loaded = true, refreshing = true)
+        vm.until { it.phase == CalendarPhase.BUILDING }
+        data.state.value = CalendarState(loaded = true, titles = listOf(show("tt1", "2026-10-06T09:30:00Z")))
+        assertTrue(vm.until { it.phase == CalendarPhase.READY }.days.isNotEmpty())
+    }
 
     @Before fun setUp() = Dispatchers.setMain(Dispatchers.Unconfined)
     @After fun tearDown() = Dispatchers.resetMain()
@@ -132,13 +175,13 @@ class CalendarViewModelTest {
 
     @Test fun bellTogglesForTheShowAndHideKeepsTheNameAndMovesFocusOn() = runBlocking {
         val vm = viewModel()
-        vm.setViewMode(CalendarViewMode.LIST)
         data.settings.value = CalendarSettings(profileId = 1)
         data.state.value = CalendarState(
             profileId = 1, loaded = true, watched = CalendarWatchedIndex(),
             titles = listOf(show("tt1", "2026-10-06T09:30:00Z"), show("tt2", "2026-10-07T09:30:00Z"))
         )
         val ready = vm.until { it.phase == CalendarPhase.READY }
+        vm.setViewMode(CalendarViewMode.LIST)
         val row = ready.list.entries.filterIsInstance<CalendarRowEntry>().first().row
         assertEquals(CalendarRowStatus.BELL_OFF, row.status)
         vm.toggleBell(row)
@@ -155,7 +198,8 @@ class CalendarViewModelTest {
         assertNull(vm.pendingListKey.value)
     }
 
-    @Test fun theCalendarOpensOnWeekAndTheWeekFlipsBackToThisWeek() = runBlocking {
+    @Test fun enteringAgainResetsTheWeekButChangingViewsKeepsTheFilter() = runBlocking {
+        data.settings.value = CalendarSettings(profileId = 1)
         val vm = viewModel()
         assertEquals(CalendarViewMode.WEEK, vm.viewMode.value)
         vm.shiftWeek(java.time.LocalDate.of(2026, 10, 19), 1)
@@ -164,14 +208,14 @@ class CalendarViewModelTest {
         vm.setViewMode(CalendarViewMode.LIST)
         assertEquals(java.time.LocalDate.of(2026, 10, 26), vm.weekStart.value)
         vm.setViewMode(CalendarViewMode.WEEK)
-        assertNull(vm.weekStart.value)
+        assertEquals(LocalDate.of(2026, 10, 26), vm.weekStart.value)
         assertEquals(CalendarFilter.FILMS, vm.filter.value)
         vm.shiftWeek(java.time.LocalDate.of(2026, 10, 19), -1)
         vm.onScreenShown()
         assertNull(vm.weekStart.value)
     }
 
-    @Test fun okOnAMonthDayOpensTheWeekThereAndAnEmptyDayDoesNothing() = runBlocking {
+    @Test fun monthOpensFilteredWeekWithoutResettingThePreference() = runBlocking {
         val vm = viewModel()
         data.settings.value = CalendarSettings(profileId = 1)
         data.state.value = CalendarState(
@@ -182,15 +226,18 @@ class CalendarViewModelTest {
         val day = ready.days.keys.first()
         vm.setViewMode(CalendarViewMode.MONTH)
         vm.openDayInWeek(day.minusYears(1), day.minusYears(1))
-        assertEquals(CalendarViewMode.MONTH, vm.viewMode.value)
-        assertNull(vm.pendingWeekDay.value)
+        assertEquals(CalendarViewMode.WEEK, vm.viewMode.value)
+        assertEquals(day.minusYears(1), vm.pendingWeekDay.value)
 
         vm.setFilter(CalendarFilter.FILMS)
         vm.openDayInWeek(day, day.minusDays(2))
         assertEquals(CalendarViewMode.WEEK, vm.viewMode.value)
         assertEquals(day.minusDays(2), vm.weekStart.value)
         assertEquals(day, vm.pendingWeekDay.value)
-        assertEquals(CalendarFilter.ALL, vm.filter.value)
+        assertEquals(CalendarFilter.FILMS, vm.filter.value)
+        val filtered = vm.until { it.filter == CalendarFilter.FILMS }
+        assertTrue(filtered.list.isEmpty)
+        assertTrue(filtered.days[day].isNullOrEmpty())
         vm.consumePendingWeekDay()
         assertNull(vm.pendingWeekDay.value)
     }
@@ -224,7 +271,7 @@ class CalendarViewModelTest {
         assertEquals("series:imdb:tt2|S1E1", vm.pendingListKey.value)
     }
 
-    @Test fun theMonthOpensOnTodayInTheCalendarsZone() = runBlocking {
+    @Test fun monthRetainsSelectedDateAcrossModesAndDetails() = runBlocking {
         val vm = viewModel()
         data.settings.value = CalendarSettings(profileId = 1)
         data.state.value = CalendarState(
@@ -239,13 +286,13 @@ class CalendarViewModelTest {
 
         vm.onRowFocused(later, fromList = true)
         vm.setViewMode(CalendarViewMode.MONTH)
-        assertEquals(today, vm.month.value.focusedDay(today))
+        assertEquals(later.date, vm.month.value.focusedDay(today))
         assertEquals(YearMonth.of(2026, 10), vm.month.value.month(today))
 
         vm.focusDay(LocalDate.of(2026, 10, 4))
         vm.setViewMode(CalendarViewMode.LIST)
         vm.setViewMode(CalendarViewMode.MONTH)
-        assertEquals(today, vm.month.value.focusedDay(today))
+        assertEquals(LocalDate.of(2026, 10, 4), vm.month.value.focusedDay(today))
 
         vm.focusDay(LocalDate.of(2026, 10, 4))
         vm.onScreenShown()
