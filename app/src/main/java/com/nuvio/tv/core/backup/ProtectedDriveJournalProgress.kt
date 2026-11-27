@@ -50,7 +50,11 @@ internal fun encodeProgress(scope: DriveCinemaScope, progress: DriveJournalProgr
         progress.baseline?.let { baseline ->
             put("baseline", encodeDriveSettings(scope, baseline.settings).put("revision", baseline.revision))
         }
-        progress.pending?.let { put("pending", encodeDriveJournalFile(it.entry).put("uploadId", it.fileId)) }
+        progress.pending?.let { pending ->
+            val json = encodeDriveJournalFile(pending.entry).put("uploadId", pending.fileId)
+            pending.resolutionExpectedLocal?.let { json.put("expectedLocal", encodeDriveSettings(scope, it)) }
+            put("pending", json)
+        }
     }.toString()
 
 internal fun decodeProgress(scope: DriveCinemaScope, text: String): DriveJournalProgress {
@@ -65,7 +69,7 @@ internal fun decodeProgress(scope: DriveCinemaScope, text: String): DriveJournal
     val pending = json.optJSONObject("pending")?.let {
         val fileId = it.getString("uploadId")
         require(fileId.matches(Regex("[a-zA-Z0-9_-]{1,256}")))
-        DriveJournalPending(fileId, parseDriveJournalFile(it))
+        DriveJournalPending(fileId, parseDriveJournalFile(it), it.optJSONObject("expectedLocal")?.let(::readDriveSettings))
     }
     return DriveJournalProgress(baseline, pending)
 }

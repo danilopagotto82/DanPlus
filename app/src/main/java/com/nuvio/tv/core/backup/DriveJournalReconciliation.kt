@@ -22,7 +22,7 @@ internal fun reconcileDriveJournal(
 ): DriveJournalDecision {
     if (!BackupCrypto.isValidPin(pin)) return DriveJournalDecision.Invalid
     if (state is DriveJournalState.Conflict) return DriveJournalDecision.Conflict
-    if (state == DriveJournalState.Invalid) return DriveJournalDecision.Invalid
+    if (state == DriveJournalState.Invalid || state == DriveJournalState.CapacityExceeded) return DriveJournalDecision.Invalid
     val journal = state as? DriveJournalState.Current
     if (baseline != null && journal?.history?.contains(baseline.revision) != true) {
         return DriveJournalDecision.Conflict

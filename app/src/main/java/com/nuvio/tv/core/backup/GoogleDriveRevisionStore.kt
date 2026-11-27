@@ -44,7 +44,7 @@ internal class GoogleDriveRevisionStore(
             val response = JSONObject(read(Request.Builder().url(url).authorize(bearer).build(), MAX_LIST_BYTES))
             val items = response.getJSONArray("files")
             total += items.length()
-            if (total > MAX_REVISIONS) return@withContext DriveJournalState.Invalid
+            if (total > MAX_DRIVE_REVISIONS) return@withContext DriveJournalState.CapacityExceeded
             for (index in 0 until items.length()) {
                 val item = items.getJSONObject(index)
                 val name = item.getString("name")
@@ -122,7 +122,6 @@ internal class GoogleDriveRevisionStore(
         const val MAX_CIPHERTEXT = 8192
         const val MAX_ENTRY_BYTES = 16_384L
         const val MAX_LIST_BYTES = 64 * 1024L
-        const val MAX_REVISIONS = 256
         const val MAX_PAGES = 16
         val FILE_ID = Regex("[a-zA-Z0-9_-]{1,256}")
         val DIGEST = Regex("[a-f0-9]{64}")

@@ -318,6 +318,9 @@ open class MainActivity : ComponentActivity() {
     lateinit var authManager: AuthManager
 
     @Inject
+    lateinit var driveSyncRuntime: com.nuvio.tv.core.backup.DriveSyncRuntime
+
+    @Inject
     lateinit var backupSignInOffer: com.nuvio.tv.core.backup.BackupSignInOffer
 
     @Inject
@@ -1710,6 +1713,7 @@ open class MainActivity : ComponentActivity() {
         // tracked; onActivityResult keeps it for a completion or dismisses it otherwise.
         externalPlaybackTracker.raiseAutoNextOverlayOnReturn()
         super.onStart()
+        driveSyncRuntime.setVisible(true)
         startupSyncService.startPeriodicSurfacePulls()
         androidTvChannelSyncService.onForegroundChanged(true)
         partyRuntime.setAppVisible(true)
@@ -1720,6 +1724,7 @@ open class MainActivity : ComponentActivity() {
     override fun onStop() {
         externalPlaybackTracker.onExternalPlayerCoveredApp()
         super.onStop()
+        driveSyncRuntime.setVisible(false)
         startupSyncService.stopPeriodicSurfacePulls()
         androidTvChannelSyncService.onForegroundChanged(false)
         partyRuntime.setAppVisible(false)

@@ -18,7 +18,10 @@ class DriveRevisionJournalTest {
         val firstClient = entry(root.id, "new theme")
         val secondClient = entry(root.id, "other preference")
         val files = journal(root, firstClient, secondClient)
-        assertEquals(DriveJournalState.Conflict(setOf(firstClient.id, secondClient.id)), inspectDriveJournal(files))
+        val conflict = inspectDriveJournal(files) as DriveJournalState.Conflict
+        assertEquals(setOf(firstClient.id, secondClient.id), conflict.heads)
+        assertEquals(setOf(firstClient.id, secondClient.id), conflict.entries.keys)
+        assertEquals(files.keys, conflict.history)
         assertEquals(root, files[root.id])
         val resolved = entry(null, "manually confirmed").copy(parents = setOf(firstClient.id, secondClient.id))
         assertEquals(DriveJournalState.Current(resolved, files.keys + resolved.id), inspectDriveJournal(files + (resolved.id to resolved)))
