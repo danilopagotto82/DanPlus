@@ -173,3 +173,23 @@ Executar em Shield e Fire TV. Registrar cenário, perfil, foco, resolução e re
 | Toy Story | Minha sessão de cinema → convidado → gêneros e limite familiar | Preservar classificação, PIN e temporariedade do convidado. |
 | Interestelar com dois perfis | Ajustes → Seleção de fontes → imediato, temporizado e fallback | As fontes permitidas e ordem seguem a configuração de cada perfil. Conferir REMUX aprovado no gate de reprodução. |
 | Backup de teste | Backup e restauração → exportar → importar em outro aparelho | Segredos exigem PIN correto. Preferências técnicas ficam locais. Drive real somente no gate próprio. |
+
+## ML07 — checkpoint de desenvolvimento para ML08
+
+- Implementação e estudos em 9ddda14. Base ML06 em 8828596, com implementação em 6b30294. Branch feat/danplus-2.1.2-homologacao-20261127. HEAD oficial conferido em 5cb4f2d. Commits ML07 locais.
+- 69 testes JVM em 10 classes, sem falhas. Kotlin/Compose direto com dependências e classes em cache. Gradle completo, AndroidTest, variantes e aparelhos **NÃO TESTADOS**. Nenhum APK, instalação ou publicação.
+- RS-27/36 e LAB-USENET ficam como estudos. As fixtures de episódios são sintéticas e a seleção alternativa permanece desligada. Drive v2 permanece desativado no app, com três preferências portáteis e transporte simulado testado. HIST-01 conserva 194 registros documentais e segue pendente para reconciliação individual completa. A contagem da matriz canônica permanece 34, e a complementar mantém 10. LAB-EM-CENA permanece HOLD. [Estudos e limitações](ML07_ESTUDOS_E_GATES.md)
+- JDK 17, plataforma SDK 36, AAPT2, distribuição Gradle 8.13 e cache de dependências presentes. A resolução integral de dependências das variantes precisa do ML08. O Client ID WeTrakr em local.dev.properties na cópia coincide com o da worktree oficial e está ignorado pelo Git. Verificar a injeção nas variantes no gate. Keystore e configuração de criptografia da assinatura release não foram encontrados no ambiente de build consultado. Providenciar por canal privado antes de release assinado. OAuth/Drive exige gate externo independente da compilação.
+- Recuperar o bundle cumulativo ML07 em repositório isolado com a base 5cb4f2d9f9af6ffcee077d0385cf7bd9f9909d7d. Verificar pré-requisitos, SHA-256, fsck e árvore antes de preparar o ambiente de compilação. A cópia gravável já contém o HEAD novo. A worktree oficial deve ser inspecionada quanto a alterações locais e preservada. Usar checkout isolado do repositório recuperado se a oficial estiver ocupada ou se faltar objeto histórico. Reprovisionar a configuração privada para a árvore efetiva, mantendo local.dev.properties fora do Git.
+
+### Complemento do checklist físico ML08
+
+Executar as três tabelas de ML05/ML06 acima e os casos abaixo em Shield e Fire TV. Registrar variante, aparelho, caminho, foco, título e fonte. Todos os casos permanecem **NÃO TESTADOS**.
+
+| Título ou cenário | Caminho | Problema anterior | Resultado esperado em Shield e Fire TV |
+| --- | --- | --- | --- |
+| Duna: Parte Dois e Interestelar | Home clássica → rolar da faixa hero para as fileiras → alternar foco → subir e voltar | Fundo do catálogo começava abaixo da barra | Continuidade atrás da barra e legibilidade com 0/60/100% de transparência. Relógio, avatar e foco mantêm posição. |
+| Deadpool & Wolverine | Home moderna → Descobrir → Biblioteca → Para Você | Possível faixa ou arte mais escura nas transições | Fundo de página contínuo. Focus Dock permanece no painel. DPAD e Back restituem o foco. |
+| Lost | Biblioteca → série → episódio → selecionar fonte → retomar | Reordenação poderia usar o número de outro episódio para tracking | Ordem Certa atual preservada. Retomada e histórico verificáveis usando perfil autorizado, sem ativar ordem experimental. |
+| Minority Report | Detalhes → trailer externo → voltar | Possível perda de foco e escolha PT-BR inconsistente | Retorno ao diálogo ou detalhe de origem com foco preservado. Conferir prioridade de versão PT-BR. |
+| Dois perfis com cópia fictícia | Configurações → Backup → exportar/importar → trocar perfil | Preferência de outro perfil pode parecer aplicada após retorno | Backup manual respeita escopo, PIN e preferências técnicas locais. Drive automático permanece desligado. |
