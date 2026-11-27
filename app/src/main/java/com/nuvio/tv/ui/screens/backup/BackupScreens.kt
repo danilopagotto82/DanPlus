@@ -58,6 +58,7 @@ import com.nuvio.tv.core.backup.BackupCrypto
 import com.nuvio.tv.core.backup.BackupDocument
 import com.nuvio.tv.core.backup.BackupHistory
 import com.nuvio.tv.core.backup.BackupPart
+import com.nuvio.tv.core.backup.PortableBackupEnvelope
 import com.nuvio.tv.ui.components.NuvioDialog
 import com.nuvio.tv.ui.components.PinPad
 import com.nuvio.tv.ui.components.pinAfterKey
@@ -111,6 +112,9 @@ internal fun BackupFlow(state: BackupUiState, viewModel: BackupViewModel) {
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         viewModel.permissionResult(granted)
     }
+    val export = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"), viewModel::exportPortable
+    )
     LaunchedEffect(state.needsPermission) {
         if (state.needsPermission) permission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
     }
@@ -134,6 +138,26 @@ internal fun BackupFlow(state: BackupUiState, viewModel: BackupViewModel) {
 
     when (val dialog = state.dialog) {
         null, is BackupDialog.Phone -> Unit
+        is BackupDialog.PortableExport -> NuvioDialog(
+            onDismiss = viewModel::dismissDialog,
+            title = stringResource(R.string.backup_export_encrypted),
+            subtitle = stringResource(R.string.backup_portable_destination)
+        ) {
+            val filesFocus = remember { FocusRequester() }
+            SettingsDialogActionRow {
+                SettingsDialogActionButton(stringResource(R.string.ml06_export_document), {
+                    try {
+                        export.launch(dialog.filename)
+                    } catch (_: android.content.ActivityNotFoundException) {
+                        viewModel.portablePickerUnavailable()
+                    }
+                }, modifier = Modifier.focusRequester(filesFocus))
+                SettingsDialogActionButton(
+                    stringResource(R.string.backup_also_phone), viewModel::sendPortableToPhone
+                )
+            }
+            LaunchedEffect(Unit) { runCatching { filesFocus.requestFocus() } }
+        }
         is BackupDialog.Message -> NuvioDialog(
             onDismiss = viewModel::dismissDialog,
             title = stringResource(R.string.backup_title),
@@ -150,9 +174,6 @@ internal fun BackupFlow(state: BackupUiState, viewModel: BackupViewModel) {
             title = stringResource(R.string.backup_saved_title),
             subtitle = stringResource(R.string.backup_saved_where, dialog.saved.file.displayName.removeSuffix(".json"))
         ) {
-            val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-                if (uri != null) viewModel.exportPortable(uri, dialog.saved.document)
-            }
             val parts = dialog.saved.document.header.parts
             val focus = remember { FocusRequester() }
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -186,12 +207,8 @@ internal fun BackupFlow(state: BackupUiState, viewModel: BackupViewModel) {
                 )
             }
             SettingsDialogActionRow {
-                SettingsDialogActionButton(stringResource(R.string.ml06_export_document), {
-                    try {
-                        export.launch(dialog.saved.file.displayName)
-                    } catch (_: android.content.ActivityNotFoundException) {
-                        android.widget.Toast.makeText(context, R.string.ml06_export_unavailable, android.widget.Toast.LENGTH_SHORT).show()
-                    }
+                SettingsDialogActionButton(stringResource(R.string.backup_export_encrypted), {
+                    viewModel.requestPortableExport(dialog.saved)
                 })
                 SettingsDialogActionButton(stringResource(R.string.backup_done), viewModel::dismissDialog)
                 SettingsDialogActionButton(
@@ -478,21 +495,34 @@ private fun BackupPinOverlay(
         when (step) {
             BackupPinStep.Create -> R.string.backup_pin_create_heading
             is BackupPinStep.Confirm -> R.string.backup_pin_confirm_heading
-            is BackupPinStep.Restore -> R.string.backup_pin_restore_heading
+            is BackupPinStep.PortableExport -> if (step.first == null) {
+                R.string.backup_pin_create_heading
+            } else R.string.backup_pin_confirm_heading
+            is BackupPinStep.Restore, is BackupPinStep.PortableImport -> R.string.backup_pin_restore_heading
         }
     )
     val support = when {
         !errorMessage.isNullOrEmpty() -> errorMessage
         busy -> stringResource(R.string.backup_pin_checking)
+        step is BackupPinStep.PortableImport -> stringResource(R.string.backup_portable_pin_open)
+        step is BackupPinStep.PortableExport && step.first == null -> stringResource(R.string.backup_portable_pin_create)
+        step is BackupPinStep.PortableExport -> stringResource(R.string.backup_pin_confirm_support)
         step is BackupPinStep.Restore -> stringResource(R.string.backup_pin_restore_support)
         step is BackupPinStep.Confirm -> stringResource(R.string.backup_pin_confirm_support)
         else -> stringResource(R.string.backup_pin_create_support)
     }
     val backHint = stringResource(
-        if (step is BackupPinStep.Restore) R.string.backup_pin_restore_back else R.string.backup_pin_create_back
+        when (step) {
+            is BackupPinStep.PortableExport, is BackupPinStep.PortableImport -> R.string.action_cancel
+            is BackupPinStep.Restore -> R.string.backup_pin_restore_back
+            else -> R.string.backup_pin_create_back
+        }
     )
     val boxes = (pin.length + 1).coerceIn(BackupCrypto.MIN_PIN_LENGTH, BackupCrypto.MAX_PIN_LENGTH)
-    val canFinish = BackupCrypto.isValidPin(pin) && !busy
+    val minimum = if (step is BackupPinStep.PortableExport || step is BackupPinStep.PortableImport) {
+        PortableBackupEnvelope.MIN_PIN_LENGTH
+    } else BackupCrypto.MIN_PIN_LENGTH
+    val canFinish = BackupCrypto.isValidPin(pin) && pin.length >= minimum && !busy
 
     fun finish() {
         if (!canFinish) return

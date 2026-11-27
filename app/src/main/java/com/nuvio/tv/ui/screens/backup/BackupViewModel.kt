@@ -2,10 +2,15 @@ package com.nuvio.tv.ui.screens.backup
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nuvio.tv.R
 import com.nuvio.tv.core.backup.BackupDocument
+import com.nuvio.tv.core.backup.PortableBackupInput
+import com.nuvio.tv.core.backup.PortableBackupEnvelope
+import com.nuvio.tv.core.backup.SealedBox
+import com.nuvio.tv.core.backup.WrongBackupPinException
 import com.nuvio.tv.core.backup.BackupManager
 import com.nuvio.tv.core.backup.BackupPart
 import com.nuvio.tv.core.backup.BackupSaved
@@ -32,6 +37,7 @@ data class BackupListItem(val file: SavedBackup, val document: BackupDocument?)
 sealed interface BackupDialog {
     data object WhereFrom : BackupDialog
     data class Saved(val saved: BackupSaved) : BackupDialog
+    data class PortableExport(val filename: String, val payload: String) : BackupDialog
     data class Choose(val items: List<BackupListItem>) : BackupDialog
     data class Phone(val saving: Boolean, val qr: Bitmap?, val url: String) : BackupDialog
     data class Restore(val document: BackupDocument) : BackupDialog
@@ -41,6 +47,8 @@ sealed interface BackupDialog {
 sealed interface BackupPinStep {
     data object Create : BackupPinStep
     data class Confirm(val first: String) : BackupPinStep
+    data class PortableExport(val saved: BackupSaved, val first: String? = null) : BackupPinStep
+    data class PortableImport(val box: SealedBox) : BackupPinStep
     data class Restore(val document: BackupDocument, val parts: Set<BackupPart>, val sections: Set<String>) : BackupPinStep
 }
 
@@ -78,7 +86,7 @@ class BackupViewModel @Inject constructor(
                 if (document != null && (_state.value.dialog as? BackupDialog.Phone)?.saving == false) {
                     val finished = server
                     server = null
-                    _state.update { it.copy(dialog = BackupDialog.Restore(document)) }
+                    offerPortableRestore(document)
                     delay(1000)
                     finished?.stop()
                 }
@@ -114,6 +122,7 @@ class BackupViewModel @Inject constructor(
     }
 
     fun pinEntered(pin: String) {
+        if (_state.value.busy) return
         when (val step = _state.value.pin) {
             BackupPinStep.Create -> _state.update { it.copy(pin = BackupPinStep.Confirm(pin), pinError = null) }
             is BackupPinStep.Confirm -> if (step.first == pin) {
@@ -122,6 +131,16 @@ class BackupViewModel @Inject constructor(
             } else {
                 _state.update { it.copy(pin = BackupPinStep.Create, pinError = context.getString(R.string.backup_pin_mismatch)) }
             }
+            is BackupPinStep.PortableExport -> {
+                when {
+                    step.first == null -> _state.update { it.copy(pin = step.copy(first = pin), pinError = null) }
+                    step.first != pin -> _state.update {
+                        it.copy(pin = step.copy(first = null), pinError = context.getString(R.string.backup_pin_mismatch))
+                    }
+                    else -> preparePortableExport(step.saved, pin)
+                }
+            }
+            is BackupPinStep.PortableImport -> unlockPortable(step.box, pin)
             is BackupPinStep.Restore -> viewModelScope.launch {
                 _state.update { it.copy(busy = true, pinError = null) }
                 val opens = withContext(Dispatchers.Default) { manager.opens(step.document, pin) }
@@ -137,11 +156,13 @@ class BackupViewModel @Inject constructor(
 
     /** Back on the PIN screen: back up without passwords, or restore everything else. */
     fun pinSkipped() {
+        if (_state.value.busy) return
         when (val step = _state.value.pin) {
             BackupPinStep.Create, is BackupPinStep.Confirm -> {
                 _state.update { it.copy(pin = null, pinError = null) }
                 runBackup(null)
             }
+            is BackupPinStep.PortableExport, is BackupPinStep.PortableImport -> dismissPin()
             is BackupPinStep.Restore -> {
                 _state.update { it.copy(pin = null, pinError = null) }
                 val rest = step.parts - BackupPart.SECRETS
@@ -165,44 +186,97 @@ class BackupViewModel @Inject constructor(
         }
     }
 
-    fun exportPortable(uri: android.net.Uri, document: BackupDocument) {
+    fun requestPortableExport(saved: BackupSaved) {
+        _state.update { it.copy(pin = BackupPinStep.PortableExport(saved), pinError = null) }
+    }
+
+    private fun preparePortableExport(saved: BackupSaved, pin: String) = viewModelScope.launch {
+        _state.update { it.copy(busy = true) }
+        val payload = withContext(Dispatchers.Default) {
+            runCatching { PortableBackupEnvelope.seal(saved.document, pin) }.getOrNull()
+        }
+        _state.update { it.copy(busy = false, pin = null, pinError = null) }
+        if (payload == null) {
+            showMessage(context.getString(R.string.ml06_export_failed))
+        } else {
+            val name = saved.file.displayName.removeSuffix(".json") + "-encrypted.json"
+            _state.update { it.copy(dialog = BackupDialog.PortableExport(name, payload)) }
+        }
+    }
+
+    fun exportPortable(uri: Uri?) {
+        val export = _state.value.dialog as? BackupDialog.PortableExport ?: return
+        _state.update { it.copy(dialog = null, busy = uri != null) }
+        if (uri == null) return
         viewModelScope.launch {
             val done = withContext(Dispatchers.IO) {
                 runCatching {
                     val output = context.contentResolver.openOutputStream(uri, "wt")
                         ?: error("Backup destination unavailable")
-                    output.bufferedWriter(Charsets.UTF_8).use {
-                        it.write(com.nuvio.tv.core.backup.BackupFormat.encode(document))
-                    }
+                    output.bufferedWriter(Charsets.UTF_8).use { it.write(export.payload) }
                 }.isSuccess
             }
+            _state.update { it.copy(busy = false) }
             showMessage(context.getString(if (done) R.string.ml06_export_saved else R.string.ml06_export_failed))
         }
     }
 
-    fun openPortable(uri: android.net.Uri) {
+    fun portablePickerUnavailable() {
+        showMessage(context.getString(R.string.ml06_export_unavailable))
+    }
+
+    fun openPortable(uri: Uri) {
+        if (_state.value.busy) return
+        _state.update { it.copy(busy = true) }
         viewModelScope.launch {
-            val document = withContext(Dispatchers.IO) {
+            val result = withContext(Dispatchers.IO) {
                 runCatching {
                     val input = context.contentResolver.openInputStream(uri)
                         ?: error("Backup source unavailable")
-                    val text = input.bufferedReader(Charsets.UTF_8).use { reader ->
-                        val limit = 16 * 1024 * 1024
-                        val body = StringBuilder()
-                        val buffer = CharArray(8 * 1024)
+                    val text = input.use { stream ->
+                        val output = java.io.ByteArrayOutputStream()
+                        val buffer = ByteArray(8 * 1024)
                         while (true) {
-                            val count = reader.read(buffer)
+                            val count = stream.read(buffer)
                             if (count < 0) break
-                            require(body.length + count <= limit)
-                            body.append(buffer, 0, count)
+                            require(output.size() + count <= PortableBackupEnvelope.MAX_FILE_BYTES)
+                            output.write(buffer, 0, count)
                         }
-                        body.toString()
+                        output.toString(Charsets.UTF_8.name())
                     }
-                    com.nuvio.tv.core.backup.BackupFormat.decode(text)
+                    PortableBackupInput.parse(text)
                 }.getOrNull()
             }
-            if (document == null) showMessage(context.getString(R.string.ml06_import_failed))
-            else _state.update { it.copy(dialog = BackupDialog.Restore(document)) }
+            _state.update { it.copy(busy = false) }
+            if (result == null) showMessage(context.getString(R.string.ml06_import_failed))
+            else offerPortableRestore(result)
+        }
+    }
+
+    private fun offerPortableRestore(input: PortableBackupInput) {
+        _state.update {
+            when (input) {
+                is PortableBackupInput.Encrypted -> it.copy(
+                    dialog = null, pin = BackupPinStep.PortableImport(input.box), pinError = null
+                )
+                is PortableBackupInput.Legacy -> it.copy(dialog = BackupDialog.Restore(input.document), pin = null)
+            }
+        }
+    }
+
+    private fun unlockPortable(box: SealedBox, pin: String) = viewModelScope.launch {
+        _state.update { it.copy(busy = true, pinError = null) }
+        val result = withContext(Dispatchers.Default) { runCatching { PortableBackupEnvelope.open(box, pin) } }
+        _state.update { it.copy(busy = false) }
+        result.onSuccess { document ->
+            _state.update { it.copy(pin = null, dialog = BackupDialog.Restore(document)) }
+        }.onFailure {
+            if (it is WrongBackupPinException) {
+                _state.update { state -> state.copy(pinError = context.getString(R.string.backup_pin_wrong)) }
+            } else {
+                _state.update { state -> state.copy(pin = null) }
+                showMessage(context.getString(R.string.ml06_import_failed))
+            }
         }
     }
 
@@ -223,7 +297,14 @@ class BackupViewModel @Inject constructor(
         else _state.update { it.copy(dialog = BackupDialog.Restore(document)) }
     }
 
-    fun openPhone(saving: Boolean) {
+    fun sendPortableToPhone() {
+        val export = _state.value.dialog as? BackupDialog.PortableExport ?: return
+        startPhone(saving = true, encryptedExport = export.filename to export.payload)
+    }
+
+    fun openPhone(saving: Boolean) = startPhone(saving)
+
+    private fun startPhone(saving: Boolean, encryptedExport: Pair<String, String>? = null) {
         val ip = DeviceIpAddress.get(context)
         if (ip == null) {
             showMessage(context.getString(R.string.error_network_required))
@@ -231,7 +312,7 @@ class BackupViewModel @Inject constructor(
         }
         stopServer()
         manager.clearReceived()
-        val started = BackupServer.startOnAvailablePort(context, manager, saving, { logoBytes })
+        val started = BackupServer.startOnAvailablePort(context, manager, saving, { logoBytes }, encryptedExport = encryptedExport)
         if (started == null) {
             showMessage(context.getString(R.string.error_server_ports_unavailable))
             return

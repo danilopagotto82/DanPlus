@@ -36,8 +36,8 @@ class BackupManager @Inject constructor(
     val lastBackupMs: StateFlow<Long> = _lastBackupMs.asStateFlow()
 
     /** A backup sent from a phone, waiting for the viewer to choose what to restore. */
-    private val _received = MutableStateFlow<BackupDocument?>(null)
-    val received: StateFlow<BackupDocument?> = _received.asStateFlow()
+    private val _received = MutableStateFlow<PortableBackupInput?>(null)
+    internal val received: StateFlow<PortableBackupInput?> = _received.asStateFlow()
 
     init {
         _includeSecrets.value = prefs.getBoolean(KEY_SECRETS, true)
@@ -86,7 +86,7 @@ class BackupManager @Inject constructor(
 
     /** Takes a file sent from a phone. Returns false when it is not an Arc backup. */
     fun receive(text: String): Boolean {
-        val document = runCatching { BackupFormat.decode(text) }.getOrNull() ?: return false
+        val document = runCatching { PortableBackupInput.parse(text) }.getOrNull() ?: return false
         _received.value = document
         return true
     }

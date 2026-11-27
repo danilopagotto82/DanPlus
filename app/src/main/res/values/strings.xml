@@ -4726,4 +4726,8 @@
     <string name="player_source_recovery_timeout">Source recovery timed out. Choose another source to continue.</string>
     <string name="plugin_confirm_local_removal">Review the repository you are about to remove:</string>
     <string name="danplus_metadata_episode_runtime">%d min/episode</string>
+    <string name="backup_export_encrypted">Export encrypted backup</string>
+    <string name="backup_portable_pin_create">Use 12 to 16 digits. Keep this PIN to unlock the exported file on another device.</string>
+    <string name="backup_portable_pin_open">Enter the 12- to 16-digit PIN for this encrypted file.</string>
+    <string name="backup_portable_destination">Choose a document provider or transfer the encrypted file to your phone.</string>
 </resources>

@@ -13,9 +13,14 @@ class BackupServer(
     private val manager: BackupManager,
     private val saving: Boolean,
     private val logoProvider: () -> ByteArray?,
-    port: Int
+    port: Int,
+    encryptedExport: Pair<String, String>? = null
 ) : NanoHTTPD(port) {
-    val key: String = ByteArray(4).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
+    private val encryptedBytes = encryptedExport?.second?.toByteArray(Charsets.UTF_8)
+    private val encryptedFile = encryptedExport?.let { (name, _) ->
+        SavedBackup("encrypted", name, System.currentTimeMillis(), checkNotNull(encryptedBytes).size.toLong())
+    }
+    val key: String = ByteArray(16).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
 
     override fun serve(session: IHTTPSession): Response {
         val uri = session.uri
@@ -30,12 +35,16 @@ class BackupServer(
         }
     }
 
-    private fun backups(): List<SavedBackup> = if (saving) manager.files.list() else emptyList()
+    private fun backups(): List<SavedBackup> = when {
+        !saving -> emptyList()
+        encryptedFile != null -> listOf(encryptedFile)
+        else -> manager.files.list()
+    }
 
     private fun download(id: String): Response {
-        val backup = manager.files.list().firstOrNull { it.id == id }
+        val backup = backups().firstOrNull { it.id == id }
             ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not found")
-        val bytes = manager.files.readBytes(backup.id)
+        val bytes = (if (encryptedFile != null) encryptedBytes else manager.files.readBytes(backup.id))
             ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not found")
         return newFixedLengthResponse(Response.Status.OK, BackupFiles.MIME, bytes.inputStream(), bytes.size.toLong()).apply {
             addHeader("Content-Disposition", "attachment; filename=\"${backup.displayName.replace("\"", "")}\"")
@@ -44,7 +53,7 @@ class BackupServer(
 
     private fun receive(session: IHTTPSession): Response {
         val length = session.headers["content-length"]?.toLongOrNull() ?: 0L
-        if (length <= 0L || length > MAX_UPLOAD_BYTES) {
+        if (length <= 0L || length > PortableBackupEnvelope.MAX_FILE_BYTES) {
             return newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "size")
         }
         val bytes = ByteArray(length.toInt())
@@ -54,7 +63,7 @@ class BackupServer(
             if (count < 0) break
             read += count
         }
-        val accepted = manager.receive(String(bytes, 0, read, Charsets.UTF_8))
+        val accepted = read == bytes.size && manager.receive(bytes.toString(Charsets.UTF_8))
         return if (accepted) {
             newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, "ok")
         } else {
@@ -68,7 +77,6 @@ class BackupServer(
     }
 
     companion object {
-        private const val MAX_UPLOAD_BYTES = 8L * 1024 * 1024
         private const val SOCKET_READ_TIMEOUT = 5000
 
         fun startOnAvailablePort(
@@ -77,10 +85,11 @@ class BackupServer(
             saving: Boolean,
             logoProvider: () -> ByteArray?,
             startPort: Int = 8093,
-            maxAttempts: Int = 10
+            maxAttempts: Int = 10,
+            encryptedExport: Pair<String, String>? = null
         ): BackupServer? {
             for (port in startPort until startPort + maxAttempts) {
-                val server = BackupServer(context, manager, saving, logoProvider, port)
+                val server = BackupServer(context, manager, saving, logoProvider, port, encryptedExport)
                 try {
                     server.start(SOCKET_READ_TIMEOUT, false)
                     return server

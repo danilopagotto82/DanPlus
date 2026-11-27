@@ -4695,4 +4695,8 @@
     <string name="licenses_attributions_sources_body">O DanPlus é um aplicativo de reprodução. Ele não inclui, hospeda, fornece nem indica links para filmes, séries, canais ou transmissões. O conteúdo vem de fontes que você escolhe conectar, como seu servidor de mídia, uma conta em outro serviço, um addon ou uma extensão. Essas fontes são criadas e operadas por terceiros. O DanPlus não as controla, verifica ou endossa. Cabe a você verificar se tem direito de reproduzir o conteúdo e se o uso segue a legislação do local onde vive.</string>
     <string name="pause_imdb_score">IMDb %1$.1f</string>
     <string name="danplus_metadata_episode_runtime">%d min/episódio</string>
+    <string name="backup_export_encrypted">Exportar backup criptografado</string>
+    <string name="backup_portable_pin_create">Use de 12 a 16 dígitos. Guarde este PIN para abrir o arquivo exportado em outro aparelho.</string>
+    <string name="backup_portable_pin_open">Informe o PIN de 12 a 16 dígitos deste arquivo criptografado.</string>
+    <string name="backup_portable_destination">Escolha um provedor de arquivos ou envie o arquivo criptografado para o telefone.</string>
 </resources>
